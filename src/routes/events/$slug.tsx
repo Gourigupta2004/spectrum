@@ -8,6 +8,21 @@ import { SuccessOverlay } from "@/components/spectrum/success-overlay";
 import { useSelection } from "@/components/spectrum/selection-context";
 import { BUNDLE_PRICE, galleryEvent, moments } from "@/lib/spectrum-data";
 
+/**
+ * Watermark weight. `font-black` is already CSS weight 900 — the heaviest the
+ * face goes — so extra boldness has to come from glyph size plus an outline
+ * stroke, which thickens each stem beyond what any font-weight can.
+ */
+const WATERMARK_STROKE = "0.045em";
+
+/**
+ * Preview blur for gallery tiles. This is a deterrent, not protection: the
+ * full-resolution file is still what the browser fetched, so anyone who opens
+ * devtools can drop the filter. Real protection is serving a pre-blurred,
+ * watermark-baked derivative and keeping the clean file behind the purchase.
+ */
+const PREVIEW_BLUR = "blur-[3px]";
+
 export const Route = createFileRoute("/events/$slug")({
   head: () => ({
     meta: [
@@ -82,7 +97,13 @@ function GalleryPage() {
           </p>
         </div>
 
-        <div id="gallery-grid" className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
+        <div
+          id="gallery-grid"
+          /* Deterrents only — see PREVIEW_BLUR. Blocks the right-click "save
+             image as" path and drops the grid out of print/print-to-PDF. */
+          onContextMenu={(e) => e.preventDefault()}
+          className="no-capture mt-10 grid select-none grid-cols-2 gap-4 md:grid-cols-3"
+        >
           {moments.map((m, i) => {
             const isSel = selected.includes(m.id);
             return (
@@ -102,13 +123,17 @@ function GalleryPage() {
                   alt={m.title}
                   loading="lazy"
                   draggable={false}
-                  className="undraggable absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                  /* Blurred so the moment is still recognisable but the frame is
+                     not worth taking; the scale is overscan, so the blur's soft
+                     edge is clipped by the tile rather than showing a halo. */
+                  className={`undraggable absolute inset-0 h-full w-full scale-[1.08] object-cover transition-transform duration-700 group-hover:scale-[1.12] ${PREVIEW_BLUR}`}
                 />
                 <span className="pointer-events-none absolute inset-0 z-[4] grid place-items-center p-3">
                   <span
-                    className="rotate-[-20deg] text-center text-base font-black uppercase tracking-[0.18em] text-white antialiased md:text-xl lg:text-2xl"
+                    style={{ WebkitTextStroke: `${WATERMARK_STROKE} currentColor` }}
+                    className="rotate-[-20deg] text-center text-2xl font-black uppercase tracking-[0.18em] text-white antialiased md:text-4xl lg:text-5xl"
                   >
-                    Spectrum Preview Only
+                    Preview Only
                   </span>
                 </span>
 
@@ -142,7 +167,9 @@ function GalleryPage() {
                   </span>
                 </span>
 
-                <span className="pointer-events-none absolute inset-0 z-[3] grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                {/* Above the watermark (z-4): the watermark is now large enough to
+                    bury this affordance, and it only shows on hover anyway. */}
+                <span className="pointer-events-none absolute inset-0 z-[5] grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                   <span className="spectrum-border glass rounded-full px-4 py-2 text-xs text-foreground">
                     {isSel ? "Selected" : "Select This Moment"}
                   </span>

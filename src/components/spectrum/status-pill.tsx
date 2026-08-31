@@ -24,6 +24,28 @@ export function StatusPill({
     );
   }
 
+  // The institution still owes us the text.
+  if (status === "needs-caption") {
+    return (
+      <span
+        className={`${base} border border-[#ffc93c] bg-[#221f29]/85 text-[#ffd978] backdrop-blur-sm ${className}`}
+      >
+        {captionStatusLabel[status]}
+      </span>
+    );
+  }
+
+  // Sign-off only — no correction is offered at this stage.
+  if (status === "final-approval") {
+    return (
+      <span
+        className={`${base} border border-[#3d8bff] bg-[#221f29]/85 text-[#9dc4ff] backdrop-blur-sm ${className}`}
+      >
+        {captionStatusLabel[status]}
+      </span>
+    );
+  }
+
   if (status === "needs-correction") {
     return (
       <span

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Instagram, Youtube, Facebook, Mail, Phone } from "lucide-react";
-import logoLight from "@/assets/spectrum-logo-light.png.asset.json";
 
 export function Footer() {
   return (
@@ -8,7 +7,12 @@ export function Footer() {
       <div className="spectrum-hairline w-full" />
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-3">
         <div>
-          <img src={logoLight.url} alt="Spectrum" className="h-9 w-auto" draggable={false} />
+          <img
+            src="/spectrum-logo-light.png"
+            alt="Spectrum"
+            className="h-9 w-auto"
+            draggable={false}
+          />
           <p className="mt-4 font-display text-lg text-foreground">Imagination That Works</p>
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
             Premium photography and videography for school and college events across India.

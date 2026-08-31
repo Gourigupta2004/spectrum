@@ -1,26 +1,37 @@
 import { moments, type Moment } from "./spectrum-data";
 
 export type CaptionStatus =
+  | "needs-caption"
   | "needs-approval"
   | "needs-correction"
+  | "final-approval"
   | "approved"
   | "corrected";
+
+/**
+ * The states Spectrum can put an item into. `approved`/`corrected` are outcomes
+ * the institution produces, so they are never a request.
+ */
+export type CaptionRequest = Exclude<CaptionStatus, "approved" | "corrected">;
 
 export type CaptionItem = {
   id: string;
   momentTitle: string;
   image: string;
+  /** Empty for `needs-caption` items — the institution has yet to write one. */
   caption: string;
   /** What Spectrum originally asked the institution to do. */
-  requested: "needs-approval" | "needs-correction";
+  requested: CaptionRequest;
   status: CaptionStatus;
   updatedAt: string;
   actionBy?: string;
 };
 
 export const captionStatusLabel: Record<CaptionStatus, string> = {
+  "needs-caption": "Needs Caption",
   "needs-approval": "Needs Approval",
   "needs-correction": "Needs Correction",
+  "final-approval": "Final Approval",
   approved: "Approved",
   corrected: "Corrected",
 };
@@ -103,6 +114,42 @@ export const captionItems: CaptionItem[] = [
     status: "approved",
     updatedAt: "March 20, 2025",
     actionBy: "A. Kapoor",
+  },
+  {
+    id: "c-9",
+    momentTitle: "Finale & Confetti",
+    image: img("Finale & Confetti"),
+    caption: "",
+    requested: "needs-caption",
+    status: "needs-caption",
+    updatedAt: "March 22, 2025",
+  },
+  {
+    id: "c-10",
+    momentTitle: "Backstage Candids",
+    image: img("Backstage Candids"),
+    caption: "",
+    requested: "needs-caption",
+    status: "needs-caption",
+    updatedAt: "March 22, 2025",
+  },
+  {
+    id: "c-11",
+    momentTitle: "Prize Distribution",
+    image: img("Prize Distribution"),
+    caption: "Head Girl receives the Best Performer trophy at Annual Day 2025.",
+    requested: "final-approval",
+    status: "final-approval",
+    updatedAt: "March 22, 2025",
+  },
+  {
+    id: "c-12",
+    momentTitle: "Group Photo — Students",
+    image: img("Group Photo — Students"),
+    caption: "Class XII students gather on stage after the closing performance.",
+    requested: "final-approval",
+    status: "final-approval",
+    updatedAt: "March 22, 2025",
   },
   {
     id: "c-8",

@@ -282,6 +282,14 @@
   }
 }
 
+/* Keeps a region out of print and print-to-PDF. One of the few capture paths a
+   page can actually block — OS-level screenshots cannot be prevented on the web. */
+@media print {
+  .no-capture {
+    display: none !important;
+  }
+}
+
 @utility undraggable {
   -webkit-user-drag: none;
   user-select: none;

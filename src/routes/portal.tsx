@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ImagePlus, LogOut, Plus, X } from "lucide-react";
+import { ImagePlus, LogOut, Plus, RefreshCw, X } from "lucide-react";
 import { Orb } from "@/components/spectrum/orb";
 import { StatusPill } from "@/components/spectrum/status-pill";
 import {
@@ -12,7 +12,6 @@ import {
   type CaptionItem,
   type CaptionStatus,
 } from "@/lib/caption-data";
-import logoLight from "@/assets/spectrum-logo-light.png.asset.json";
 
 export const Route = createFileRoute("/portal")({
   head: () => ({
@@ -35,8 +34,10 @@ export const Route = createFileRoute("/portal")({
 
 const tabs: ("All" | CaptionStatus)[] = [
   "All",
+  "needs-caption",
   "needs-approval",
   "needs-correction",
+  "final-approval",
   "approved",
   "corrected",
 ];
@@ -64,7 +65,12 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         transition={{ type: "spring", stiffness: 240, damping: 26 }}
         className="spectrum-border glass relative z-10 w-full max-w-md overflow-hidden rounded-3xl bg-surface p-8"
       >
-        <img src={logoLight.url} alt="Spectrum" className="h-7 w-auto" draggable={false} />
+        <img
+          src="/spectrum-logo-light.png"
+          alt="Spectrum"
+          className="h-7 w-auto"
+          draggable={false}
+        />
         <p className="mt-6 font-display text-xs uppercase tracking-[0.24em] text-muted-foreground">
           Institution Login
         </p>
@@ -119,6 +125,15 @@ function Workspace({ onSignOut }: { onSignOut: () => void }) {
     [items, tab],
   );
   const active = items.find((i) => i.id === openId) ?? null;
+
+  const replaceImage = (id: string, image: string) => {
+    const previous = items.find((i) => i.id === id)?.image;
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, image } : i)));
+    // Only a URL we minted is ours to release, and only once nothing points at
+    // it any more. Revoking when the editor closed broke the photo on reopen:
+    // the item outlives the editor, so a fresh <img> re-resolved a dead URL.
+    if (previous?.startsWith("blob:")) URL.revokeObjectURL(previous);
+  };
 
   const resolve = (id: string, status: CaptionStatus, caption: string, by: string) =>
     setItems((prev) =>
@@ -211,9 +226,15 @@ function Workspace({ onSignOut }: { onSignOut: () => void }) {
                 <p className="font-display text-base font-semibold text-foreground">
                   {item.momentTitle}
                 </p>
-                <p className="mt-1 line-clamp-2 text-xs font-medium text-muted-foreground">
-                  {item.caption}
-                </p>
+                {item.caption ? (
+                  <p className="mt-1 line-clamp-2 text-xs font-medium text-muted-foreground">
+                    {item.caption}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs font-medium italic text-muted-foreground/70">
+                    No caption yet
+                  </p>
+                )}
                 <p className="mt-3 text-[0.68rem] uppercase tracking-[0.14em] text-muted-foreground">
                   Updated {item.updatedAt}
                 </p>
@@ -229,7 +250,12 @@ function Workspace({ onSignOut }: { onSignOut: () => void }) {
         )}
       </div>
 
-      <CaptionEditor item={active} onClose={() => setOpenId(null)} onResolve={resolve} />
+      <CaptionEditor
+        item={active}
+        onClose={() => setOpenId(null)}
+        onResolve={resolve}
+        onReplaceImage={replaceImage}
+      />
       <AddImageModal
         open={adding}
         onClose={() => setAdding(false)}
@@ -248,14 +274,24 @@ function CaptionEditor({
   item,
   onClose,
   onResolve,
+  onReplaceImage,
 }: {
   item: CaptionItem | null;
   onClose: () => void;
   onResolve: (id: string, status: CaptionStatus, caption: string, by: string) => void;
+  onReplaceImage: (id: string, image: string) => void;
 }) {
   return (
     <AnimatePresence>
-      {item && <CaptionEditorInner key={item.id} item={item} onClose={onClose} onResolve={onResolve} />}
+      {item && (
+        <CaptionEditorInner
+          key={item.id}
+          item={item}
+          onClose={onClose}
+          onResolve={onResolve}
+          onReplaceImage={onReplaceImage}
+        />
+      )}
     </AnimatePresence>
   );
 }
@@ -264,15 +300,35 @@ function CaptionEditorInner({
   item,
   onClose,
   onResolve,
+  onReplaceImage,
 }: {
   item: CaptionItem;
   onClose: () => void;
   onResolve: (id: string, status: CaptionStatus, caption: string, by: string) => void;
+  onReplaceImage: (id: string, image: string) => void;
 }) {
-  const [caption, setCaption] = useState(item.caption);
+  // Left blank on purpose: the current caption is already on the card in the
+  // listing, so pre-filling it only invited an accidental edit. Blank now means
+  // "no correction offered", which is what gates the two actions below.
+  const [caption, setCaption] = useState("");
   const [by, setBy] = useState(item.actionBy ?? "");
-  const edited = caption.trim() !== item.caption.trim();
+  const photoRef = useRef<HTMLInputElement>(null);
+  const hasCorrection = caption.trim().length > 0;
   const canAct = by.trim().length > 1;
+  /*
+   * Driven by the live status rather than `requested`: `requested` records what
+   * Spectrum first asked and never changes, so once an item is actioned it would
+   * keep offering the same controls.
+   *   caption — no text exists yet; the institution writes it, nothing to approve
+   *   final   — sign-off only; correcting is not on offer at this stage
+   *   review  — the original flow: blank box approves, typed box corrects
+   */
+  const mode =
+    item.status === "needs-caption"
+      ? "caption"
+      : item.status === "final-approval"
+        ? "final"
+        : "review";
 
   return (
     <motion.div
@@ -298,12 +354,38 @@ function CaptionEditorInner({
           <X className="h-5 w-5" />
         </button>
 
-        <div className="relative min-h-52 md:min-h-full">
+        <div className="group relative min-h-52 md:min-h-full">
           <img
             src={item.image}
             alt={item.momentTitle}
             draggable={false}
             className="h-full max-h-[40vh] w-full object-cover md:max-h-none"
+          />
+
+          {/* Scrim only behind the control, so it stays legible on a light photo
+              without dimming the image being reviewed. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+
+          <button
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/45 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-md transition-colors hover:border-teal hover:text-teal focus:outline-none focus:ring-2 focus:ring-violet"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Replace photo
+          </button>
+
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              onReplaceImage(item.id, URL.createObjectURL(f));
+              // Let the same file be picked again after an accidental replace.
+              e.target.value = "";
+            }}
           />
         </div>
 
@@ -318,19 +400,42 @@ function CaptionEditorInner({
 
           <div>
             <label className="font-display text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground">
-              Caption
+              {mode === "caption"
+                ? "Caption"
+                : mode === "final"
+                  ? "Final Caption"
+                  : "Corrected Caption"}
             </label>
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              rows={4}
-              className="mt-2 w-full resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-sm font-medium text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
-            />
+            {mode === "final" ? (
+              /* Shown, not editable: they are signing off on this exact wording,
+                 so it has to be in front of them — but there is no correction on
+                 offer here, and an input would imply otherwise. */
+              <p className="mt-2 rounded-xl border border-border bg-background/40 px-4 py-3 text-sm font-medium text-foreground">
+                {item.caption}
+              </p>
+            ) : (
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder={
+                  mode === "caption"
+                    ? "Write the caption for this photo."
+                    : "Type a correction for the caption or leave blank to approve the current one."
+                }
+                rows={4}
+                className="mt-2 w-full resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-sm font-medium text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+              />
+            )}
           </div>
 
           <div>
             <label className="font-display text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground">
-              Approved / Corrected by <span className="text-[#ff9b6a]">*</span>
+              {mode === "caption"
+                ? "Caption written by"
+                : mode === "final"
+                  ? "Approved by"
+                  : "Approved / Corrected by"}{" "}
+              <span className="text-[#ff9b6a]">*</span>
             </label>
             <input
               value={by}
@@ -341,11 +446,12 @@ function CaptionEditorInner({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            {item.requested === "needs-approval" && !edited && (
+            {/* Sign-off only — deliberately no correction control here. */}
+            {mode === "final" && (
               <button
                 disabled={!canAct}
                 onClick={() => {
-                  onResolve(item.id, "approved", caption.trim(), by.trim());
+                  onResolve(item.id, "approved", item.caption, by.trim());
                   onClose();
                 }}
                 className="spectrum-fill flex-1 rounded-xl py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
@@ -353,22 +459,63 @@ function CaptionEditorInner({
                 Approve Caption
               </button>
             )}
-            <button
-              disabled={!canAct || !edited}
-              onClick={() => {
-                onResolve(item.id, "corrected", caption.trim(), by.trim());
-                onClose();
-              }}
-              className="flex-1 rounded-xl border border-teal py-3 text-sm font-semibold text-teal transition-colors hover:bg-teal hover:text-[#10281f] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Save Correction
-            </button>
+
+            {/* First caption for this photo — there is nothing to approve yet. */}
+            {mode === "caption" && (
+              <button
+                disabled={!canAct || !hasCorrection}
+                onClick={() => {
+                  onResolve(item.id, "corrected", caption.trim(), by.trim());
+                  onClose();
+                }}
+                className="spectrum-fill flex-1 rounded-xl py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Save Caption
+              </button>
+            )}
+
+            {mode === "review" && (
+              <>
+                {item.requested === "needs-approval" && !hasCorrection && (
+                  <button
+                    disabled={!canAct}
+                    onClick={() => {
+                      onResolve(item.id, "approved", item.caption, by.trim());
+                      onClose();
+                    }}
+                    className="spectrum-fill flex-1 rounded-xl py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Approve Caption
+                  </button>
+                )}
+                <button
+                  disabled={!canAct || !hasCorrection}
+                  onClick={() => {
+                    onResolve(item.id, "corrected", caption.trim(), by.trim());
+                    onClose();
+                  }}
+                  className="flex-1 rounded-xl border border-teal py-3 text-sm font-semibold text-teal transition-colors hover:bg-teal hover:text-[#10281f] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Save Correction
+                </button>
+              </>
+            )}
           </div>
 
           {!canAct && (
             <p className="text-xs text-muted-foreground">
-              Enter your name to approve or submit a correction.
+              {mode === "caption"
+                ? "Enter your name to save this caption."
+                : mode === "final"
+                  ? "Enter your name to approve this caption."
+                  : "Enter your name to approve or submit a correction."}
             </p>
+          )}
+          {canAct && !hasCorrection && mode === "caption" && (
+            <p className="text-xs text-muted-foreground">Write a caption to save it.</p>
+          )}
+          {canAct && !hasCorrection && mode === "review" && item.requested !== "needs-approval" && (
+            <p className="text-xs text-muted-foreground">Type a corrected caption to save it.</p>
           )}
           <p className="text-xs text-muted-foreground">
             Last updated {item.updatedAt}

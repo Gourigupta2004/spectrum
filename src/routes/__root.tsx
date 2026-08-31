@@ -17,7 +17,7 @@ import { Footer } from "@/components/spectrum/footer";
 import { SelectionProvider } from "@/components/spectrum/selection-context";
 import { IntroProvider, useIntro } from "@/components/spectrum/intro-context";
 
-import { BrandIntro } from "@/components/spectrum/brand-intro";
+import { BrandIntro, INTRO_EASE, INTRO_FADE_MS } from "@/components/spectrum/brand-intro";
 
 function NotFoundComponent() {
   return (
@@ -115,7 +115,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    /* Paint the base colour from the first byte: without it the browser shows its
+       default white canvas until the stylesheet lands, flashing white ahead of the
+       dark intro. Inline so it applies before any stylesheet is fetched. */
+    <html lang="en" style={{ backgroundColor: "#221F29" }}>
       <head>
         <HeadContent />
       </head>
@@ -132,11 +135,19 @@ function SiteShell() {
   return (
     <>
       <BrandIntro key="brand-intro" />
+      {/*
+        Opacity only, deliberately: `transform`/`filter` here would make this a
+        containing block for fixed positioning and unpin the fixed nav. The
+        dissolve's depth (scale + blur) lives on the intro overlay instead.
+        Duration and easing are imported from BrandIntro rather than
+        re-typed here — a mismatch between the two is what made the reveal
+        read as two separate, uncoordinated snaps instead of one cross-fade.
+      */}
       <div
         style={{
           opacity: contentHidden ? 0 : 1,
           pointerEvents: contentHidden ? "none" : "auto",
-          transition: "opacity 900ms cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: `opacity ${INTRO_FADE_MS}ms cubic-bezier(${INTRO_EASE.join(",")}) 100ms`,
         }}
       >
         <SpectrumNav />
@@ -171,4 +182,3 @@ function PlainShell() {
     </>
   );
 }
-

@@ -1,8 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import logoLight from "@/assets/spectrum-logo-light.png.asset.json";
-import mark from "@/assets/spectrum-mark.png.asset.json";
 import { useSelection } from "./selection-context";
 import { useIntro } from "./intro-context";
 
@@ -56,13 +54,13 @@ export function SpectrumNav() {
                 <motion.img
                   layoutId="spectrum-navlogo"
                   transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
-                  src={logoLight.url}
+                  src="/spectrum-logo-light.png"
                   alt="Spectrum"
                   className="hidden h-6 w-auto md:block"
                   draggable={false}
                 />
                 <img
-                  src={mark.url}
+                  src="/spectrum-mark.png"
                   alt="Spectrum"
                   className="h-6 w-auto md:hidden"
                   draggable={false}
