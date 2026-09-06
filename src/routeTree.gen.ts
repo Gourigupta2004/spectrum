@@ -15,6 +15,7 @@ import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as EventsIndexRouteImport } from './routes/events/index'
 import { Route as EventsSlugRouteImport } from './routes/events/$slug'
+import { Route as PortalWorkspaceEventsRouteImport } from './routes/portal.workspace.events'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,31 +47,39 @@ const EventsSlugRoute = EventsSlugRouteImport.update({
   path: '/events/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortalWorkspaceEventsRoute = PortalWorkspaceEventsRouteImport.update({
+  id: '/workspace/events',
+  path: '/workspace/events',
+  getParentRoute: () => PortalRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
-  '/portal': typeof PortalRoute
+  '/portal': typeof PortalRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
   '/events/': typeof EventsIndexRoute
+  '/portal/workspace/events': typeof PortalWorkspaceEventsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
-  '/portal': typeof PortalRoute
+  '/portal': typeof PortalRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
   '/events': typeof EventsIndexRoute
+  '/portal/workspace/events': typeof PortalWorkspaceEventsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
-  '/portal': typeof PortalRoute
+  '/portal': typeof PortalRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
   '/events/': typeof EventsIndexRoute
+  '/portal/workspace/events': typeof PortalWorkspaceEventsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,9 +90,16 @@ export interface FileRouteTypes {
     | '/portal'
     | '/events/$slug'
     | '/events/'
+    | '/portal/workspace/events'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/contact' | '/how-it-works' | '/portal' | '/events/$slug' | '/events'
+    | '/'
+    | '/contact'
+    | '/how-it-works'
+    | '/portal'
+    | '/events/$slug'
+    | '/events'
+    | '/portal/workspace/events'
   id:
     | '__root__'
     | '/'
@@ -92,13 +108,14 @@ export interface FileRouteTypes {
     | '/portal'
     | '/events/$slug'
     | '/events/'
+    | '/portal/workspace/events'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContactRoute: typeof ContactRoute
   HowItWorksRoute: typeof HowItWorksRoute
-  PortalRoute: typeof PortalRoute
+  PortalRoute: typeof PortalRouteWithChildren
   EventsSlugRoute: typeof EventsSlugRoute
   EventsIndexRoute: typeof EventsIndexRoute
 }
@@ -147,14 +164,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portal/workspace/events': {
+      id: '/portal/workspace/events'
+      path: '/workspace/events'
+      fullPath: '/portal/workspace/events'
+      preLoaderRoute: typeof PortalWorkspaceEventsRouteImport
+      parentRoute: typeof PortalRoute
+    }
   }
 }
+
+interface PortalRouteChildren {
+  PortalWorkspaceEventsRoute: typeof PortalWorkspaceEventsRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalWorkspaceEventsRoute: PortalWorkspaceEventsRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContactRoute: ContactRoute,
   HowItWorksRoute: HowItWorksRoute,
-  PortalRoute: PortalRoute,
+  PortalRoute: PortalRouteWithChildren,
   EventsSlugRoute: EventsSlugRoute,
   EventsIndexRoute: EventsIndexRoute,
 }
