@@ -42,9 +42,9 @@ const tabs: ("All" | CaptionStatus)[] = [
   "corrected",
 ];
 
-function Workspace({ onSignOut }: { onSignOut: () => void }) {
-  const navigate = useNavigate();
-  const [items, setItems] = useState<CaptionItem[]>(seedItems);
+function Workspace() {
+  const items = useStore(captionStore);
+  const setItems = captionStore.set;
   const [tab, setTab] = useState<(typeof tabs)[number]>("All");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -72,12 +72,16 @@ function Workspace({ onSignOut }: { onSignOut: () => void }) {
     );
 
   return (
-    <div className="grain relative min-h-screen overflow-x-clip pb-24 pt-28">
-      <Orb className="right-[-10%] top-24" colors={["#7c4de0", "#2fbf8f"]} size={520} opacity={0.08} />
+    <>
+      <div>
+        <Link
+          to="/portal/workspace"
+          className="text-sm font-medium text-muted-foreground transition-colors hover:text-teal"
+        >
+          ← Workspace
+        </Link>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6">
-
-        <div className="mt-10 flex flex-wrap items-end justify-between gap-4">
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-4xl text-foreground md:text-5xl">
               Caption Workspace
@@ -173,7 +177,7 @@ function Workspace({ onSignOut }: { onSignOut: () => void }) {
           setAdding(false);
         }}
       />
-    </div>
+    </>
   );
 }
 
