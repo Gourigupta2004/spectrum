@@ -35,8 +35,12 @@ const GRADES: [string, "Primary" | "Middle" | "Senior", string[]][] = [
 export const classes: SchoolClass[] = GRADES.flatMap(([grade, group, sections]) =>
   sections.map((s, i) => {
     const name = `${grade}${s}`;
-    // Deterministic, realistic-looking strength between 28 and 36.
-    const size = 28 + ((grade.length + s.charCodeAt(0) + i * 3) % 9);
+    // Deterministic, realistic-looking strength between 28 and 36. Nursery/LKG/UKG
+    // have a single unlettered section (""), and "".charCodeAt(0) is NaN — which
+    // made those three classes NaN-sized, emptied their rosters, and surfaced as
+    // "5 / NaN named" on the branch screen.
+    const sectionCode = s ? s.charCodeAt(0) : 0;
+    const size = 28 + ((grade.length + sectionCode + i * 3) % 9);
     return { id: name.toLowerCase(), name, group, size };
   }),
 );
@@ -78,5 +82,8 @@ export const seedNames: Record<string, string> = {
   "1a-2": "Anaya Rao",
 };
 
-export const findClass = (id: string): SchoolClass | undefined =>
-  classes.find((c) => c.id === id);
+export const findClass = (id: string): SchoolClass | undefined => classes.find((c) => c.id === id);
+
+/** "Class 6C" for numbered classes, but plain "Nursery" / "LKG" / "UKG" — "Class Nursery" reads wrong. */
+export const classLabel = (cls: SchoolClass): string =>
+  /^\d/.test(cls.name) ? `Class ${cls.name}` : cls.name;

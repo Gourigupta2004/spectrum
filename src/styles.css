@@ -282,6 +282,25 @@
   }
 }
 
+/* slim scrollbar that sits on the panel's own surface */
+@utility glass-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(1 0 0 / 18%) transparent;
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 18%);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 30%);
+  }
+}
+
 /* Keeps a region out of print and print-to-PDF. One of the few capture paths a
    page can actually block — OS-level screenshots cannot be prevented on the web. */
 @media print {

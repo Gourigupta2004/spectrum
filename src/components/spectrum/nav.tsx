@@ -6,10 +6,9 @@ import { useIntro } from "./intro-context";
 
 const links = [
   { label: "Events", to: "/events" as const },
-  { label: "How It Works", to: "/how-it-works" as const },
+  { label: "About Us", to: "/about" as const },
   { label: "Contact", to: "/contact" as const },
 ];
-
 
 export function SpectrumNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -78,7 +77,6 @@ export function SpectrumNav() {
                   to={l.to}
                   className="group relative font-display text-[0.78rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:text-foreground"
                 >
-
                   {l.label}
                   <span
                     className={`spectrum-hairline absolute -bottom-1.5 left-0 w-full origin-left transition-transform duration-300 ${
@@ -103,7 +101,7 @@ export function SpectrumNav() {
           {count > 0 && (
             <button
               onClick={openCheckout}
-              aria-label={`${count} moments selected`}
+              aria-label={`${count} photos selected`}
               className="spectrum-fill flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
             >
               {count}

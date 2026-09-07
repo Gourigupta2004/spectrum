@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "motion/react";
+import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, Mail, Phone, MapPin } from "lucide-react";
 import { Orb } from "@/components/spectrum/orb";
+import { ServiceSelect } from "@/components/spectrum/service-select";
+import { services } from "@/lib/spectrum-data";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -25,6 +28,9 @@ export const Route = createFileRoute("/contact")({
 const inputClass =
   "w-full rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet";
 
+const OTHER = "Other";
+const serviceOptions = [...services, OTHER];
+
 const details = [
   { icon: Mail, label: "Email", value: "support@spectrum.in" },
   { icon: Phone, label: "Phone / WhatsApp", value: "+91 98100 44120" },
@@ -32,9 +38,16 @@ const details = [
 ];
 
 function ContactPage() {
+  const [service, setService] = useState("");
+
   return (
     <div className="grain relative min-h-screen overflow-x-clip pb-24 pt-28">
-      <Orb className="left-[-10%] top-24" colors={["#FF8A3D", "#D6339A"]} size={520} opacity={0.09} />
+      <Orb
+        className="left-[-10%] top-24"
+        colors={["#FF8A3D", "#D6339A"]}
+        size={520}
+        opacity={0.09}
+      />
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         <Link
@@ -65,7 +78,34 @@ function ContactPage() {
           >
             <input placeholder="Your Name" className={inputClass} />
             <input placeholder="Email Address" type="email" className={inputClass} />
-            <input placeholder="School / College" className={inputClass} />
+            <input placeholder="Phone Number" type="tel" className={inputClass} />
+            <input placeholder="Institution" className={inputClass} />
+            <ServiceSelect
+              name="service"
+              options={serviceOptions}
+              value={service}
+              onChange={setService}
+              placeholder="Services"
+            />
+            <AnimatePresence initial={false}>
+              {service === OTHER && (
+                <motion.div
+                  key="other"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
+                >
+                  <input
+                    name="serviceOther"
+                    placeholder="Tell us which service you need"
+                    className={inputClass}
+                    autoFocus
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
             <textarea
               placeholder="Tell us about your event"
               rows={5}

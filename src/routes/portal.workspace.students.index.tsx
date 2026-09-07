@@ -25,6 +25,29 @@ export const Route = createFileRoute("/portal/workspace/students/")({
   component: ClassList,
 });
 
+/**
+ * Soft glass tints for the class squares, rotated by position so the grid has
+ * colour without any square reading as "selected". Pairs are the brand stops
+ * already used across the site; low alpha over the surface tone keeps them
+ * glassy rather than filled.
+ */
+const TINTS: [string, string][] = [
+  ["255,201,60", "255,138,61"], // amber -> orange
+  ["124,77,224", "214,51,154"], // violet -> magenta
+  ["47,191,143", "61,139,255"], // teal -> blue
+  ["232,80,58", "214,51,154"], // red -> magenta
+  ["61,139,255", "124,77,224"], // blue -> violet
+  ["255,138,61", "232,80,58"], // orange -> red
+];
+const tintFor = (i: number): string => {
+  const [a, b] = TINTS[i % TINTS.length]!;
+  return [
+    `radial-gradient(110% 110% at 22% 18%, rgba(${a},0.36), transparent 62%)`,
+    `radial-gradient(110% 110% at 82% 88%, rgba(${b},0.28), transparent 62%)`,
+    "rgba(28,26,34,0.72)",
+  ].join(", ");
+};
+
 function ClassList() {
   const names = useStore(namesStore);
   const [group, setGroup] = useState<ClassGroup>("All");
@@ -84,7 +107,10 @@ function ClassList() {
               <Link
                 to="/portal/workspace/students/$classId"
                 params={{ classId: c.id }}
-                className="spectrum-border relative grid aspect-square place-items-center rounded-2xl bg-[#1C1A22] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-18px_rgba(124,77,224,0.6)]"
+                /* `glass` supplies the backdrop blur; the tinted background is
+                   inline because the utility's own background would otherwise win. */
+                className="spectrum-border glass relative grid aspect-square place-items-center overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-18px_rgba(124,77,224,0.6)]"
+                style={{ background: tintFor(i) }}
               >
                 <span
                   className={`absolute right-2 top-2 z-[2] inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6rem] font-semibold ${

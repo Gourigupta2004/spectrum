@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { MessageCircle, Mail, X } from "lucide-react";
-import type { Moment } from "@/lib/spectrum-data";
+import { BUNDLE_PRICE, type Photo } from "@/lib/spectrum-data";
 
 export function CheckoutModal({
   open,
@@ -10,13 +10,18 @@ export function CheckoutModal({
   selected,
   bundle,
   total,
+  pricePerPhoto,
+  albumSize,
 }: {
   open: boolean;
   onClose: () => void;
   onPaid: () => void;
-  selected: Moment[];
+  selected: Photo[];
   bundle: boolean;
   total: number;
+  pricePerPhoto: number;
+  /** Every photo in the event — what the bundle buys. */
+  albumSize: number;
 }) {
   const [whatsapp, setWhatsapp] = useState(true);
 
@@ -58,8 +63,8 @@ export function CheckoutModal({
               <div className="no-scrollbar mt-4 max-h-56 space-y-3 overflow-y-auto pr-1">
                 {bundle ? (
                   <div className="flex items-center justify-between gap-3 text-sm text-foreground">
-                    <span>Full Album Bundle — all 182 photos</span>
-                    <span>₹299</span>
+                    <span>Full Album Bundle — all {albumSize} photos</span>
+                    <span>₹{BUNDLE_PRICE}</span>
                   </div>
                 ) : (
                   selected.map((m) => (
@@ -70,11 +75,8 @@ export function CheckoutModal({
                         className="h-11 w-11 rounded-lg object-cover"
                         draggable={false}
                       />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-foreground">{m.title}</p>
-                        <p className="text-xs text-muted-foreground">{m.photos} photos</p>
-                      </div>
-                      <span className="text-sm text-foreground">₹29</span>
+                      <p className="min-w-0 flex-1 truncate text-sm text-foreground">{m.title}</p>
+                      <span className="text-sm text-foreground">₹{pricePerPhoto}</span>
                     </div>
                   ))
                 )}

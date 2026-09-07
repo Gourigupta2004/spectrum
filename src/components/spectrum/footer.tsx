@@ -15,7 +15,7 @@ export function Footer() {
           />
           <p className="mt-4 font-display text-lg text-foreground">Imagination That Works</p>
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-            Premium photography and videography for school and college events across India.
+            Premium photography and videography for institutions across India.
           </p>
         </div>
 
@@ -35,11 +35,8 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <Link
-                to="/how-it-works"
-                className="text-foreground transition-colors hover:text-teal"
-              >
-                How It Works
+              <Link to="/about" className="text-foreground transition-colors hover:text-teal">
+                About Us
               </Link>
             </li>
             <li>
@@ -55,9 +52,7 @@ export function Footer() {
                 Institution Login
               </Link>
             </li>
-
           </ul>
-
         </div>
 
         <div id="contact" className="md:justify-self-end">

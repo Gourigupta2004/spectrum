@@ -83,10 +83,44 @@ export type SpectrumEvent = {
   institution: string;
   date: string;
   photos: number;
-  pricePerMoment: number;
+  pricePerPhoto: number;
   image: string;
   tags: ("recent" | "popular")[];
 };
+
+/**
+ * The gallery is every photo from the event, one tile each — not "moments"
+ * that stand in for a bundle of shots. Priced per photo; the album bundle is a
+ * flat price for all of them.
+ */
+export type Photo = { id: string; title: string; image: string };
+
+const GALLERY: string[] = [
+  "Welcome & Opening Address",
+  "Lighting the Lamp",
+  "Chief Guest Speech",
+  "Solo Dance Performance",
+  "Group Dance Performance",
+  "Musical Segment",
+  "Drama / Skit",
+  "Fashion Show Walk",
+  "Award Distribution",
+  "Prize Distribution",
+  "Backstage Candids",
+  "Audience & Crowd Shots",
+  "Group Photo — Faculty",
+  "Group Photo — Students",
+  "Vote of Thanks",
+  "Closing Ceremony",
+  "Finale & Confetti",
+  "Campus & Decor Shots",
+];
+
+export const galleryPhotos: Photo[] = GALLERY.map((title, i) => ({
+  id: `p-${i}`,
+  title,
+  image: IMG(pick(i + 3), 800, 1000),
+}));
 
 export const events: SpectrumEvent[] = [
   {
@@ -95,8 +129,8 @@ export const events: SpectrumEvent[] = [
     institutionId: "dps",
     institution: "Delhi Public School",
     date: "March 15, 2025",
-    photos: 182,
-    pricePerMoment: 29,
+    photos: galleryPhotos.length, // the gallery is the source of truth for this event
+    pricePerPhoto: 29,
     image: IMG(pick(4)),
     tags: ["recent", "popular"],
   },
@@ -107,7 +141,7 @@ export const events: SpectrumEvent[] = [
     institution: "St. Xavier's College",
     date: "April 3, 2025",
     photos: 94,
-    pricePerMoment: 49,
+    pricePerPhoto: 49,
     image: IMG(pick(11)),
     tags: ["recent"],
   },
@@ -118,7 +152,7 @@ export const events: SpectrumEvent[] = [
     institution: "Ryan International School",
     date: "February 20, 2025",
     photos: 210,
-    pricePerMoment: 29,
+    pricePerPhoto: 29,
     image: IMG(pick(13)),
     tags: ["popular"],
   },
@@ -129,7 +163,7 @@ export const events: SpectrumEvent[] = [
     institution: "Ryan International School",
     date: "January 26, 2025",
     photos: 76,
-    pricePerMoment: 29,
+    pricePerPhoto: 29,
     image: IMG(pick(9)),
     tags: ["recent"],
   },
@@ -140,7 +174,7 @@ export const events: SpectrumEvent[] = [
     institution: "Amity University",
     date: "January 18, 2025",
     photos: 340,
-    pricePerMoment: 29,
+    pricePerPhoto: 29,
     image: IMG(pick(5)),
     tags: ["popular"],
   },
@@ -151,47 +185,21 @@ export const events: SpectrumEvent[] = [
     institution: "The Doon School",
     date: "December 10, 2024",
     photos: 128,
-    pricePerMoment: 49,
+    pricePerPhoto: 49,
     image: IMG(pick(15)),
     tags: [],
   },
 ];
 
-export const eventsByInstitution = (id: string) =>
-  events.filter((e) => e.institutionId === id);
-
-export type Moment = { id: string; title: string; photos: number; image: string };
-
-const MOMENTS: [string, number][] = [
-  ["Welcome & Opening Address", 8],
-  ["Lighting the Lamp", 6],
-  ["Chief Guest Speech", 10],
-  ["Solo Dance Performance", 14],
-  ["Group Dance Performance", 12],
-  ["Musical Segment", 12],
-  ["Drama / Skit", 16],
-  ["Fashion Show Walk", 10],
-  ["Award Distribution", 16],
-  ["Prize Distribution", 14],
-  ["Backstage Candids", 12],
-  ["Audience & Crowd Shots", 8],
-  ["Group Photo — Faculty", 6],
-  ["Group Photo — Students", 10],
-  ["Vote of Thanks", 5],
-  ["Closing Ceremony", 9],
-  ["Finale & Confetti", 7],
-  ["Campus & Decor Shots", 7],
-];
-
-export const moments: Moment[] = MOMENTS.map(([title, photos], i) => ({
-  id: `m-${i}`,
-  title,
-  photos,
-  image: IMG(pick(i + 3), 800, 1000),
-}));
+export const eventsByInstitution = (id: string) => events.filter((e) => e.institutionId === id);
 
 export const galleryEvent = events[0] as SpectrumEvent;
 export const BUNDLE_PRICE = 299;
+/** Bundle saving against buying every photo singly; 0 when the bundle is not cheaper. */
+export const bundleSavings = Math.max(
+  0,
+  Math.round((1 - BUNDLE_PRICE / (galleryEvent.photos * galleryEvent.pricePerPhoto)) * 100),
+);
 
 export const heroSlides = [4, 5, 11, 13, 6, 9, 15, 3].map((i, k) => ({
   id: k,
@@ -207,3 +215,15 @@ export const heroSlides = [4, 5, 11, 13, 6, 9, 15, 3].map((i, k) => ({
     "Classroom Candids",
   ][k],
 }));
+
+export const services = [
+  "Annual class pictures",
+  "Student portraits",
+  "School annual days",
+  "Annual sports events",
+  "Conferences and seminars",
+  "Award ceremonies",
+  "Cultural programmes",
+  "Corporate and institutional events",
+  "Campus virtual tours",
+];

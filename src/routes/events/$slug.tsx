@@ -6,22 +6,15 @@ import { Orb } from "@/components/spectrum/orb";
 import { CheckoutModal } from "@/components/spectrum/checkout-modal";
 import { SuccessOverlay } from "@/components/spectrum/success-overlay";
 import { useSelection } from "@/components/spectrum/selection-context";
-import { BUNDLE_PRICE, galleryEvent, moments } from "@/lib/spectrum-data";
+import { BUNDLE_PRICE, bundleSavings, galleryEvent, galleryPhotos } from "@/lib/spectrum-data";
 
 /**
- * Watermark weight. `font-black` is already CSS weight 900 — the heaviest the
- * face goes — so extra boldness has to come from glyph size plus an outline
- * stroke, which thickens each stem beyond what any font-weight can.
+ * The watermark is flat translucent type, deliberately with no outline stroke:
+ * a stroke in the same translucent colour compounds with the fill where they
+ * overlap and reads as an opaque border around every letter — the opposite of
+ * a watermark. Weight comes from `font-black` and size alone. The photos
+ * themselves are not blurred; this mark is the only preview signal.
  */
-const WATERMARK_STROKE = "0.045em";
-
-/**
- * Preview blur for gallery tiles. This is a deterrent, not protection: the
- * full-resolution file is still what the browser fetched, so anyone who opens
- * devtools can drop the filter. Real protection is serving a pre-blurred,
- * watermark-baked derivative and keeping the clean file behind the purchase.
- */
-const PREVIEW_BLUR = "blur-[3px]";
 
 export const Route = createFileRoute("/events/$slug")({
   head: () => ({
@@ -30,12 +23,12 @@ export const Route = createFileRoute("/events/$slug")({
       {
         name: "description",
         content:
-          "Browse 18 captured moments from Annual Day 2025 at Delhi Public School. Select the moments you love and get full-resolution photos instantly.",
+          "Browse every photo from Annual Day 2025 at Delhi Public School. Select the ones you love and get full-resolution files instantly.",
       },
       { property: "og:title", content: "Annual Day 2025 Gallery — Spectrum" },
       {
         property: "og:description",
-        content: "Select your moments from Annual Day 2025 and own your memories.",
+        content: "Select your photos from Annual Day 2025 and own your memories.",
       },
     ],
   }),
@@ -49,9 +42,8 @@ function GalleryPage() {
   const [paid, setPaid] = useState(false);
   const { setCount, setOpenCheckout } = useSelection();
 
-  const chosen = useMemo(() => moments.filter((m) => selected.includes(m.id)), [selected]);
-  const photoCount = chosen.reduce((s, m) => s + m.photos, 0);
-  const price = bundle ? BUNDLE_PRICE : chosen.length * galleryEvent.pricePerMoment;
+  const chosen = useMemo(() => galleryPhotos.filter((m) => selected.includes(m.id)), [selected]);
+  const price = bundle ? BUNDLE_PRICE : chosen.length * galleryEvent.pricePerPhoto;
 
   useEffect(() => setCount(selected.length), [selected.length, setCount]);
   useEffect(() => setOpenCheckout(() => setOpen(true)), [setOpenCheckout]);
@@ -93,18 +85,19 @@ function GalleryPage() {
             {galleryEvent.name}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {galleryEvent.date} · {galleryEvent.photos} photos · {moments.length} moments
+            {galleryEvent.date} · {galleryEvent.photos} photos
           </p>
         </div>
 
         <div
           id="gallery-grid"
-          /* Deterrents only — see PREVIEW_BLUR. Blocks the right-click "save
-             image as" path and drops the grid out of print/print-to-PDF. */
+          /* Deterrents only: blocks the right-click "save image as" path and drops
+             the grid out of print/print-to-PDF. The translucent watermark is the
+             real signal that these are previews. */
           onContextMenu={(e) => e.preventDefault()}
           className="no-capture mt-10 grid select-none grid-cols-2 gap-4 md:grid-cols-3"
         >
-          {moments.map((m, i) => {
+          {galleryPhotos.map((m, i) => {
             const isSel = selected.includes(m.id);
             return (
               <motion.button
@@ -123,20 +116,13 @@ function GalleryPage() {
                   alt={m.title}
                   loading="lazy"
                   draggable={false}
-                  /* Blurred so the moment is still recognisable but the frame is
-                     not worth taking; the scale is overscan, so the blur's soft
-                     edge is clipped by the tile rather than showing a halo. */
-                  className={`undraggable absolute inset-0 h-full w-full scale-[1.08] object-cover transition-transform duration-700 group-hover:scale-[1.12] ${PREVIEW_BLUR}`}
+                  className="undraggable absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                 />
                 <span className="pointer-events-none absolute inset-0 z-[4] grid place-items-center p-3">
-                  <span
-                    style={{ WebkitTextStroke: `${WATERMARK_STROKE} currentColor` }}
-                    className="rotate-[-20deg] text-center text-2xl font-black uppercase tracking-[0.18em] text-white antialiased md:text-4xl lg:text-5xl"
-                  >
+                  <span className="rotate-[-20deg] text-center text-2xl font-black uppercase tracking-[0.18em] text-white/50 antialiased md:text-4xl lg:text-5xl">
                     Preview Only
                   </span>
                 </span>
-
 
                 <span className="spectrum-fill absolute right-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full">
                   <Lock className="h-3.5 w-3.5" />
@@ -162,16 +148,13 @@ function GalleryPage() {
 
                 <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-gradient-to-t from-[#1C1A22] via-[#1C1A22]/60 to-transparent p-4">
                   <span className="block font-display text-sm text-foreground">{m.title}</span>
-                  <span className="mt-0.5 block text-[0.6rem] uppercase tracking-[0.16em] text-teal">
-                    {m.photos} photos in this moment
-                  </span>
                 </span>
 
                 {/* Above the watermark (z-4): the watermark is now large enough to
                     bury this affordance, and it only shows on hover anyway. */}
                 <span className="pointer-events-none absolute inset-0 z-[5] grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                   <span className="spectrum-border glass rounded-full px-4 py-2 text-xs text-foreground">
-                    {isSel ? "Selected" : "Select This Moment"}
+                    {isSel ? "Selected" : "Select This Photo"}
                   </span>
                 </span>
               </motion.button>
@@ -187,16 +170,17 @@ function GalleryPage() {
           <p className="text-sm text-foreground">
             {bundle
               ? `Full album selected · ${galleryEvent.photos} photos · ₹${BUNDLE_PRICE}`
-              : `${selected.length} moment${selected.length === 1 ? "" : "s"} selected · ${photoCount} photos · ₹${price}`}
+              : `${selected.length} photo${selected.length === 1 ? "" : "s"} selected · ₹${price}`}
           </p>
           <button
             onClick={() => {
               setBundle(true);
-              setSelected(moments.map((m) => m.id));
+              setSelected(galleryPhotos.map((m) => m.id));
             }}
             className="spectrum-border rounded-full px-4 py-2 text-xs text-foreground"
           >
-            Full Album Bundle — Save 43% · ₹{BUNDLE_PRICE} for all {galleryEvent.photos} photos
+            Full Album Bundle —{bundleSavings > 0 ? ` Save ${bundleSavings}% ·` : ""} ₹
+            {BUNDLE_PRICE} for all {galleryEvent.photos} photos
           </button>
           <button
             disabled={selected.length === 0}
@@ -209,6 +193,8 @@ function GalleryPage() {
       </div>
 
       <CheckoutModal
+        pricePerPhoto={galleryEvent.pricePerPhoto}
+        albumSize={galleryEvent.photos}
         open={open}
         onClose={() => setOpen(false)}
         onPaid={() => {

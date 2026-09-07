@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
-import { Search, Camera, Images, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { HeroCarousel } from "@/components/spectrum/hero-carousel";
 import { EventCard } from "@/components/spectrum/event-card";
 import { Orb } from "@/components/spectrum/orb";
-import { events, eventsByInstitution, institutions } from "@/lib/spectrum-data";
+import { GlassChips } from "@/components/spectrum/glass-chips";
+import { events, eventsByInstitution, institutions, services } from "@/lib/spectrum-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Spectrum captures school and college events. Browse protected galleries, choose your moments, and own your memories in full resolution.",
+          "Spectrum captures the events that define institutions. Browse protected galleries, choose your photos, and own your memories in full resolution.",
       },
       { property: "og:title", content: "Spectrum — Every Moment, Yours Forever" },
       {
@@ -54,27 +55,6 @@ function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   );
 }
 
-const steps = [
-  {
-    n: "01",
-    icon: Camera,
-    title: "We Shoot",
-    body: "Spectrum covers your school or college event professionally.",
-  },
-  {
-    n: "02",
-    icon: Images,
-    title: "You Browse",
-    body: "Parents and students browse protected photo galleries online.",
-  },
-  {
-    n: "03",
-    icon: Sparkles,
-    title: "You Own It",
-    body: "Pay and receive full-res photos on WhatsApp or email instantly.",
-  },
-];
-
 function Home() {
   const navigate = useNavigate();
 
@@ -109,7 +89,7 @@ function Home() {
             Every Moment, <span className="spectrum-text">Yours</span> Forever
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-sm font-medium text-foreground/85 md:text-base">
-            Spectrum captures school and college events. Browse, choose, and own your memories.
+            Spectrum captures the moments for institutions. Browse, choose, and own your memories.
           </p>
         </motion.div>
 
@@ -181,30 +161,23 @@ function Home() {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section id="how" className="relative scroll-mt-24 py-20">
-        <div className="mx-auto max-w-5xl px-6">
-          <h2 className="text-center font-display text-3xl font-semibold text-foreground md:text-4xl">
-            How It Works
+      {/* OUR SERVICES */}
+      <section id="services" className="relative scroll-mt-24 overflow-hidden py-20">
+        <Orb
+          className="left-1/2 top-0 -translate-x-1/2"
+          colors={["#7c4de0", "#2fbf8f"]}
+          size={520}
+          opacity={0.1}
+        />
+        <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
+          <h2 className="font-display text-3xl font-semibold text-foreground md:text-4xl">
+            Our Services
           </h2>
-          <div className="mt-14 grid gap-12 md:grid-cols-3">
-            {steps.map((s, i) => (
-              <motion.div
-                key={s.n}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.55, delay: i * 0.12 }}
-                className="text-center"
-              >
-                <span className="spectrum-border spectrum-border-thick mx-auto grid h-16 w-16 place-items-center rounded-full">
-                  <s.icon className="h-6 w-6 text-teal" />
-                </span>
-                <p className="mt-5 spectrum-text font-display text-sm tracking-[0.2em]">{s.n}</p>
-                <h3 className="mt-1 font-display text-xl font-semibold text-foreground">{s.title}</h3>
-                <p className="mx-auto mt-2 max-w-xs text-sm font-medium text-foreground/85">{s.body}</p>
-              </motion.div>
-            ))}
+          <p className="mt-3 text-sm font-medium text-muted-foreground md:text-base">
+            We provide professional coverage.
+          </p>
+          <div className="mt-12">
+            <GlassChips items={services} label="Services" />
           </div>
         </div>
       </section>
@@ -219,7 +192,9 @@ function Home() {
           delay={3}
         />
         <div className="relative z-10 mx-auto max-w-6xl px-6">
-          <h2 className="font-display text-3xl font-semibold text-foreground md:text-4xl">Recently Captured</h2>
+          <h2 className="font-display text-3xl font-semibold text-foreground md:text-4xl">
+            Recently Captured
+          </h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {events.slice(0, 6).map((e, i) => (
               <EventCard key={e.slug} event={e} index={i} />

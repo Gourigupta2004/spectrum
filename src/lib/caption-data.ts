@@ -1,12 +1,7 @@
-import { moments, type Moment } from "./spectrum-data";
+import { galleryPhotos, type Photo } from "./spectrum-data";
 
 export type CaptionStatus =
-  | "needs-caption"
-  | "needs-approval"
-  | "needs-correction"
-  | "final-approval"
-  | "approved"
-  | "corrected";
+  "needs-caption" | "needs-approval" | "needs-correction" | "approved" | "corrected";
 
 /**
  * The states Spectrum can put an item into. `approved`/`corrected` are outcomes
@@ -20,6 +15,11 @@ export type CaptionItem = {
   image: string;
   /** Empty for `needs-caption` items — the institution has yet to write one. */
   caption: string;
+  /**
+   * The institution's correction note. Kept apart from `caption` so the
+   * original wording is never overwritten; Spectrum applies it on their side.
+   */
+  correction?: string;
   /** What Spectrum originally asked the institution to do. */
   requested: CaptionRequest;
   status: CaptionStatus;
@@ -31,10 +31,25 @@ export const captionStatusLabel: Record<CaptionStatus, string> = {
   "needs-caption": "Needs Caption",
   "needs-approval": "Needs Approval",
   "needs-correction": "Needs Correction",
-  "final-approval": "Final Approval",
   approved: "Approved",
   corrected: "Corrected",
 };
+
+/**
+ * Who is signed in. The backend will supply this; for the demo the portal is
+ * the institution's view, so Spectrum-only tools (uploading and replacing
+ * photos) stay hidden. Flip to "spectrum" to see them.
+ */
+export const portalRole: "institution" | "spectrum" = "institution";
+
+/** Statuses where the next move is the institution's, not Spectrum's. */
+export const awaitingInstitution: ReadonlySet<CaptionStatus> = new Set([
+  "needs-caption",
+  "needs-approval",
+  "needs-correction",
+]);
+
+export const pluralImages = (n: number): string => `${n} ${n === 1 ? "image" : "images"}`;
 
 /** Demo institution for this build — Delhi Public School, New Delhi. */
 export const portalInstitution = {
@@ -45,7 +60,7 @@ export const portalInstitution = {
 };
 
 const img = (title: string): string =>
-  (moments.find((m: Moment) => m.title === title)?.image ?? moments[0]!.image);
+  galleryPhotos.find((m: Photo) => m.title === title)?.image ?? galleryPhotos[0]!.image;
 
 export const captionItems: CaptionItem[] = [
   {
@@ -79,8 +94,7 @@ export const captionItems: CaptionItem[] = [
     id: "c-4",
     momentTitle: "Award Distribution",
     image: img("Award Distribution"),
-    caption:
-      "Principal Mrs. Sharma presents the Excellence Award to Class XII topper.",
+    caption: "Principal Mrs. Sharma presents the Excellence Award to Class XII topper.",
     requested: "needs-correction",
     status: "corrected",
     updatedAt: "March 21, 2025",
@@ -138,8 +152,8 @@ export const captionItems: CaptionItem[] = [
     momentTitle: "Prize Distribution",
     image: img("Prize Distribution"),
     caption: "Head Girl receives the Best Performer trophy at Annual Day 2025.",
-    requested: "final-approval",
-    status: "final-approval",
+    requested: "needs-approval",
+    status: "needs-approval",
     updatedAt: "March 22, 2025",
   },
   {
@@ -147,8 +161,8 @@ export const captionItems: CaptionItem[] = [
     momentTitle: "Group Photo — Students",
     image: img("Group Photo — Students"),
     caption: "Class XII students gather on stage after the closing performance.",
-    requested: "final-approval",
-    status: "final-approval",
+    requested: "needs-approval",
+    status: "needs-approval",
     updatedAt: "March 22, 2025",
   },
   {

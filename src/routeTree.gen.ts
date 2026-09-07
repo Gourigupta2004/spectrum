@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as PortalRouteImport } from './routes/portal'
@@ -19,10 +20,16 @@ import { Route as PortalIndexRouteImport } from './routes/portal.index'
 import { Route as PortalWorkspaceIndexRouteImport } from './routes/portal.workspace.index'
 import { Route as PortalWorkspaceEventsRouteImport } from './routes/portal.workspace.events'
 import { Route as PortalWorkspaceStudentsIndexRouteImport } from './routes/portal.workspace.students.index'
+import { Route as PortalWorkspaceStudentsClassIdRouteImport } from './routes/portal.workspace.students.$classId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -71,9 +78,16 @@ const PortalWorkspaceStudentsIndexRoute =
     path: '/workspace/students/',
     getParentRoute: () => PortalRoute,
   } as any)
+const PortalWorkspaceStudentsClassIdRoute =
+  PortalWorkspaceStudentsClassIdRouteImport.update({
+    id: '/workspace/students/$classId',
+    path: '/workspace/students/$classId',
+    getParentRoute: () => PortalRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
   '/portal': typeof PortalRouteWithChildren
@@ -82,10 +96,12 @@ export interface FileRoutesByFullPath {
   '/portal/': typeof PortalIndexRoute
   '/portal/workspace/events': typeof PortalWorkspaceEventsRoute
   '/portal/workspace/': typeof PortalWorkspaceIndexRoute
+  '/portal/workspace/students/$classId': typeof PortalWorkspaceStudentsClassIdRoute
   '/portal/workspace/students/': typeof PortalWorkspaceStudentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
   '/events/$slug': typeof EventsSlugRoute
@@ -93,11 +109,13 @@ export interface FileRoutesByTo {
   '/portal': typeof PortalIndexRoute
   '/portal/workspace/events': typeof PortalWorkspaceEventsRoute
   '/portal/workspace': typeof PortalWorkspaceIndexRoute
+  '/portal/workspace/students/$classId': typeof PortalWorkspaceStudentsClassIdRoute
   '/portal/workspace/students': typeof PortalWorkspaceStudentsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
   '/portal': typeof PortalRouteWithChildren
@@ -106,12 +124,14 @@ export interface FileRoutesById {
   '/portal/': typeof PortalIndexRoute
   '/portal/workspace/events': typeof PortalWorkspaceEventsRoute
   '/portal/workspace/': typeof PortalWorkspaceIndexRoute
+  '/portal/workspace/students/$classId': typeof PortalWorkspaceStudentsClassIdRoute
   '/portal/workspace/students/': typeof PortalWorkspaceStudentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/contact'
     | '/how-it-works'
     | '/portal'
@@ -120,10 +140,12 @@ export interface FileRouteTypes {
     | '/portal/'
     | '/portal/workspace/events'
     | '/portal/workspace/'
+    | '/portal/workspace/students/$classId'
     | '/portal/workspace/students/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/contact'
     | '/how-it-works'
     | '/events/$slug'
@@ -131,10 +153,12 @@ export interface FileRouteTypes {
     | '/portal'
     | '/portal/workspace/events'
     | '/portal/workspace'
+    | '/portal/workspace/students/$classId'
     | '/portal/workspace/students'
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/contact'
     | '/how-it-works'
     | '/portal'
@@ -143,11 +167,13 @@ export interface FileRouteTypes {
     | '/portal/'
     | '/portal/workspace/events'
     | '/portal/workspace/'
+    | '/portal/workspace/students/$classId'
     | '/portal/workspace/students/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
   HowItWorksRoute: typeof HowItWorksRoute
   PortalRoute: typeof PortalRouteWithChildren
@@ -162,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -227,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalWorkspaceStudentsIndexRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/workspace/students/$classId': {
+      id: '/portal/workspace/students/$classId'
+      path: '/workspace/students/$classId'
+      fullPath: '/portal/workspace/students/$classId'
+      preLoaderRoute: typeof PortalWorkspaceStudentsClassIdRouteImport
+      parentRoute: typeof PortalRoute
+    }
   }
 }
 
@@ -234,6 +274,7 @@ interface PortalRouteChildren {
   PortalIndexRoute: typeof PortalIndexRoute
   PortalWorkspaceEventsRoute: typeof PortalWorkspaceEventsRoute
   PortalWorkspaceIndexRoute: typeof PortalWorkspaceIndexRoute
+  PortalWorkspaceStudentsClassIdRoute: typeof PortalWorkspaceStudentsClassIdRoute
   PortalWorkspaceStudentsIndexRoute: typeof PortalWorkspaceStudentsIndexRoute
 }
 
@@ -241,6 +282,7 @@ const PortalRouteChildren: PortalRouteChildren = {
   PortalIndexRoute: PortalIndexRoute,
   PortalWorkspaceEventsRoute: PortalWorkspaceEventsRoute,
   PortalWorkspaceIndexRoute: PortalWorkspaceIndexRoute,
+  PortalWorkspaceStudentsClassIdRoute: PortalWorkspaceStudentsClassIdRoute,
   PortalWorkspaceStudentsIndexRoute: PortalWorkspaceStudentsIndexRoute,
 }
 
@@ -249,6 +291,7 @@ const PortalRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
   HowItWorksRoute: HowItWorksRoute,
   PortalRoute: PortalRouteWithChildren,
