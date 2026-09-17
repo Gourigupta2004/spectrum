@@ -1,0 +1,305 @@
+from django.conf import settings
+from django.contrib.auth import authenticate
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import transaction
+from django.db.models import Count, Q
+from django.utils import timezone
+
+from apps.catalog.models import Event, Institution
+from apps.content.models import PortalPage
+from apps.core.http import ApiError, api, rate_limit, text
+from apps.core.models import ImageStatus, storage_url
+
+from .auth import REFRESH_SALT, issue_tokens, member_from_token, read_token, require_member
+from .models import CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student
+
+CAPTION_FIELDS = ("pk", "moment_title", "caption", "correction", "requested", "status", "updated_at", "action_by",
+                  "web", "thumb", "width", "height", "event__name")
+MAX_PHOTO_BYTES = 40 * 1024 * 1024
+
+
+def date_label(value) -> str:
+    local = timezone.localtime(value)
+    return f"{local:%B} {local.day}, {local.year}"
+
+
+def acting_institution(member: Member, request) -> Institution:
+    """Institution logins see their own data; Spectrum team logins may pick one with ?institution=."""
+    if not member.is_spectrum:
+        if member.institution is None:
+            raise ApiError("This login is not linked to an institution.", status=403)
+        return member.institution
+    slug = request.GET.get("institution")
+    queryset = Institution.objects.all()
+    institution = queryset.filter(slug=slug).first() if slug else (member.institution or queryset.first())
+    if institution is None:
+        raise ApiError("No institution found.", status=404)
+    return institution
+
+
+def institution_dict(institution: Institution) -> dict:
+    return {"id": institution.slug, "name": institution.name, "city": institution.city}
+
+
+def member_dict(member: Member, institution: Institution | None) -> dict:
+    return {
+        "id": member.pk,
+        "loginId": member.user.get_username(),
+        "displayName": member.display_name or member.user.get_username(),
+        "role": member.role,
+        "institution": institution_dict(institution) if institution else None,
+    }
+
+
+def _clean_email(value: str) -> str:
+    email = value.strip().lower()
+    if not email:
+        return ""
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise ApiError("Please enter a valid email address.", field="email")
+    return email
+
+
+@api(methods=("POST",))
+def access(request):
+    """
+    Step one of getting into the portal: is this email on an institution's
+    access list? Says which institution it unlocks, so the sign-in screen can
+    be personalised; the issued login is still required after this.
+    """
+    rate_limit(request, "portal-access", limit=15, window=600)
+    email = _clean_email(text(request.json, "email", 254, required=True))
+    row = PortalAccessEmail.objects.select_related("institution").filter(email=email).first()
+    if row is None:
+        raise ApiError(PortalPage.load().access_error or "This email doesn't have portal access.", status=403,
+                       field="email")
+    return {"email": email, "institution": institution_dict(row.institution)}
+
+
+@api(methods=("POST",))
+def login(request):
+    rate_limit(request, "portal-login", limit=10, window=600)
+    username = text(request.json, "username", 150, required=True)
+    rate_limit(request, "portal-login-user", limit=20, window=3600, extra=username.lower())
+    password = request.json.get("password") or ""
+    email = _clean_email(text(request.json, "email", 254))
+    user = authenticate(request, username=username, password=password)
+    member = getattr(user, "member", None) if user else None
+    if member is None:
+        raise ApiError(PortalPage.load().login_error or "Invalid login.", status=401)
+    # The login must belong to the institution the verified email unlocked, so
+    # one school's credentials can never open another school's workspace.
+    if email and not member.is_spectrum:
+        allowed = PortalAccessEmail.objects.filter(email=email, institution_id=member.institution_id).exists()
+        if not allowed:
+            raise ApiError("This login doesn't belong to the institution registered for that email.", status=403)
+    institution = member.institution if not member.is_spectrum else (member.institution or Institution.objects.first())
+    return {**issue_tokens(member), "member": member_dict(member, institution)}
+
+
+@api(methods=("POST",))
+def refresh(request):
+    token = str(request.json.get("refresh", ""))
+    member = member_from_token(token, REFRESH_SALT, settings.PORTAL_REFRESH_TTL)
+    if member is None:
+        raise ApiError("Your session has expired. Please sign in again.", status=401)
+    return issue_tokens(member, signed_in_at=read_token(token, REFRESH_SALT, settings.PORTAL_REFRESH_TTL)["t"])
+
+
+@api()
+def me(request):
+    member = require_member(request)
+    return member_dict(member, acting_institution(member, request))
+
+
+@api()
+def summary(request):
+    member = require_member(request)
+    institution = acting_institution(member, request)
+    pending = CaptionItem.objects.filter(institution=institution, image_status=ImageStatus.READY).exclude(
+        status__in=[CaptionStatus.APPROVED, CaptionStatus.CORRECTED]).count()
+    students = Student.objects.filter(school_class__institution=institution).aggregate(
+        total=Count("pk"), named=Count("pk", filter=~Q(name="")))
+    return {"pendingCaptions": pending, "students": students["total"], "named": students["named"]}
+
+
+def caption_dict(row) -> dict:
+    return {
+        "id": str(row.pk),
+        "momentTitle": row.moment_title,
+        "image": storage_url(row.web.name if row.web else ""),
+        "thumb": storage_url(row.thumb.name if row.thumb else ""),
+        "width": row.width,
+        "height": row.height,
+        "caption": row.caption,
+        "correction": row.correction,
+        "requested": row.requested,
+        "status": row.status,
+        "updatedAt": date_label(row.updated_at),
+        "actionBy": row.action_by,
+        "event": row.event.name if row.event_id else "",
+    }
+
+
+def scoped_captions(member, request):
+    institution = acting_institution(member, request)
+    return CaptionItem.objects.filter(institution=institution).select_related("event").only(*CAPTION_FIELDS)
+
+
+@api(methods=("GET", "POST"))
+def captions(request):
+    member = require_member(request)
+    if request.method == "GET":
+        items = scoped_captions(member, request).filter(image_status=ImageStatus.READY)
+        return {"items": [caption_dict(item) for item in items]}
+    return create_caption(request, member)
+
+
+def _uploaded_image(request):
+    upload = request.FILES.get("image")
+    if upload is None:
+        raise ApiError("Choose an image.", field="image")
+    if upload.size > MAX_PHOTO_BYTES:
+        raise ApiError("That image is too large.", field="image")
+    return upload
+
+
+def create_caption(request, member):
+    if not member.is_spectrum:
+        raise ApiError("Only the Spectrum team can add photos.", status=403)
+    institution = acting_institution(member, request)
+    slug = request.POST.get("event")
+    event = Event.objects.filter(institution=institution, slug=slug).first() if slug else None
+    if slug and event is None:
+        raise ApiError("Event not found", status=404)
+    requested = request.POST.get("requested", CaptionStatus.NEEDS_APPROVAL)
+    if requested not in {CaptionStatus.NEEDS_APPROVAL, CaptionStatus.NEEDS_CORRECTION, CaptionStatus.NEEDS_CAPTION}:
+        requested = CaptionStatus.NEEDS_APPROVAL
+    item = CaptionItem(
+        workspace=CaptionWorkspace.for_institution(institution.pk),
+        event=event,
+        institution=institution,
+        moment_title=(request.POST.get("momentTitle") or "").strip()[:200],
+        caption=(request.POST.get("caption") or "").strip()[:5000],
+        requested=requested,
+        status=requested,
+        sort_order=0,
+    )
+    item.original = _uploaded_image(request)
+    item.save()
+    item.refresh_from_db()
+    return caption_dict(item)
+
+
+@api(methods=("POST",))
+def caption_image(request, item_id):
+    member = require_member(request)
+    if not member.is_spectrum:
+        raise ApiError("Only the Spectrum team can replace photos.", status=403)
+    if not scoped_captions(member, request).filter(pk=item_id).exists():
+        raise ApiError("Not found", status=404)
+    item = CaptionItem.objects.select_related("event").get(pk=item_id)  # full row, so the old original is cleaned up
+    item.original = _uploaded_image(request)
+    item.save()
+    item.refresh_from_db()
+    return caption_dict(item)
+
+
+@api(methods=("POST",))
+def caption_resolve(request, item_id):
+    member = require_member(request)
+    data = request.json
+    by = text(data, "actionBy", 120, required=True)
+    if len(by) < 2:
+        raise ApiError("Please add your full name.", field="actionBy")
+    wanted = text(data, "status", 30)
+    body = text(data, "text", 5000)
+    with transaction.atomic():
+        item = scoped_captions(member, request).select_for_update(of=("self",)).filter(pk=item_id).first()
+        if item is None:
+            raise ApiError("Not found", status=404)
+        if item.status == CaptionStatus.APPROVED:
+            raise ApiError("This caption is approved and can no longer be edited.", status=409)
+        fields = ["status", "action_by", "updated_at"]
+        if item.status == CaptionStatus.NEEDS_CAPTION:
+            if not body:
+                raise ApiError("Write the caption first.", field="text")
+            item.caption = body
+            item.status = CaptionStatus.CORRECTED
+            fields.append("caption")
+        elif item.status == CaptionStatus.NEEDS_APPROVAL:
+            if wanted != CaptionStatus.APPROVED:
+                raise ApiError("This caption is waiting for approval.")
+            item.status = CaptionStatus.APPROVED
+        else:  # needs-correction or corrected: send a correction note
+            if not body:
+                raise ApiError("Tell us what should change.", field="text")
+            item.correction = body
+            item.status = CaptionStatus.CORRECTED
+            fields.append("correction")
+        item.action_by = by
+        item.updated_at = timezone.now()
+        item.save(update_fields=fields)
+    return caption_dict(item)
+
+
+@api()
+def classes(request):
+    member = require_member(request)
+    institution = acting_institution(member, request)
+    rows = (
+        SchoolClass.objects.filter(institution=institution)
+        .annotate(size=Count("students"), named=Count("students", filter=~Q(students__name="")))
+        .values_list("slug", "name", "group", "size", "named")
+    )
+    items = [{"id": slug, "name": name, "group": group, "size": size, "namedCount": named}
+             for slug, name, group, size, named in rows]
+    return {
+        "classes": items,
+        "totals": {"students": sum(i["size"] for i in items), "named": sum(i["namedCount"] for i in items)},
+    }
+
+
+def scoped_class(member, request, slug) -> SchoolClass:
+    institution = acting_institution(member, request)
+    cls = SchoolClass.objects.filter(institution=institution, slug=slug).first()
+    if cls is None:
+        raise ApiError("Class not found", status=404)
+    return cls
+
+
+@api()
+def class_detail(request, slug):
+    member = require_member(request)
+    cls = scoped_class(member, request, slug)
+    rows = (Student.objects.filter(school_class=cls).order_by("sort_order", "pk")
+            .values_list("pk", "name", "web", "width", "height"))
+    students = [{"id": str(pk), "name": name, "photo": storage_url(web), "width": width, "height": height}
+                for pk, name, web, width, height in rows]
+    return {
+        "class": {"id": cls.slug, "name": cls.name, "group": cls.group, "size": len(students),
+                  "namedCount": sum(1 for s in students if s["name"])},
+        "students": students,
+    }
+
+
+@api(methods=("PUT", "POST"))
+def class_names(request, slug):
+    member = require_member(request)
+    cls = scoped_class(member, request, slug)
+    names = request.json.get("names")
+    if not isinstance(names, dict):
+        raise ApiError("Expected names")
+    wanted = {int(k): str(v or "").strip()[:120] for k, v in list(names.items())[:1000] if str(k).isdigit()}
+    changed = []
+    for student in Student.objects.filter(school_class=cls, pk__in=wanted).only("pk", "name"):
+        if student.name != wanted[student.pk]:
+            student.name = wanted[student.pk]
+            changed.append(student)
+    if changed:
+        Student.objects.bulk_update(changed, ["name"], batch_size=200)
+    named = Student.objects.filter(school_class=cls).exclude(name="").count()
+    return {"updated": len(changed), "namedCount": named}

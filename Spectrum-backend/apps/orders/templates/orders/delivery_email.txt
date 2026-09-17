@@ -1,0 +1,10 @@
+Hi {{ order.name }},
+
+Your {{ count }} photo{{ count|pluralize }} from {{ event.name }} ({{ event.institution.name }}) are ready.
+
+Download them here:
+{{ link }}
+
+The link does not expire. Order number: {{ order.public_id }}.
+
+— Spectrum

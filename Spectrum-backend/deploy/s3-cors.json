@@ -1,0 +1,17 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://api.spectrum.in"],
+      "AllowedMethods": ["PUT"],
+      "AllowedHeaders": ["Content-Type"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3600
+    },
+    {
+      "AllowedOrigins": ["*"],
+      "AllowedMethods": ["GET"],
+      "AllowedHeaders": ["*"],
+      "MaxAgeSeconds": 86400
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# /etc/systemd/system/spectrum-web.service
+[Unit]
+Description=Spectrum API and admin (gunicorn)
+After=network.target
+
+[Service]
+User=spectrum
+WorkingDirectory=/srv/spectrum/Spectrum-backend
+EnvironmentFile=/srv/spectrum/Spectrum-backend/.env
+# 2 workers x 4 threads handles a busy small site in ~130 MB. --preload shares the
+# loaded code between workers; --max-requests recycles them to cap any memory growth.
+ExecStart=/srv/spectrum/Spectrum-backend/.venv/bin/gunicorn spectrum.wsgi \
+    --bind 127.0.0.1:8000 --workers 2 --worker-class gthread --threads 4 \
+    --preload --max-requests 1000 --max-requests-jitter 100 --timeout 60
+Restart=always
+MemoryMax=400M
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,51 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'core/bulk-uploader.css' %}">
+  <script src="{% static 'core/bulk-uploader.js' %}" defer></script>
+{% endblock %}
+
+{% block after_related_objects %}
+  {{ block.super }}
+  {% if bulk_upload_after_save %}
+    <p class="bulk-hint">Save this first. The photo uploader appears right after.</p>
+  {% endif %}
+  {% for upload in bulk_uploads %}
+    <fieldset class="module bulk-upload"
+              data-target="{{ upload.target }}"
+              data-parent="{{ upload.parent_id }}"
+              data-prepare-url="{{ bulk_upload_prepare_url }}"
+              data-grid-url="{{ bulk_upload_grid_url }}"
+              data-max-bytes="{{ upload_max_bytes|default:41943040 }}">
+      <h2>{{ upload.label }} <span class="bulk-count">{{ upload.grid.total }}</span></h2>
+      {% if upload.choices %}
+        <div class="bulk-options">
+          {% for choice in upload.choices %}
+            <label>{{ choice.label }} for this batch
+              <select class="bulk-option" data-key="{{ choice.key }}">
+                {% for value, label in choice.options %}
+                  <option value="{{ value }}"{% if value == choice.default %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <span class="bulk-options-hint">Fresh uploads ask the institution for a caption. Pick another tag to send a batch for approval or correction instead.</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <div class="bulk-drop" tabindex="0" role="button" aria-label="Add {{ upload.label }}">
+        <strong>Drop photos or a folder here</strong>
+        <span>or <button type="button" class="bulk-browse">choose files</button>, or click here and paste (Ctrl+V)</span>
+        <input type="file" class="bulk-input" multiple accept="image/*,.heic,.heif" hidden>
+      </div>
+      <div class="bulk-progress" hidden>
+        <div class="bulk-bar"><span></span></div>
+        <p class="bulk-line"></p>
+        <ul class="bulk-errors"></ul>
+        <button type="button" class="bulk-retry button" hidden>Retry failed</button>
+      </div>
+      <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url %}</div>
+    </fieldset>
+  {% endfor %}
+{% endblock %}

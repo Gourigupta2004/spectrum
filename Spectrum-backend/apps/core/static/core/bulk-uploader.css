@@ -1,0 +1,25 @@
+.bulk-upload { padding-bottom: 12px; }
+.bulk-upload h2 { display: flex; gap: 8px; align-items: center; }
+.bulk-count { background: var(--body-quiet-color, #666); color: #fff; border-radius: 10px; padding: 0 8px; font-size: 11px; }
+.bulk-drop { margin: 12px; padding: 28px 16px; border: 2px dashed var(--border-color, #ccc); border-radius: 10px;
+  text-align: center; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all .15s; }
+.bulk-drop:focus, .bulk-drop.is-over { border-color: #7c4de0; background: rgba(124, 77, 224, .08); outline: none; }
+.bulk-drop strong { font-size: 15px; }
+.bulk-browse { background: none; border: 0; color: var(--link-fg, #447e9b); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+.bulk-progress { margin: 0 12px 12px; }
+.bulk-bar { height: 8px; border-radius: 4px; background: var(--darkened-bg, #eee); overflow: hidden; }
+.bulk-bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffc93c, #e8503a, #2fbf8f, #7c4de0); transition: width .2s; }
+.bulk-line { margin: 6px 0; }
+.bulk-errors { color: #e8503a; margin: 0; padding-left: 18px; max-height: 120px; overflow: auto; }
+.bulk-thumbs { list-style: none; margin: 0 12px; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.bulk-thumbs li { margin: 0; padding: 0; list-style: none; }
+.bulk-thumbs a { display: block; text-decoration: none; }
+.bulk-thumbs img, .bulk-status { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: grid; place-items: center;
+  background: var(--darkened-bg, #eee); font-size: 11px; }
+.bulk-thumbs em { display: block; font-style: normal; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bulk-thumbs .is-failed .bulk-status { color: #e8503a; }
+.bulk-manage { margin: 10px 12px 0; }
+.bulk-hint { margin: 12px 0; padding: 12px; border-left: 4px solid #7c4de0; background: rgba(124, 77, 224, .08); }
+.bulk-options { margin: 12px 12px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.bulk-options label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.bulk-options-hint { color: var(--body-quiet-color, #666); font-size: 12px; }

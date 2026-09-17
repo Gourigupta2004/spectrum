@@ -1,0 +1,22 @@
+# /etc/systemd/system/spectrum-worker.service
+[Unit]
+Description=Spectrum background worker (images, deliveries)
+After=network.target
+
+[Service]
+User=spectrum
+WorkingDirectory=/srv/spectrum/Spectrum-backend
+EnvironmentFile=/srv/spectrum/Spectrum-backend/.env
+# One process, one job at a time. It exits after 500 jobs and systemd starts a fresh one.
+ExecStart=/srv/spectrum/Spectrum-backend/.venv/bin/python manage.py runworker --max-tasks 500
+Restart=always
+RestartSec=2
+# Let a running job (a big image or zip) finish before a restart kills it.
+TimeoutStopSec=300
+Nice=10
+MemoryMax=350M
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

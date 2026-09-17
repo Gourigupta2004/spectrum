@@ -1,0 +1,5718 @@
+{
+  "institutions": [
+    {
+      "id": "dps",
+      "name": "Delhi Public School",
+      "short": "Delhi Public School",
+      "city": "New Delhi",
+      "image": "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=500&h=500&q=80",
+      "type": "school"
+    },
+    {
+      "id": "xaviers",
+      "name": "St. Xavier's College",
+      "short": "St. Xavier's",
+      "city": "Mumbai",
+      "image": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=500&h=500&q=80",
+      "type": "college"
+    },
+    {
+      "id": "ryan",
+      "name": "Ryan International School",
+      "short": "Ryan International",
+      "city": "Bengaluru",
+      "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=500&h=500&q=80",
+      "type": "school"
+    },
+    {
+      "id": "amity",
+      "name": "Amity University",
+      "short": "Amity",
+      "city": "Noida",
+      "image": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=500&h=500&q=80",
+      "type": "college"
+    },
+    {
+      "id": "doon",
+      "name": "The Doon School",
+      "short": "The Doon School",
+      "city": "Dehradun",
+      "image": "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=500&h=500&q=80",
+      "type": "school"
+    }
+  ],
+  "events": [
+    {
+      "slug": "annual-day-2025-dps",
+      "name": "Annual Day 2025",
+      "institutionId": "dps",
+      "institution": "Delhi Public School",
+      "date": "March 15, 2025",
+      "photos": 18,
+      "pricePerPhoto": 29,
+      "image": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=900&h=1200&q=80",
+      "tags": [
+        "recent",
+        "popular"
+      ],
+      "sortOrder": 0
+    },
+    {
+      "slug": "graduation-ceremony-2025-xaviers",
+      "name": "Graduation Ceremony 2025",
+      "institutionId": "xaviers",
+      "institution": "St. Xavier's College",
+      "date": "April 3, 2025",
+      "photos": 94,
+      "pricePerPhoto": 49,
+      "image": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=900&h=1200&q=80",
+      "tags": [
+        "recent"
+      ],
+      "sortOrder": 1
+    },
+    {
+      "slug": "sports-meet-2025-ryan",
+      "name": "Sports Meet 2025",
+      "institutionId": "ryan",
+      "institution": "Ryan International School",
+      "date": "February 20, 2025",
+      "photos": 210,
+      "pricePerPhoto": 29,
+      "image": "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=900&h=1200&q=80",
+      "tags": [
+        "popular"
+      ],
+      "sortOrder": 2
+    },
+    {
+      "slug": "republic-day-2025-ryan",
+      "name": "Republic Day Celebration 2025",
+      "institutionId": "ryan",
+      "institution": "Ryan International School",
+      "date": "January 26, 2025",
+      "photos": 76,
+      "pricePerPhoto": 29,
+      "image": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&h=1200&q=80",
+      "tags": [
+        "recent"
+      ],
+      "sortOrder": 3
+    },
+    {
+      "slug": "cultural-fest-rang-2025-amity",
+      "name": "Cultural Fest \"Rang\" 2025",
+      "institutionId": "amity",
+      "institution": "Amity University",
+      "date": "January 18, 2025",
+      "photos": 340,
+      "pricePerPhoto": 29,
+      "image": "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=900&h=1200&q=80",
+      "tags": [
+        "popular"
+      ],
+      "sortOrder": 4
+    },
+    {
+      "slug": "founders-day-2025-doon",
+      "name": "Founder's Day 2025",
+      "institutionId": "doon",
+      "institution": "The Doon School",
+      "date": "December 10, 2024",
+      "photos": 128,
+      "pricePerPhoto": 49,
+      "image": "https://images.unsplash.com/photo-1508997449629-303059a039c0?auto=format&fit=crop&w=900&h=1200&q=80",
+      "tags": [],
+      "sortOrder": 5
+    }
+  ],
+  "gallery": [
+    {
+      "title": "Welcome & Opening Address",
+      "image": "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Lighting the Lamp",
+      "image": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Chief Guest Speech",
+      "image": "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Solo Dance Performance",
+      "image": "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Group Dance Performance",
+      "image": "https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Musical Segment",
+      "image": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Drama / Skit",
+      "image": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Fashion Show Walk",
+      "image": "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Award Distribution",
+      "image": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Prize Distribution",
+      "image": "https://images.unsplash.com/photo-1544928147-79a2dbc1f389?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Backstage Candids",
+      "image": "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Audience & Crowd Shots",
+      "image": "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Group Photo — Faculty",
+      "image": "https://images.unsplash.com/photo-1508997449629-303059a039c0?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Group Photo — Students",
+      "image": "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Vote of Thanks",
+      "image": "https://images.unsplash.com/photo-1567168544813-cc03465b4fa8?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Closing Ceremony",
+      "image": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Finale & Confetti",
+      "image": "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&h=1000&q=80"
+    },
+    {
+      "title": "Campus & Decor Shots",
+      "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&h=1000&q=80"
+    }
+  ],
+  "heroSlides": [
+    {
+      "caption": "Annual Day 2025",
+      "image": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=900&h=1150&q=80"
+    },
+    {
+      "caption": "Cultural Fest Rang",
+      "image": "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=900&h=1150&q=80"
+    },
+    {
+      "caption": "Graduation Ceremony",
+      "image": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=900&h=1150&q=80"
+    },
+    {
+      "caption": "Sports Meet",
+      "image": "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=900&h=1150&q=80"
+    },
+    {
+      "caption": "Stage Performance",
+      "image": "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&h=1150&q=80"
+    },
+    {
+      "caption": "Republic Day",
+      "image": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&h=1150&q=80"
+    },
+    {
+      "caption": "Founder's Day",
+      "image": "https://images.unsplash.com/photo-1508997449629-303059a039c0?auto=format&fit=crop&w=900&h=1150&q=80"
+    },
+    {
+      "caption": "Classroom Candids",
+      "image": "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=900&h=1150&q=80"
+    }
+  ],
+  "services": [
+    "Annual class pictures",
+    "Student portraits",
+    "School annual days",
+    "Annual sports events",
+    "Conferences and seminars",
+    "Award ceremonies",
+    "Cultural programmes",
+    "Corporate and institutional events",
+    "Campus virtual tours"
+  ],
+  "stats": [
+    {
+      "to": 12000,
+      "suffix": "+",
+      "label": "Events Captured"
+    },
+    {
+      "to": 48,
+      "suffix": "",
+      "label": "Schools & Colleges"
+    },
+    {
+      "to": 240000,
+      "suffix": "+",
+      "label": "Photos Delivered"
+    }
+  ],
+  "capabilities": [
+    "Photography",
+    "Mediagraphy",
+    "Videography",
+    "Cinematography",
+    "Graphic Design",
+    "Promotional Films",
+    "Media Services",
+    "ID Card Production"
+  ],
+  "story": [
+    {
+      "title": "Our Evolution",
+      "body": "From black-and-white to colour film, and now advanced digital imaging — we've embraced every evolution in photography while staying true to its fundamentals: experience, precision, creativity, and attention to detail.",
+      "image": "https://images.unsplash.com/photo-1516724562728-afc824a36e84?auto=format&fit=crop&w=900&h=680&q=80",
+      "alt": "A classic compact camera lit in magenta and teal against black"
+    },
+    {
+      "title": "Institutional Expertise",
+      "body": "Having worked extensively with the top schools, colleges, and educational institutions across the NCR, we stand among the most experienced and dependable names in institutional photography.",
+      "image": "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&h=680&q=80",
+      "alt": "A crowd under confetti at a school annual-day finale"
+    },
+    {
+      "title": "Complete In-House Craft",
+      "body": "Our production facility at Saket uses the finest photo printing and binding equipment from Fuji and Noritsu, Japan. Every step — photographing, designing, printing, and binding — is handled in-house, with no outsourcing, so we can guarantee your timelines, your quality, and the complete privacy of your data.",
+      "image": "https://images.unsplash.com/photo-1500051638674-ff996a0ec29e?auto=format&fit=crop&w=900&h=680&q=80",
+      "alt": "Film rolls and printed photographs pinned on a board"
+    }
+  ],
+  "tieUps": [
+    {
+      "name": "Amity Group of Institutions",
+      "years": "30+",
+      "image": "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "K.R. Mangalam Group of Institutions",
+      "years": "20+",
+      "image": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "St. Andrews Group of Schools",
+      "years": "4+",
+      "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "DPS International – Gurugram",
+      "years": "3+",
+      "image": "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "Bal Bharati Public School – Noida",
+      "years": "15+",
+      "image": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "G.D. Goenka Public School – Gurugram",
+      "years": "15+",
+      "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "G.D. Goenka Global School – Noida",
+      "years": "3+",
+      "image": "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "ASN Sr. Secondary School – New Delhi",
+      "years": "15+",
+      "image": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "Colonel's Central Academy – Gurugram",
+      "years": "15+",
+      "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "Mount Olympus School – Gurugram",
+      "years": "7+",
+      "image": "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "GBN Sr. Sec. School – Faridabad",
+      "years": "15+",
+      "image": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "Universal Public School – New Delhi",
+      "years": "15+",
+      "image": "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=400&h=400&q=80"
+    },
+    {
+      "name": "Balwant Rai Mehta School – New Delhi",
+      "years": "10+",
+      "image": "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=400&h=400&q=80"
+    }
+  ],
+  "faqs": [
+    {
+      "q": "How soon are photos available after the event?",
+      "a": "Your private gallery goes live within 48 hours of the event wrapping. Large multi-day fests can take up to 72 hours for the full set."
+    },
+    {
+      "q": "How are the final files delivered?",
+      "a": "Instantly after checkout, over WhatsApp or email — whichever you choose. You receive full-resolution JPEGs with no watermark and no expiry on the link."
+    },
+    {
+      "q": "What does it cost?",
+      "a": "Individual photos start at ₹29 each. The full album bundle for an event is ₹299 — usually the better value once you want more than ten photos."
+    },
+    {
+      "q": "Can our institution book a coverage date?",
+      "a": "Yes. Reach out through the contact page with your event date and venue, and we'll confirm a crew and a coverage plan."
+    }
+  ],
+  "contactDetails": [
+    {
+      "icon": "mail",
+      "label": "Email",
+      "value": "support@spectrum.in"
+    },
+    {
+      "icon": "phone",
+      "label": "Phone / WhatsApp",
+      "value": "+91 98100 44120"
+    },
+    {
+      "icon": "map",
+      "label": "Studio",
+      "value": "2nd Floor, Hauz Khas Village, New Delhi 110016"
+    }
+  ],
+  "portal": {
+    "institutionId": "dps",
+    "login": {
+      "username": "dps-newdelhi",
+      "password": "demo"
+    },
+    "event": "annual-day-2025-dps",
+    "captions": [
+      {
+        "key": "c-1",
+        "momentTitle": "Lighting the Lamp",
+        "image": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Chief guest lights the ceremonial lamp to open Annual Day 2025.",
+        "correction": "",
+        "requested": "needs-approval",
+        "status": "needs-approval",
+        "updatedAt": "March 18, 2025",
+        "actionBy": "",
+        "sortOrder": 0
+      },
+      {
+        "key": "c-2",
+        "momentTitle": "Chief Guest Speech",
+        "image": "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Our chief guest addressing the gathering.",
+        "correction": "",
+        "requested": "needs-correction",
+        "status": "needs-correction",
+        "updatedAt": "March 18, 2025",
+        "actionBy": "",
+        "sortOrder": 1
+      },
+      {
+        "key": "c-3",
+        "momentTitle": "Solo Dance Performance",
+        "image": "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "A student performs a classical solo dance.",
+        "correction": "",
+        "requested": "needs-approval",
+        "status": "needs-approval",
+        "updatedAt": "March 19, 2025",
+        "actionBy": "",
+        "sortOrder": 2
+      },
+      {
+        "key": "c-4",
+        "momentTitle": "Award Distribution",
+        "image": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Principal Mrs. Sharma presents the Excellence Award to Class XII topper.",
+        "correction": "",
+        "requested": "needs-correction",
+        "status": "corrected",
+        "updatedAt": "March 21, 2025",
+        "actionBy": "R. Menon",
+        "sortOrder": 3
+      },
+      {
+        "key": "c-5",
+        "momentTitle": "Group Photo — Faculty",
+        "image": "https://images.unsplash.com/photo-1508997449629-303059a039c0?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Faculty group photo, Annual Day 2025.",
+        "correction": "",
+        "requested": "needs-approval",
+        "status": "approved",
+        "updatedAt": "March 20, 2025",
+        "actionBy": "A. Kapoor",
+        "sortOrder": 4
+      },
+      {
+        "key": "c-6",
+        "momentTitle": "Drama / Skit",
+        "image": "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Students perform a short skit.",
+        "correction": "",
+        "requested": "needs-correction",
+        "status": "needs-correction",
+        "updatedAt": "March 19, 2025",
+        "actionBy": "",
+        "sortOrder": 5
+      },
+      {
+        "key": "c-7",
+        "momentTitle": "Musical Segment",
+        "image": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "School choir performs during the event.",
+        "correction": "",
+        "requested": "needs-approval",
+        "status": "approved",
+        "updatedAt": "March 20, 2025",
+        "actionBy": "A. Kapoor",
+        "sortOrder": 6
+      },
+      {
+        "key": "c-9",
+        "momentTitle": "Finale & Confetti",
+        "image": "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "",
+        "correction": "",
+        "requested": "needs-caption",
+        "status": "needs-caption",
+        "updatedAt": "March 22, 2025",
+        "actionBy": "",
+        "sortOrder": 7
+      },
+      {
+        "key": "c-10",
+        "momentTitle": "Backstage Candids",
+        "image": "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "",
+        "correction": "",
+        "requested": "needs-caption",
+        "status": "needs-caption",
+        "updatedAt": "March 22, 2025",
+        "actionBy": "",
+        "sortOrder": 8
+      },
+      {
+        "key": "c-11",
+        "momentTitle": "Prize Distribution",
+        "image": "https://images.unsplash.com/photo-1544928147-79a2dbc1f389?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Head Girl receives the Best Performer trophy at Annual Day 2025.",
+        "correction": "",
+        "requested": "needs-approval",
+        "status": "needs-approval",
+        "updatedAt": "March 22, 2025",
+        "actionBy": "",
+        "sortOrder": 9
+      },
+      {
+        "key": "c-12",
+        "momentTitle": "Group Photo — Students",
+        "image": "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Class XII students gather on stage after the closing performance.",
+        "correction": "",
+        "requested": "needs-approval",
+        "status": "needs-approval",
+        "updatedAt": "March 22, 2025",
+        "actionBy": "",
+        "sortOrder": 10
+      },
+      {
+        "key": "c-8",
+        "momentTitle": "Closing Ceremony",
+        "image": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=800&h=1000&q=80",
+        "caption": "Vote of thanks and closing remarks.",
+        "correction": "",
+        "requested": "needs-approval",
+        "status": "needs-approval",
+        "updatedAt": "March 21, 2025",
+        "actionBy": "",
+        "sortOrder": 11
+      }
+    ],
+    "classes": [
+      {
+        "id": "nursery",
+        "name": "Nursery",
+        "group": "Primary",
+        "sortOrder": 0,
+        "students": [
+          {
+            "key": "nursery-1",
+            "name": "",
+            "hue": 271
+          },
+          {
+            "key": "nursery-2",
+            "name": "",
+            "hue": 240
+          },
+          {
+            "key": "nursery-3",
+            "name": "",
+            "hue": 209
+          },
+          {
+            "key": "nursery-4",
+            "name": "",
+            "hue": 178
+          },
+          {
+            "key": "nursery-5",
+            "name": "",
+            "hue": 147
+          },
+          {
+            "key": "nursery-6",
+            "name": "",
+            "hue": 116
+          },
+          {
+            "key": "nursery-7",
+            "name": "",
+            "hue": 85
+          },
+          {
+            "key": "nursery-8",
+            "name": "",
+            "hue": 54
+          },
+          {
+            "key": "nursery-9",
+            "name": "",
+            "hue": 23
+          },
+          {
+            "key": "nursery-10",
+            "name": "",
+            "hue": 352
+          },
+          {
+            "key": "nursery-11",
+            "name": "",
+            "hue": 321
+          },
+          {
+            "key": "nursery-12",
+            "name": "",
+            "hue": 290
+          },
+          {
+            "key": "nursery-13",
+            "name": "",
+            "hue": 259
+          },
+          {
+            "key": "nursery-14",
+            "name": "",
+            "hue": 228
+          },
+          {
+            "key": "nursery-15",
+            "name": "",
+            "hue": 197
+          },
+          {
+            "key": "nursery-16",
+            "name": "",
+            "hue": 166
+          },
+          {
+            "key": "nursery-17",
+            "name": "",
+            "hue": 135
+          },
+          {
+            "key": "nursery-18",
+            "name": "",
+            "hue": 104
+          },
+          {
+            "key": "nursery-19",
+            "name": "",
+            "hue": 73
+          },
+          {
+            "key": "nursery-20",
+            "name": "",
+            "hue": 42
+          },
+          {
+            "key": "nursery-21",
+            "name": "",
+            "hue": 11
+          },
+          {
+            "key": "nursery-22",
+            "name": "",
+            "hue": 340
+          },
+          {
+            "key": "nursery-23",
+            "name": "",
+            "hue": 309
+          },
+          {
+            "key": "nursery-24",
+            "name": "",
+            "hue": 278
+          },
+          {
+            "key": "nursery-25",
+            "name": "",
+            "hue": 247
+          },
+          {
+            "key": "nursery-26",
+            "name": "",
+            "hue": 216
+          },
+          {
+            "key": "nursery-27",
+            "name": "",
+            "hue": 185
+          },
+          {
+            "key": "nursery-28",
+            "name": "",
+            "hue": 154
+          },
+          {
+            "key": "nursery-29",
+            "name": "",
+            "hue": 123
+          },
+          {
+            "key": "nursery-30",
+            "name": "",
+            "hue": 92
+          },
+          {
+            "key": "nursery-31",
+            "name": "",
+            "hue": 61
+          },
+          {
+            "key": "nursery-32",
+            "name": "",
+            "hue": 30
+          },
+          {
+            "key": "nursery-33",
+            "name": "",
+            "hue": 359
+          },
+          {
+            "key": "nursery-34",
+            "name": "",
+            "hue": 328
+          },
+          {
+            "key": "nursery-35",
+            "name": "",
+            "hue": 297
+          }
+        ]
+      },
+      {
+        "id": "lkg",
+        "name": "LKG",
+        "group": "Primary",
+        "sortOrder": 1,
+        "students": [
+          {
+            "key": "lkg-1",
+            "name": "",
+            "hue": 349
+          },
+          {
+            "key": "lkg-2",
+            "name": "",
+            "hue": 318
+          },
+          {
+            "key": "lkg-3",
+            "name": "",
+            "hue": 287
+          },
+          {
+            "key": "lkg-4",
+            "name": "",
+            "hue": 256
+          },
+          {
+            "key": "lkg-5",
+            "name": "",
+            "hue": 225
+          },
+          {
+            "key": "lkg-6",
+            "name": "",
+            "hue": 194
+          },
+          {
+            "key": "lkg-7",
+            "name": "",
+            "hue": 163
+          },
+          {
+            "key": "lkg-8",
+            "name": "",
+            "hue": 132
+          },
+          {
+            "key": "lkg-9",
+            "name": "",
+            "hue": 101
+          },
+          {
+            "key": "lkg-10",
+            "name": "",
+            "hue": 70
+          },
+          {
+            "key": "lkg-11",
+            "name": "",
+            "hue": 39
+          },
+          {
+            "key": "lkg-12",
+            "name": "",
+            "hue": 8
+          },
+          {
+            "key": "lkg-13",
+            "name": "",
+            "hue": 337
+          },
+          {
+            "key": "lkg-14",
+            "name": "",
+            "hue": 306
+          },
+          {
+            "key": "lkg-15",
+            "name": "",
+            "hue": 275
+          },
+          {
+            "key": "lkg-16",
+            "name": "",
+            "hue": 244
+          },
+          {
+            "key": "lkg-17",
+            "name": "",
+            "hue": 213
+          },
+          {
+            "key": "lkg-18",
+            "name": "",
+            "hue": 182
+          },
+          {
+            "key": "lkg-19",
+            "name": "",
+            "hue": 151
+          },
+          {
+            "key": "lkg-20",
+            "name": "",
+            "hue": 120
+          },
+          {
+            "key": "lkg-21",
+            "name": "",
+            "hue": 89
+          },
+          {
+            "key": "lkg-22",
+            "name": "",
+            "hue": 58
+          },
+          {
+            "key": "lkg-23",
+            "name": "",
+            "hue": 27
+          },
+          {
+            "key": "lkg-24",
+            "name": "",
+            "hue": 356
+          },
+          {
+            "key": "lkg-25",
+            "name": "",
+            "hue": 325
+          },
+          {
+            "key": "lkg-26",
+            "name": "",
+            "hue": 294
+          },
+          {
+            "key": "lkg-27",
+            "name": "",
+            "hue": 263
+          },
+          {
+            "key": "lkg-28",
+            "name": "",
+            "hue": 232
+          },
+          {
+            "key": "lkg-29",
+            "name": "",
+            "hue": 201
+          },
+          {
+            "key": "lkg-30",
+            "name": "",
+            "hue": 170
+          },
+          {
+            "key": "lkg-31",
+            "name": "",
+            "hue": 139
+          }
+        ]
+      },
+      {
+        "id": "ukg",
+        "name": "UKG",
+        "group": "Primary",
+        "sortOrder": 2,
+        "students": [
+          {
+            "key": "ukg-1",
+            "name": "",
+            "hue": 52
+          },
+          {
+            "key": "ukg-2",
+            "name": "",
+            "hue": 21
+          },
+          {
+            "key": "ukg-3",
+            "name": "",
+            "hue": 350
+          },
+          {
+            "key": "ukg-4",
+            "name": "",
+            "hue": 319
+          },
+          {
+            "key": "ukg-5",
+            "name": "",
+            "hue": 288
+          },
+          {
+            "key": "ukg-6",
+            "name": "",
+            "hue": 257
+          },
+          {
+            "key": "ukg-7",
+            "name": "",
+            "hue": 226
+          },
+          {
+            "key": "ukg-8",
+            "name": "",
+            "hue": 195
+          },
+          {
+            "key": "ukg-9",
+            "name": "",
+            "hue": 164
+          },
+          {
+            "key": "ukg-10",
+            "name": "",
+            "hue": 133
+          },
+          {
+            "key": "ukg-11",
+            "name": "",
+            "hue": 102
+          },
+          {
+            "key": "ukg-12",
+            "name": "",
+            "hue": 71
+          },
+          {
+            "key": "ukg-13",
+            "name": "",
+            "hue": 40
+          },
+          {
+            "key": "ukg-14",
+            "name": "",
+            "hue": 9
+          },
+          {
+            "key": "ukg-15",
+            "name": "",
+            "hue": 338
+          },
+          {
+            "key": "ukg-16",
+            "name": "",
+            "hue": 307
+          },
+          {
+            "key": "ukg-17",
+            "name": "",
+            "hue": 276
+          },
+          {
+            "key": "ukg-18",
+            "name": "",
+            "hue": 245
+          },
+          {
+            "key": "ukg-19",
+            "name": "",
+            "hue": 214
+          },
+          {
+            "key": "ukg-20",
+            "name": "",
+            "hue": 183
+          },
+          {
+            "key": "ukg-21",
+            "name": "",
+            "hue": 152
+          },
+          {
+            "key": "ukg-22",
+            "name": "",
+            "hue": 121
+          },
+          {
+            "key": "ukg-23",
+            "name": "",
+            "hue": 90
+          },
+          {
+            "key": "ukg-24",
+            "name": "",
+            "hue": 59
+          },
+          {
+            "key": "ukg-25",
+            "name": "",
+            "hue": 28
+          },
+          {
+            "key": "ukg-26",
+            "name": "",
+            "hue": 357
+          },
+          {
+            "key": "ukg-27",
+            "name": "",
+            "hue": 326
+          },
+          {
+            "key": "ukg-28",
+            "name": "",
+            "hue": 295
+          },
+          {
+            "key": "ukg-29",
+            "name": "",
+            "hue": 264
+          },
+          {
+            "key": "ukg-30",
+            "name": "",
+            "hue": 233
+          },
+          {
+            "key": "ukg-31",
+            "name": "",
+            "hue": 202
+          }
+        ]
+      },
+      {
+        "id": "1a",
+        "name": "1A",
+        "group": "Primary",
+        "sortOrder": 3,
+        "students": [
+          {
+            "key": "1a-1",
+            "name": "Ishaan Gupta",
+            "hue": 160
+          },
+          {
+            "key": "1a-2",
+            "name": "Anaya Rao",
+            "hue": 129
+          },
+          {
+            "key": "1a-3",
+            "name": "",
+            "hue": 98
+          },
+          {
+            "key": "1a-4",
+            "name": "",
+            "hue": 67
+          },
+          {
+            "key": "1a-5",
+            "name": "",
+            "hue": 36
+          },
+          {
+            "key": "1a-6",
+            "name": "",
+            "hue": 5
+          },
+          {
+            "key": "1a-7",
+            "name": "",
+            "hue": 334
+          },
+          {
+            "key": "1a-8",
+            "name": "",
+            "hue": 303
+          },
+          {
+            "key": "1a-9",
+            "name": "",
+            "hue": 272
+          },
+          {
+            "key": "1a-10",
+            "name": "",
+            "hue": 241
+          },
+          {
+            "key": "1a-11",
+            "name": "",
+            "hue": 210
+          },
+          {
+            "key": "1a-12",
+            "name": "",
+            "hue": 179
+          },
+          {
+            "key": "1a-13",
+            "name": "",
+            "hue": 148
+          },
+          {
+            "key": "1a-14",
+            "name": "",
+            "hue": 117
+          },
+          {
+            "key": "1a-15",
+            "name": "",
+            "hue": 86
+          },
+          {
+            "key": "1a-16",
+            "name": "",
+            "hue": 55
+          },
+          {
+            "key": "1a-17",
+            "name": "",
+            "hue": 24
+          },
+          {
+            "key": "1a-18",
+            "name": "",
+            "hue": 353
+          },
+          {
+            "key": "1a-19",
+            "name": "",
+            "hue": 322
+          },
+          {
+            "key": "1a-20",
+            "name": "",
+            "hue": 291
+          },
+          {
+            "key": "1a-21",
+            "name": "",
+            "hue": 260
+          },
+          {
+            "key": "1a-22",
+            "name": "",
+            "hue": 229
+          },
+          {
+            "key": "1a-23",
+            "name": "",
+            "hue": 198
+          },
+          {
+            "key": "1a-24",
+            "name": "",
+            "hue": 167
+          },
+          {
+            "key": "1a-25",
+            "name": "",
+            "hue": 136
+          },
+          {
+            "key": "1a-26",
+            "name": "",
+            "hue": 105
+          },
+          {
+            "key": "1a-27",
+            "name": "",
+            "hue": 74
+          },
+          {
+            "key": "1a-28",
+            "name": "",
+            "hue": 43
+          },
+          {
+            "key": "1a-29",
+            "name": "",
+            "hue": 12
+          },
+          {
+            "key": "1a-30",
+            "name": "",
+            "hue": 341
+          },
+          {
+            "key": "1a-31",
+            "name": "",
+            "hue": 310
+          }
+        ]
+      },
+      {
+        "id": "1b",
+        "name": "1B",
+        "group": "Primary",
+        "sortOrder": 4,
+        "students": [
+          {
+            "key": "1b-1",
+            "name": "",
+            "hue": 348
+          },
+          {
+            "key": "1b-2",
+            "name": "",
+            "hue": 317
+          },
+          {
+            "key": "1b-3",
+            "name": "",
+            "hue": 286
+          },
+          {
+            "key": "1b-4",
+            "name": "",
+            "hue": 255
+          },
+          {
+            "key": "1b-5",
+            "name": "",
+            "hue": 224
+          },
+          {
+            "key": "1b-6",
+            "name": "",
+            "hue": 193
+          },
+          {
+            "key": "1b-7",
+            "name": "",
+            "hue": 162
+          },
+          {
+            "key": "1b-8",
+            "name": "",
+            "hue": 131
+          },
+          {
+            "key": "1b-9",
+            "name": "",
+            "hue": 100
+          },
+          {
+            "key": "1b-10",
+            "name": "",
+            "hue": 69
+          },
+          {
+            "key": "1b-11",
+            "name": "",
+            "hue": 38
+          },
+          {
+            "key": "1b-12",
+            "name": "",
+            "hue": 7
+          },
+          {
+            "key": "1b-13",
+            "name": "",
+            "hue": 336
+          },
+          {
+            "key": "1b-14",
+            "name": "",
+            "hue": 305
+          },
+          {
+            "key": "1b-15",
+            "name": "",
+            "hue": 274
+          },
+          {
+            "key": "1b-16",
+            "name": "",
+            "hue": 243
+          },
+          {
+            "key": "1b-17",
+            "name": "",
+            "hue": 212
+          },
+          {
+            "key": "1b-18",
+            "name": "",
+            "hue": 181
+          },
+          {
+            "key": "1b-19",
+            "name": "",
+            "hue": 150
+          },
+          {
+            "key": "1b-20",
+            "name": "",
+            "hue": 119
+          },
+          {
+            "key": "1b-21",
+            "name": "",
+            "hue": 88
+          },
+          {
+            "key": "1b-22",
+            "name": "",
+            "hue": 57
+          },
+          {
+            "key": "1b-23",
+            "name": "",
+            "hue": 26
+          },
+          {
+            "key": "1b-24",
+            "name": "",
+            "hue": 355
+          },
+          {
+            "key": "1b-25",
+            "name": "",
+            "hue": 324
+          },
+          {
+            "key": "1b-26",
+            "name": "",
+            "hue": 293
+          },
+          {
+            "key": "1b-27",
+            "name": "",
+            "hue": 262
+          },
+          {
+            "key": "1b-28",
+            "name": "",
+            "hue": 231
+          },
+          {
+            "key": "1b-29",
+            "name": "",
+            "hue": 200
+          },
+          {
+            "key": "1b-30",
+            "name": "",
+            "hue": 169
+          },
+          {
+            "key": "1b-31",
+            "name": "",
+            "hue": 138
+          },
+          {
+            "key": "1b-32",
+            "name": "",
+            "hue": 107
+          },
+          {
+            "key": "1b-33",
+            "name": "",
+            "hue": 76
+          },
+          {
+            "key": "1b-34",
+            "name": "",
+            "hue": 45
+          },
+          {
+            "key": "1b-35",
+            "name": "",
+            "hue": 14
+          }
+        ]
+      },
+      {
+        "id": "1c",
+        "name": "1C",
+        "group": "Primary",
+        "sortOrder": 5,
+        "students": [
+          {
+            "key": "1c-1",
+            "name": "",
+            "hue": 113
+          },
+          {
+            "key": "1c-2",
+            "name": "",
+            "hue": 82
+          },
+          {
+            "key": "1c-3",
+            "name": "",
+            "hue": 51
+          },
+          {
+            "key": "1c-4",
+            "name": "",
+            "hue": 20
+          },
+          {
+            "key": "1c-5",
+            "name": "",
+            "hue": 349
+          },
+          {
+            "key": "1c-6",
+            "name": "",
+            "hue": 318
+          },
+          {
+            "key": "1c-7",
+            "name": "",
+            "hue": 287
+          },
+          {
+            "key": "1c-8",
+            "name": "",
+            "hue": 256
+          },
+          {
+            "key": "1c-9",
+            "name": "",
+            "hue": 225
+          },
+          {
+            "key": "1c-10",
+            "name": "",
+            "hue": 194
+          },
+          {
+            "key": "1c-11",
+            "name": "",
+            "hue": 163
+          },
+          {
+            "key": "1c-12",
+            "name": "",
+            "hue": 132
+          },
+          {
+            "key": "1c-13",
+            "name": "",
+            "hue": 101
+          },
+          {
+            "key": "1c-14",
+            "name": "",
+            "hue": 70
+          },
+          {
+            "key": "1c-15",
+            "name": "",
+            "hue": 39
+          },
+          {
+            "key": "1c-16",
+            "name": "",
+            "hue": 8
+          },
+          {
+            "key": "1c-17",
+            "name": "",
+            "hue": 337
+          },
+          {
+            "key": "1c-18",
+            "name": "",
+            "hue": 306
+          },
+          {
+            "key": "1c-19",
+            "name": "",
+            "hue": 275
+          },
+          {
+            "key": "1c-20",
+            "name": "",
+            "hue": 244
+          },
+          {
+            "key": "1c-21",
+            "name": "",
+            "hue": 213
+          },
+          {
+            "key": "1c-22",
+            "name": "",
+            "hue": 182
+          },
+          {
+            "key": "1c-23",
+            "name": "",
+            "hue": 151
+          },
+          {
+            "key": "1c-24",
+            "name": "",
+            "hue": 120
+          },
+          {
+            "key": "1c-25",
+            "name": "",
+            "hue": 89
+          },
+          {
+            "key": "1c-26",
+            "name": "",
+            "hue": 58
+          },
+          {
+            "key": "1c-27",
+            "name": "",
+            "hue": 27
+          },
+          {
+            "key": "1c-28",
+            "name": "",
+            "hue": 356
+          },
+          {
+            "key": "1c-29",
+            "name": "",
+            "hue": 325
+          },
+          {
+            "key": "1c-30",
+            "name": "",
+            "hue": 294
+          }
+        ]
+      },
+      {
+        "id": "2a",
+        "name": "2A",
+        "group": "Primary",
+        "sortOrder": 6,
+        "students": [
+          {
+            "key": "2a-1",
+            "name": "",
+            "hue": 207
+          },
+          {
+            "key": "2a-2",
+            "name": "",
+            "hue": 176
+          },
+          {
+            "key": "2a-3",
+            "name": "",
+            "hue": 145
+          },
+          {
+            "key": "2a-4",
+            "name": "",
+            "hue": 114
+          },
+          {
+            "key": "2a-5",
+            "name": "",
+            "hue": 83
+          },
+          {
+            "key": "2a-6",
+            "name": "",
+            "hue": 52
+          },
+          {
+            "key": "2a-7",
+            "name": "",
+            "hue": 21
+          },
+          {
+            "key": "2a-8",
+            "name": "",
+            "hue": 350
+          },
+          {
+            "key": "2a-9",
+            "name": "",
+            "hue": 319
+          },
+          {
+            "key": "2a-10",
+            "name": "",
+            "hue": 288
+          },
+          {
+            "key": "2a-11",
+            "name": "",
+            "hue": 257
+          },
+          {
+            "key": "2a-12",
+            "name": "",
+            "hue": 226
+          },
+          {
+            "key": "2a-13",
+            "name": "",
+            "hue": 195
+          },
+          {
+            "key": "2a-14",
+            "name": "",
+            "hue": 164
+          },
+          {
+            "key": "2a-15",
+            "name": "",
+            "hue": 133
+          },
+          {
+            "key": "2a-16",
+            "name": "",
+            "hue": 102
+          },
+          {
+            "key": "2a-17",
+            "name": "",
+            "hue": 71
+          },
+          {
+            "key": "2a-18",
+            "name": "",
+            "hue": 40
+          },
+          {
+            "key": "2a-19",
+            "name": "",
+            "hue": 9
+          },
+          {
+            "key": "2a-20",
+            "name": "",
+            "hue": 338
+          },
+          {
+            "key": "2a-21",
+            "name": "",
+            "hue": 307
+          },
+          {
+            "key": "2a-22",
+            "name": "",
+            "hue": 276
+          },
+          {
+            "key": "2a-23",
+            "name": "",
+            "hue": 245
+          },
+          {
+            "key": "2a-24",
+            "name": "",
+            "hue": 214
+          },
+          {
+            "key": "2a-25",
+            "name": "",
+            "hue": 183
+          },
+          {
+            "key": "2a-26",
+            "name": "",
+            "hue": 152
+          },
+          {
+            "key": "2a-27",
+            "name": "",
+            "hue": 121
+          },
+          {
+            "key": "2a-28",
+            "name": "",
+            "hue": 90
+          },
+          {
+            "key": "2a-29",
+            "name": "",
+            "hue": 59
+          },
+          {
+            "key": "2a-30",
+            "name": "",
+            "hue": 28
+          },
+          {
+            "key": "2a-31",
+            "name": "",
+            "hue": 357
+          }
+        ]
+      },
+      {
+        "id": "2b",
+        "name": "2B",
+        "group": "Primary",
+        "sortOrder": 7,
+        "students": [
+          {
+            "key": "2b-1",
+            "name": "",
+            "hue": 35
+          },
+          {
+            "key": "2b-2",
+            "name": "",
+            "hue": 4
+          },
+          {
+            "key": "2b-3",
+            "name": "",
+            "hue": 333
+          },
+          {
+            "key": "2b-4",
+            "name": "",
+            "hue": 302
+          },
+          {
+            "key": "2b-5",
+            "name": "",
+            "hue": 271
+          },
+          {
+            "key": "2b-6",
+            "name": "",
+            "hue": 240
+          },
+          {
+            "key": "2b-7",
+            "name": "",
+            "hue": 209
+          },
+          {
+            "key": "2b-8",
+            "name": "",
+            "hue": 178
+          },
+          {
+            "key": "2b-9",
+            "name": "",
+            "hue": 147
+          },
+          {
+            "key": "2b-10",
+            "name": "",
+            "hue": 116
+          },
+          {
+            "key": "2b-11",
+            "name": "",
+            "hue": 85
+          },
+          {
+            "key": "2b-12",
+            "name": "",
+            "hue": 54
+          },
+          {
+            "key": "2b-13",
+            "name": "",
+            "hue": 23
+          },
+          {
+            "key": "2b-14",
+            "name": "",
+            "hue": 352
+          },
+          {
+            "key": "2b-15",
+            "name": "",
+            "hue": 321
+          },
+          {
+            "key": "2b-16",
+            "name": "",
+            "hue": 290
+          },
+          {
+            "key": "2b-17",
+            "name": "",
+            "hue": 259
+          },
+          {
+            "key": "2b-18",
+            "name": "",
+            "hue": 228
+          },
+          {
+            "key": "2b-19",
+            "name": "",
+            "hue": 197
+          },
+          {
+            "key": "2b-20",
+            "name": "",
+            "hue": 166
+          },
+          {
+            "key": "2b-21",
+            "name": "",
+            "hue": 135
+          },
+          {
+            "key": "2b-22",
+            "name": "",
+            "hue": 104
+          },
+          {
+            "key": "2b-23",
+            "name": "",
+            "hue": 73
+          },
+          {
+            "key": "2b-24",
+            "name": "",
+            "hue": 42
+          },
+          {
+            "key": "2b-25",
+            "name": "",
+            "hue": 11
+          },
+          {
+            "key": "2b-26",
+            "name": "",
+            "hue": 340
+          },
+          {
+            "key": "2b-27",
+            "name": "",
+            "hue": 309
+          },
+          {
+            "key": "2b-28",
+            "name": "",
+            "hue": 278
+          },
+          {
+            "key": "2b-29",
+            "name": "",
+            "hue": 247
+          },
+          {
+            "key": "2b-30",
+            "name": "",
+            "hue": 216
+          },
+          {
+            "key": "2b-31",
+            "name": "",
+            "hue": 185
+          },
+          {
+            "key": "2b-32",
+            "name": "",
+            "hue": 154
+          },
+          {
+            "key": "2b-33",
+            "name": "",
+            "hue": 123
+          },
+          {
+            "key": "2b-34",
+            "name": "",
+            "hue": 92
+          },
+          {
+            "key": "2b-35",
+            "name": "",
+            "hue": 61
+          }
+        ]
+      },
+      {
+        "id": "2c",
+        "name": "2C",
+        "group": "Primary",
+        "sortOrder": 8,
+        "students": [
+          {
+            "key": "2c-1",
+            "name": "",
+            "hue": 160
+          },
+          {
+            "key": "2c-2",
+            "name": "",
+            "hue": 129
+          },
+          {
+            "key": "2c-3",
+            "name": "",
+            "hue": 98
+          },
+          {
+            "key": "2c-4",
+            "name": "",
+            "hue": 67
+          },
+          {
+            "key": "2c-5",
+            "name": "",
+            "hue": 36
+          },
+          {
+            "key": "2c-6",
+            "name": "",
+            "hue": 5
+          },
+          {
+            "key": "2c-7",
+            "name": "",
+            "hue": 334
+          },
+          {
+            "key": "2c-8",
+            "name": "",
+            "hue": 303
+          },
+          {
+            "key": "2c-9",
+            "name": "",
+            "hue": 272
+          },
+          {
+            "key": "2c-10",
+            "name": "",
+            "hue": 241
+          },
+          {
+            "key": "2c-11",
+            "name": "",
+            "hue": 210
+          },
+          {
+            "key": "2c-12",
+            "name": "",
+            "hue": 179
+          },
+          {
+            "key": "2c-13",
+            "name": "",
+            "hue": 148
+          },
+          {
+            "key": "2c-14",
+            "name": "",
+            "hue": 117
+          },
+          {
+            "key": "2c-15",
+            "name": "",
+            "hue": 86
+          },
+          {
+            "key": "2c-16",
+            "name": "",
+            "hue": 55
+          },
+          {
+            "key": "2c-17",
+            "name": "",
+            "hue": 24
+          },
+          {
+            "key": "2c-18",
+            "name": "",
+            "hue": 353
+          },
+          {
+            "key": "2c-19",
+            "name": "",
+            "hue": 322
+          },
+          {
+            "key": "2c-20",
+            "name": "",
+            "hue": 291
+          },
+          {
+            "key": "2c-21",
+            "name": "",
+            "hue": 260
+          },
+          {
+            "key": "2c-22",
+            "name": "",
+            "hue": 229
+          },
+          {
+            "key": "2c-23",
+            "name": "",
+            "hue": 198
+          },
+          {
+            "key": "2c-24",
+            "name": "",
+            "hue": 167
+          },
+          {
+            "key": "2c-25",
+            "name": "",
+            "hue": 136
+          },
+          {
+            "key": "2c-26",
+            "name": "",
+            "hue": 105
+          },
+          {
+            "key": "2c-27",
+            "name": "",
+            "hue": 74
+          },
+          {
+            "key": "2c-28",
+            "name": "",
+            "hue": 43
+          },
+          {
+            "key": "2c-29",
+            "name": "",
+            "hue": 12
+          },
+          {
+            "key": "2c-30",
+            "name": "",
+            "hue": 341
+          }
+        ]
+      },
+      {
+        "id": "3a",
+        "name": "3A",
+        "group": "Primary",
+        "sortOrder": 9,
+        "students": [
+          {
+            "key": "3a-1",
+            "name": "",
+            "hue": 254
+          },
+          {
+            "key": "3a-2",
+            "name": "",
+            "hue": 223
+          },
+          {
+            "key": "3a-3",
+            "name": "",
+            "hue": 192
+          },
+          {
+            "key": "3a-4",
+            "name": "",
+            "hue": 161
+          },
+          {
+            "key": "3a-5",
+            "name": "",
+            "hue": 130
+          },
+          {
+            "key": "3a-6",
+            "name": "",
+            "hue": 99
+          },
+          {
+            "key": "3a-7",
+            "name": "",
+            "hue": 68
+          },
+          {
+            "key": "3a-8",
+            "name": "",
+            "hue": 37
+          },
+          {
+            "key": "3a-9",
+            "name": "",
+            "hue": 6
+          },
+          {
+            "key": "3a-10",
+            "name": "",
+            "hue": 335
+          },
+          {
+            "key": "3a-11",
+            "name": "",
+            "hue": 304
+          },
+          {
+            "key": "3a-12",
+            "name": "",
+            "hue": 273
+          },
+          {
+            "key": "3a-13",
+            "name": "",
+            "hue": 242
+          },
+          {
+            "key": "3a-14",
+            "name": "",
+            "hue": 211
+          },
+          {
+            "key": "3a-15",
+            "name": "",
+            "hue": 180
+          },
+          {
+            "key": "3a-16",
+            "name": "",
+            "hue": 149
+          },
+          {
+            "key": "3a-17",
+            "name": "",
+            "hue": 118
+          },
+          {
+            "key": "3a-18",
+            "name": "",
+            "hue": 87
+          },
+          {
+            "key": "3a-19",
+            "name": "",
+            "hue": 56
+          },
+          {
+            "key": "3a-20",
+            "name": "",
+            "hue": 25
+          },
+          {
+            "key": "3a-21",
+            "name": "",
+            "hue": 354
+          },
+          {
+            "key": "3a-22",
+            "name": "",
+            "hue": 323
+          },
+          {
+            "key": "3a-23",
+            "name": "",
+            "hue": 292
+          },
+          {
+            "key": "3a-24",
+            "name": "",
+            "hue": 261
+          },
+          {
+            "key": "3a-25",
+            "name": "",
+            "hue": 230
+          },
+          {
+            "key": "3a-26",
+            "name": "",
+            "hue": 199
+          },
+          {
+            "key": "3a-27",
+            "name": "",
+            "hue": 168
+          },
+          {
+            "key": "3a-28",
+            "name": "",
+            "hue": 137
+          },
+          {
+            "key": "3a-29",
+            "name": "",
+            "hue": 106
+          },
+          {
+            "key": "3a-30",
+            "name": "",
+            "hue": 75
+          },
+          {
+            "key": "3a-31",
+            "name": "",
+            "hue": 44
+          }
+        ]
+      },
+      {
+        "id": "3b",
+        "name": "3B",
+        "group": "Primary",
+        "sortOrder": 10,
+        "students": [
+          {
+            "key": "3b-1",
+            "name": "",
+            "hue": 82
+          },
+          {
+            "key": "3b-2",
+            "name": "",
+            "hue": 51
+          },
+          {
+            "key": "3b-3",
+            "name": "",
+            "hue": 20
+          },
+          {
+            "key": "3b-4",
+            "name": "",
+            "hue": 349
+          },
+          {
+            "key": "3b-5",
+            "name": "",
+            "hue": 318
+          },
+          {
+            "key": "3b-6",
+            "name": "",
+            "hue": 287
+          },
+          {
+            "key": "3b-7",
+            "name": "",
+            "hue": 256
+          },
+          {
+            "key": "3b-8",
+            "name": "",
+            "hue": 225
+          },
+          {
+            "key": "3b-9",
+            "name": "",
+            "hue": 194
+          },
+          {
+            "key": "3b-10",
+            "name": "",
+            "hue": 163
+          },
+          {
+            "key": "3b-11",
+            "name": "",
+            "hue": 132
+          },
+          {
+            "key": "3b-12",
+            "name": "",
+            "hue": 101
+          },
+          {
+            "key": "3b-13",
+            "name": "",
+            "hue": 70
+          },
+          {
+            "key": "3b-14",
+            "name": "",
+            "hue": 39
+          },
+          {
+            "key": "3b-15",
+            "name": "",
+            "hue": 8
+          },
+          {
+            "key": "3b-16",
+            "name": "",
+            "hue": 337
+          },
+          {
+            "key": "3b-17",
+            "name": "",
+            "hue": 306
+          },
+          {
+            "key": "3b-18",
+            "name": "",
+            "hue": 275
+          },
+          {
+            "key": "3b-19",
+            "name": "",
+            "hue": 244
+          },
+          {
+            "key": "3b-20",
+            "name": "",
+            "hue": 213
+          },
+          {
+            "key": "3b-21",
+            "name": "",
+            "hue": 182
+          },
+          {
+            "key": "3b-22",
+            "name": "",
+            "hue": 151
+          },
+          {
+            "key": "3b-23",
+            "name": "",
+            "hue": 120
+          },
+          {
+            "key": "3b-24",
+            "name": "",
+            "hue": 89
+          },
+          {
+            "key": "3b-25",
+            "name": "",
+            "hue": 58
+          },
+          {
+            "key": "3b-26",
+            "name": "",
+            "hue": 27
+          },
+          {
+            "key": "3b-27",
+            "name": "",
+            "hue": 356
+          },
+          {
+            "key": "3b-28",
+            "name": "",
+            "hue": 325
+          },
+          {
+            "key": "3b-29",
+            "name": "",
+            "hue": 294
+          },
+          {
+            "key": "3b-30",
+            "name": "",
+            "hue": 263
+          },
+          {
+            "key": "3b-31",
+            "name": "",
+            "hue": 232
+          },
+          {
+            "key": "3b-32",
+            "name": "",
+            "hue": 201
+          },
+          {
+            "key": "3b-33",
+            "name": "",
+            "hue": 170
+          },
+          {
+            "key": "3b-34",
+            "name": "",
+            "hue": 139
+          },
+          {
+            "key": "3b-35",
+            "name": "",
+            "hue": 108
+          }
+        ]
+      },
+      {
+        "id": "4a",
+        "name": "4A",
+        "group": "Primary",
+        "sortOrder": 11,
+        "students": [
+          {
+            "key": "4a-1",
+            "name": "",
+            "hue": 301
+          },
+          {
+            "key": "4a-2",
+            "name": "",
+            "hue": 270
+          },
+          {
+            "key": "4a-3",
+            "name": "",
+            "hue": 239
+          },
+          {
+            "key": "4a-4",
+            "name": "",
+            "hue": 208
+          },
+          {
+            "key": "4a-5",
+            "name": "",
+            "hue": 177
+          },
+          {
+            "key": "4a-6",
+            "name": "",
+            "hue": 146
+          },
+          {
+            "key": "4a-7",
+            "name": "",
+            "hue": 115
+          },
+          {
+            "key": "4a-8",
+            "name": "",
+            "hue": 84
+          },
+          {
+            "key": "4a-9",
+            "name": "",
+            "hue": 53
+          },
+          {
+            "key": "4a-10",
+            "name": "",
+            "hue": 22
+          },
+          {
+            "key": "4a-11",
+            "name": "",
+            "hue": 351
+          },
+          {
+            "key": "4a-12",
+            "name": "",
+            "hue": 320
+          },
+          {
+            "key": "4a-13",
+            "name": "",
+            "hue": 289
+          },
+          {
+            "key": "4a-14",
+            "name": "",
+            "hue": 258
+          },
+          {
+            "key": "4a-15",
+            "name": "",
+            "hue": 227
+          },
+          {
+            "key": "4a-16",
+            "name": "",
+            "hue": 196
+          },
+          {
+            "key": "4a-17",
+            "name": "",
+            "hue": 165
+          },
+          {
+            "key": "4a-18",
+            "name": "",
+            "hue": 134
+          },
+          {
+            "key": "4a-19",
+            "name": "",
+            "hue": 103
+          },
+          {
+            "key": "4a-20",
+            "name": "",
+            "hue": 72
+          },
+          {
+            "key": "4a-21",
+            "name": "",
+            "hue": 41
+          },
+          {
+            "key": "4a-22",
+            "name": "",
+            "hue": 10
+          },
+          {
+            "key": "4a-23",
+            "name": "",
+            "hue": 339
+          },
+          {
+            "key": "4a-24",
+            "name": "",
+            "hue": 308
+          },
+          {
+            "key": "4a-25",
+            "name": "",
+            "hue": 277
+          },
+          {
+            "key": "4a-26",
+            "name": "",
+            "hue": 246
+          },
+          {
+            "key": "4a-27",
+            "name": "",
+            "hue": 215
+          },
+          {
+            "key": "4a-28",
+            "name": "",
+            "hue": 184
+          },
+          {
+            "key": "4a-29",
+            "name": "",
+            "hue": 153
+          },
+          {
+            "key": "4a-30",
+            "name": "",
+            "hue": 122
+          },
+          {
+            "key": "4a-31",
+            "name": "",
+            "hue": 91
+          }
+        ]
+      },
+      {
+        "id": "4b",
+        "name": "4B",
+        "group": "Primary",
+        "sortOrder": 12,
+        "students": [
+          {
+            "key": "4b-1",
+            "name": "",
+            "hue": 129
+          },
+          {
+            "key": "4b-2",
+            "name": "",
+            "hue": 98
+          },
+          {
+            "key": "4b-3",
+            "name": "",
+            "hue": 67
+          },
+          {
+            "key": "4b-4",
+            "name": "",
+            "hue": 36
+          },
+          {
+            "key": "4b-5",
+            "name": "",
+            "hue": 5
+          },
+          {
+            "key": "4b-6",
+            "name": "",
+            "hue": 334
+          },
+          {
+            "key": "4b-7",
+            "name": "",
+            "hue": 303
+          },
+          {
+            "key": "4b-8",
+            "name": "",
+            "hue": 272
+          },
+          {
+            "key": "4b-9",
+            "name": "",
+            "hue": 241
+          },
+          {
+            "key": "4b-10",
+            "name": "",
+            "hue": 210
+          },
+          {
+            "key": "4b-11",
+            "name": "",
+            "hue": 179
+          },
+          {
+            "key": "4b-12",
+            "name": "",
+            "hue": 148
+          },
+          {
+            "key": "4b-13",
+            "name": "",
+            "hue": 117
+          },
+          {
+            "key": "4b-14",
+            "name": "",
+            "hue": 86
+          },
+          {
+            "key": "4b-15",
+            "name": "",
+            "hue": 55
+          },
+          {
+            "key": "4b-16",
+            "name": "",
+            "hue": 24
+          },
+          {
+            "key": "4b-17",
+            "name": "",
+            "hue": 353
+          },
+          {
+            "key": "4b-18",
+            "name": "",
+            "hue": 322
+          },
+          {
+            "key": "4b-19",
+            "name": "",
+            "hue": 291
+          },
+          {
+            "key": "4b-20",
+            "name": "",
+            "hue": 260
+          },
+          {
+            "key": "4b-21",
+            "name": "",
+            "hue": 229
+          },
+          {
+            "key": "4b-22",
+            "name": "",
+            "hue": 198
+          },
+          {
+            "key": "4b-23",
+            "name": "",
+            "hue": 167
+          },
+          {
+            "key": "4b-24",
+            "name": "",
+            "hue": 136
+          },
+          {
+            "key": "4b-25",
+            "name": "",
+            "hue": 105
+          },
+          {
+            "key": "4b-26",
+            "name": "",
+            "hue": 74
+          },
+          {
+            "key": "4b-27",
+            "name": "",
+            "hue": 43
+          },
+          {
+            "key": "4b-28",
+            "name": "",
+            "hue": 12
+          },
+          {
+            "key": "4b-29",
+            "name": "",
+            "hue": 341
+          },
+          {
+            "key": "4b-30",
+            "name": "",
+            "hue": 310
+          },
+          {
+            "key": "4b-31",
+            "name": "",
+            "hue": 279
+          },
+          {
+            "key": "4b-32",
+            "name": "",
+            "hue": 248
+          },
+          {
+            "key": "4b-33",
+            "name": "",
+            "hue": 217
+          },
+          {
+            "key": "4b-34",
+            "name": "",
+            "hue": 186
+          },
+          {
+            "key": "4b-35",
+            "name": "",
+            "hue": 155
+          }
+        ]
+      },
+      {
+        "id": "5a",
+        "name": "5A",
+        "group": "Primary",
+        "sortOrder": 13,
+        "students": [
+          {
+            "key": "5a-1",
+            "name": "",
+            "hue": 348
+          },
+          {
+            "key": "5a-2",
+            "name": "",
+            "hue": 317
+          },
+          {
+            "key": "5a-3",
+            "name": "",
+            "hue": 286
+          },
+          {
+            "key": "5a-4",
+            "name": "",
+            "hue": 255
+          },
+          {
+            "key": "5a-5",
+            "name": "",
+            "hue": 224
+          },
+          {
+            "key": "5a-6",
+            "name": "",
+            "hue": 193
+          },
+          {
+            "key": "5a-7",
+            "name": "",
+            "hue": 162
+          },
+          {
+            "key": "5a-8",
+            "name": "",
+            "hue": 131
+          },
+          {
+            "key": "5a-9",
+            "name": "",
+            "hue": 100
+          },
+          {
+            "key": "5a-10",
+            "name": "",
+            "hue": 69
+          },
+          {
+            "key": "5a-11",
+            "name": "",
+            "hue": 38
+          },
+          {
+            "key": "5a-12",
+            "name": "",
+            "hue": 7
+          },
+          {
+            "key": "5a-13",
+            "name": "",
+            "hue": 336
+          },
+          {
+            "key": "5a-14",
+            "name": "",
+            "hue": 305
+          },
+          {
+            "key": "5a-15",
+            "name": "",
+            "hue": 274
+          },
+          {
+            "key": "5a-16",
+            "name": "",
+            "hue": 243
+          },
+          {
+            "key": "5a-17",
+            "name": "",
+            "hue": 212
+          },
+          {
+            "key": "5a-18",
+            "name": "",
+            "hue": 181
+          },
+          {
+            "key": "5a-19",
+            "name": "",
+            "hue": 150
+          },
+          {
+            "key": "5a-20",
+            "name": "",
+            "hue": 119
+          },
+          {
+            "key": "5a-21",
+            "name": "",
+            "hue": 88
+          },
+          {
+            "key": "5a-22",
+            "name": "",
+            "hue": 57
+          },
+          {
+            "key": "5a-23",
+            "name": "",
+            "hue": 26
+          },
+          {
+            "key": "5a-24",
+            "name": "",
+            "hue": 355
+          },
+          {
+            "key": "5a-25",
+            "name": "",
+            "hue": 324
+          },
+          {
+            "key": "5a-26",
+            "name": "",
+            "hue": 293
+          },
+          {
+            "key": "5a-27",
+            "name": "",
+            "hue": 262
+          },
+          {
+            "key": "5a-28",
+            "name": "",
+            "hue": 231
+          },
+          {
+            "key": "5a-29",
+            "name": "",
+            "hue": 200
+          },
+          {
+            "key": "5a-30",
+            "name": "",
+            "hue": 169
+          },
+          {
+            "key": "5a-31",
+            "name": "",
+            "hue": 138
+          }
+        ]
+      },
+      {
+        "id": "5b",
+        "name": "5B",
+        "group": "Primary",
+        "sortOrder": 14,
+        "students": [
+          {
+            "key": "5b-1",
+            "name": "",
+            "hue": 176
+          },
+          {
+            "key": "5b-2",
+            "name": "",
+            "hue": 145
+          },
+          {
+            "key": "5b-3",
+            "name": "",
+            "hue": 114
+          },
+          {
+            "key": "5b-4",
+            "name": "",
+            "hue": 83
+          },
+          {
+            "key": "5b-5",
+            "name": "",
+            "hue": 52
+          },
+          {
+            "key": "5b-6",
+            "name": "",
+            "hue": 21
+          },
+          {
+            "key": "5b-7",
+            "name": "",
+            "hue": 350
+          },
+          {
+            "key": "5b-8",
+            "name": "",
+            "hue": 319
+          },
+          {
+            "key": "5b-9",
+            "name": "",
+            "hue": 288
+          },
+          {
+            "key": "5b-10",
+            "name": "",
+            "hue": 257
+          },
+          {
+            "key": "5b-11",
+            "name": "",
+            "hue": 226
+          },
+          {
+            "key": "5b-12",
+            "name": "",
+            "hue": 195
+          },
+          {
+            "key": "5b-13",
+            "name": "",
+            "hue": 164
+          },
+          {
+            "key": "5b-14",
+            "name": "",
+            "hue": 133
+          },
+          {
+            "key": "5b-15",
+            "name": "",
+            "hue": 102
+          },
+          {
+            "key": "5b-16",
+            "name": "",
+            "hue": 71
+          },
+          {
+            "key": "5b-17",
+            "name": "",
+            "hue": 40
+          },
+          {
+            "key": "5b-18",
+            "name": "",
+            "hue": 9
+          },
+          {
+            "key": "5b-19",
+            "name": "",
+            "hue": 338
+          },
+          {
+            "key": "5b-20",
+            "name": "",
+            "hue": 307
+          },
+          {
+            "key": "5b-21",
+            "name": "",
+            "hue": 276
+          },
+          {
+            "key": "5b-22",
+            "name": "",
+            "hue": 245
+          },
+          {
+            "key": "5b-23",
+            "name": "",
+            "hue": 214
+          },
+          {
+            "key": "5b-24",
+            "name": "",
+            "hue": 183
+          },
+          {
+            "key": "5b-25",
+            "name": "",
+            "hue": 152
+          },
+          {
+            "key": "5b-26",
+            "name": "",
+            "hue": 121
+          },
+          {
+            "key": "5b-27",
+            "name": "",
+            "hue": 90
+          },
+          {
+            "key": "5b-28",
+            "name": "",
+            "hue": 59
+          },
+          {
+            "key": "5b-29",
+            "name": "",
+            "hue": 28
+          },
+          {
+            "key": "5b-30",
+            "name": "",
+            "hue": 357
+          },
+          {
+            "key": "5b-31",
+            "name": "",
+            "hue": 326
+          },
+          {
+            "key": "5b-32",
+            "name": "",
+            "hue": 295
+          },
+          {
+            "key": "5b-33",
+            "name": "",
+            "hue": 264
+          },
+          {
+            "key": "5b-34",
+            "name": "",
+            "hue": 233
+          },
+          {
+            "key": "5b-35",
+            "name": "",
+            "hue": 202
+          }
+        ]
+      },
+      {
+        "id": "6a",
+        "name": "6A",
+        "group": "Middle",
+        "sortOrder": 15,
+        "students": [
+          {
+            "key": "6a-1",
+            "name": "",
+            "hue": 35
+          },
+          {
+            "key": "6a-2",
+            "name": "",
+            "hue": 4
+          },
+          {
+            "key": "6a-3",
+            "name": "",
+            "hue": 333
+          },
+          {
+            "key": "6a-4",
+            "name": "",
+            "hue": 302
+          },
+          {
+            "key": "6a-5",
+            "name": "",
+            "hue": 271
+          },
+          {
+            "key": "6a-6",
+            "name": "",
+            "hue": 240
+          },
+          {
+            "key": "6a-7",
+            "name": "",
+            "hue": 209
+          },
+          {
+            "key": "6a-8",
+            "name": "",
+            "hue": 178
+          },
+          {
+            "key": "6a-9",
+            "name": "",
+            "hue": 147
+          },
+          {
+            "key": "6a-10",
+            "name": "",
+            "hue": 116
+          },
+          {
+            "key": "6a-11",
+            "name": "",
+            "hue": 85
+          },
+          {
+            "key": "6a-12",
+            "name": "",
+            "hue": 54
+          },
+          {
+            "key": "6a-13",
+            "name": "",
+            "hue": 23
+          },
+          {
+            "key": "6a-14",
+            "name": "",
+            "hue": 352
+          },
+          {
+            "key": "6a-15",
+            "name": "",
+            "hue": 321
+          },
+          {
+            "key": "6a-16",
+            "name": "",
+            "hue": 290
+          },
+          {
+            "key": "6a-17",
+            "name": "",
+            "hue": 259
+          },
+          {
+            "key": "6a-18",
+            "name": "",
+            "hue": 228
+          },
+          {
+            "key": "6a-19",
+            "name": "",
+            "hue": 197
+          },
+          {
+            "key": "6a-20",
+            "name": "",
+            "hue": 166
+          },
+          {
+            "key": "6a-21",
+            "name": "",
+            "hue": 135
+          },
+          {
+            "key": "6a-22",
+            "name": "",
+            "hue": 104
+          },
+          {
+            "key": "6a-23",
+            "name": "",
+            "hue": 73
+          },
+          {
+            "key": "6a-24",
+            "name": "",
+            "hue": 42
+          },
+          {
+            "key": "6a-25",
+            "name": "",
+            "hue": 11
+          },
+          {
+            "key": "6a-26",
+            "name": "",
+            "hue": 340
+          },
+          {
+            "key": "6a-27",
+            "name": "",
+            "hue": 309
+          },
+          {
+            "key": "6a-28",
+            "name": "",
+            "hue": 278
+          },
+          {
+            "key": "6a-29",
+            "name": "",
+            "hue": 247
+          },
+          {
+            "key": "6a-30",
+            "name": "",
+            "hue": 216
+          },
+          {
+            "key": "6a-31",
+            "name": "",
+            "hue": 185
+          }
+        ]
+      },
+      {
+        "id": "6b",
+        "name": "6B",
+        "group": "Middle",
+        "sortOrder": 16,
+        "students": [
+          {
+            "key": "6b-1",
+            "name": "",
+            "hue": 223
+          },
+          {
+            "key": "6b-2",
+            "name": "",
+            "hue": 192
+          },
+          {
+            "key": "6b-3",
+            "name": "",
+            "hue": 161
+          },
+          {
+            "key": "6b-4",
+            "name": "",
+            "hue": 130
+          },
+          {
+            "key": "6b-5",
+            "name": "",
+            "hue": 99
+          },
+          {
+            "key": "6b-6",
+            "name": "",
+            "hue": 68
+          },
+          {
+            "key": "6b-7",
+            "name": "",
+            "hue": 37
+          },
+          {
+            "key": "6b-8",
+            "name": "",
+            "hue": 6
+          },
+          {
+            "key": "6b-9",
+            "name": "",
+            "hue": 335
+          },
+          {
+            "key": "6b-10",
+            "name": "",
+            "hue": 304
+          },
+          {
+            "key": "6b-11",
+            "name": "",
+            "hue": 273
+          },
+          {
+            "key": "6b-12",
+            "name": "",
+            "hue": 242
+          },
+          {
+            "key": "6b-13",
+            "name": "",
+            "hue": 211
+          },
+          {
+            "key": "6b-14",
+            "name": "",
+            "hue": 180
+          },
+          {
+            "key": "6b-15",
+            "name": "",
+            "hue": 149
+          },
+          {
+            "key": "6b-16",
+            "name": "",
+            "hue": 118
+          },
+          {
+            "key": "6b-17",
+            "name": "",
+            "hue": 87
+          },
+          {
+            "key": "6b-18",
+            "name": "",
+            "hue": 56
+          },
+          {
+            "key": "6b-19",
+            "name": "",
+            "hue": 25
+          },
+          {
+            "key": "6b-20",
+            "name": "",
+            "hue": 354
+          },
+          {
+            "key": "6b-21",
+            "name": "",
+            "hue": 323
+          },
+          {
+            "key": "6b-22",
+            "name": "",
+            "hue": 292
+          },
+          {
+            "key": "6b-23",
+            "name": "",
+            "hue": 261
+          },
+          {
+            "key": "6b-24",
+            "name": "",
+            "hue": 230
+          },
+          {
+            "key": "6b-25",
+            "name": "",
+            "hue": 199
+          },
+          {
+            "key": "6b-26",
+            "name": "",
+            "hue": 168
+          },
+          {
+            "key": "6b-27",
+            "name": "",
+            "hue": 137
+          },
+          {
+            "key": "6b-28",
+            "name": "",
+            "hue": 106
+          },
+          {
+            "key": "6b-29",
+            "name": "",
+            "hue": 75
+          },
+          {
+            "key": "6b-30",
+            "name": "",
+            "hue": 44
+          },
+          {
+            "key": "6b-31",
+            "name": "",
+            "hue": 13
+          },
+          {
+            "key": "6b-32",
+            "name": "",
+            "hue": 342
+          },
+          {
+            "key": "6b-33",
+            "name": "",
+            "hue": 311
+          },
+          {
+            "key": "6b-34",
+            "name": "",
+            "hue": 280
+          },
+          {
+            "key": "6b-35",
+            "name": "",
+            "hue": 249
+          }
+        ]
+      },
+      {
+        "id": "6c",
+        "name": "6C",
+        "group": "Middle",
+        "sortOrder": 17,
+        "students": [
+          {
+            "key": "6c-1",
+            "name": "Aarav Sharma",
+            "hue": 348
+          },
+          {
+            "key": "6c-2",
+            "name": "Diya Menon",
+            "hue": 317
+          },
+          {
+            "key": "6c-3",
+            "name": "Kabir Nair",
+            "hue": 286
+          },
+          {
+            "key": "6c-4",
+            "name": "",
+            "hue": 255
+          },
+          {
+            "key": "6c-5",
+            "name": "",
+            "hue": 224
+          },
+          {
+            "key": "6c-6",
+            "name": "",
+            "hue": 193
+          },
+          {
+            "key": "6c-7",
+            "name": "",
+            "hue": 162
+          },
+          {
+            "key": "6c-8",
+            "name": "",
+            "hue": 131
+          },
+          {
+            "key": "6c-9",
+            "name": "",
+            "hue": 100
+          },
+          {
+            "key": "6c-10",
+            "name": "",
+            "hue": 69
+          },
+          {
+            "key": "6c-11",
+            "name": "",
+            "hue": 38
+          },
+          {
+            "key": "6c-12",
+            "name": "",
+            "hue": 7
+          },
+          {
+            "key": "6c-13",
+            "name": "",
+            "hue": 336
+          },
+          {
+            "key": "6c-14",
+            "name": "",
+            "hue": 305
+          },
+          {
+            "key": "6c-15",
+            "name": "",
+            "hue": 274
+          },
+          {
+            "key": "6c-16",
+            "name": "",
+            "hue": 243
+          },
+          {
+            "key": "6c-17",
+            "name": "",
+            "hue": 212
+          },
+          {
+            "key": "6c-18",
+            "name": "",
+            "hue": 181
+          },
+          {
+            "key": "6c-19",
+            "name": "",
+            "hue": 150
+          },
+          {
+            "key": "6c-20",
+            "name": "",
+            "hue": 119
+          },
+          {
+            "key": "6c-21",
+            "name": "",
+            "hue": 88
+          },
+          {
+            "key": "6c-22",
+            "name": "",
+            "hue": 57
+          },
+          {
+            "key": "6c-23",
+            "name": "",
+            "hue": 26
+          },
+          {
+            "key": "6c-24",
+            "name": "",
+            "hue": 355
+          },
+          {
+            "key": "6c-25",
+            "name": "",
+            "hue": 324
+          },
+          {
+            "key": "6c-26",
+            "name": "",
+            "hue": 293
+          },
+          {
+            "key": "6c-27",
+            "name": "",
+            "hue": 262
+          },
+          {
+            "key": "6c-28",
+            "name": "",
+            "hue": 231
+          },
+          {
+            "key": "6c-29",
+            "name": "",
+            "hue": 200
+          },
+          {
+            "key": "6c-30",
+            "name": "",
+            "hue": 169
+          }
+        ]
+      },
+      {
+        "id": "7a",
+        "name": "7A",
+        "group": "Middle",
+        "sortOrder": 18,
+        "students": [
+          {
+            "key": "7a-1",
+            "name": "",
+            "hue": 82
+          },
+          {
+            "key": "7a-2",
+            "name": "",
+            "hue": 51
+          },
+          {
+            "key": "7a-3",
+            "name": "",
+            "hue": 20
+          },
+          {
+            "key": "7a-4",
+            "name": "",
+            "hue": 349
+          },
+          {
+            "key": "7a-5",
+            "name": "",
+            "hue": 318
+          },
+          {
+            "key": "7a-6",
+            "name": "",
+            "hue": 287
+          },
+          {
+            "key": "7a-7",
+            "name": "",
+            "hue": 256
+          },
+          {
+            "key": "7a-8",
+            "name": "",
+            "hue": 225
+          },
+          {
+            "key": "7a-9",
+            "name": "",
+            "hue": 194
+          },
+          {
+            "key": "7a-10",
+            "name": "",
+            "hue": 163
+          },
+          {
+            "key": "7a-11",
+            "name": "",
+            "hue": 132
+          },
+          {
+            "key": "7a-12",
+            "name": "",
+            "hue": 101
+          },
+          {
+            "key": "7a-13",
+            "name": "",
+            "hue": 70
+          },
+          {
+            "key": "7a-14",
+            "name": "",
+            "hue": 39
+          },
+          {
+            "key": "7a-15",
+            "name": "",
+            "hue": 8
+          },
+          {
+            "key": "7a-16",
+            "name": "",
+            "hue": 337
+          },
+          {
+            "key": "7a-17",
+            "name": "",
+            "hue": 306
+          },
+          {
+            "key": "7a-18",
+            "name": "",
+            "hue": 275
+          },
+          {
+            "key": "7a-19",
+            "name": "",
+            "hue": 244
+          },
+          {
+            "key": "7a-20",
+            "name": "",
+            "hue": 213
+          },
+          {
+            "key": "7a-21",
+            "name": "",
+            "hue": 182
+          },
+          {
+            "key": "7a-22",
+            "name": "",
+            "hue": 151
+          },
+          {
+            "key": "7a-23",
+            "name": "",
+            "hue": 120
+          },
+          {
+            "key": "7a-24",
+            "name": "",
+            "hue": 89
+          },
+          {
+            "key": "7a-25",
+            "name": "",
+            "hue": 58
+          },
+          {
+            "key": "7a-26",
+            "name": "",
+            "hue": 27
+          },
+          {
+            "key": "7a-27",
+            "name": "",
+            "hue": 356
+          },
+          {
+            "key": "7a-28",
+            "name": "",
+            "hue": 325
+          },
+          {
+            "key": "7a-29",
+            "name": "",
+            "hue": 294
+          },
+          {
+            "key": "7a-30",
+            "name": "",
+            "hue": 263
+          },
+          {
+            "key": "7a-31",
+            "name": "",
+            "hue": 232
+          }
+        ]
+      },
+      {
+        "id": "7b",
+        "name": "7B",
+        "group": "Middle",
+        "sortOrder": 19,
+        "students": [
+          {
+            "key": "7b-1",
+            "name": "",
+            "hue": 270
+          },
+          {
+            "key": "7b-2",
+            "name": "",
+            "hue": 239
+          },
+          {
+            "key": "7b-3",
+            "name": "",
+            "hue": 208
+          },
+          {
+            "key": "7b-4",
+            "name": "",
+            "hue": 177
+          },
+          {
+            "key": "7b-5",
+            "name": "",
+            "hue": 146
+          },
+          {
+            "key": "7b-6",
+            "name": "",
+            "hue": 115
+          },
+          {
+            "key": "7b-7",
+            "name": "",
+            "hue": 84
+          },
+          {
+            "key": "7b-8",
+            "name": "",
+            "hue": 53
+          },
+          {
+            "key": "7b-9",
+            "name": "",
+            "hue": 22
+          },
+          {
+            "key": "7b-10",
+            "name": "",
+            "hue": 351
+          },
+          {
+            "key": "7b-11",
+            "name": "",
+            "hue": 320
+          },
+          {
+            "key": "7b-12",
+            "name": "",
+            "hue": 289
+          },
+          {
+            "key": "7b-13",
+            "name": "",
+            "hue": 258
+          },
+          {
+            "key": "7b-14",
+            "name": "",
+            "hue": 227
+          },
+          {
+            "key": "7b-15",
+            "name": "",
+            "hue": 196
+          },
+          {
+            "key": "7b-16",
+            "name": "",
+            "hue": 165
+          },
+          {
+            "key": "7b-17",
+            "name": "",
+            "hue": 134
+          },
+          {
+            "key": "7b-18",
+            "name": "",
+            "hue": 103
+          },
+          {
+            "key": "7b-19",
+            "name": "",
+            "hue": 72
+          },
+          {
+            "key": "7b-20",
+            "name": "",
+            "hue": 41
+          },
+          {
+            "key": "7b-21",
+            "name": "",
+            "hue": 10
+          },
+          {
+            "key": "7b-22",
+            "name": "",
+            "hue": 339
+          },
+          {
+            "key": "7b-23",
+            "name": "",
+            "hue": 308
+          },
+          {
+            "key": "7b-24",
+            "name": "",
+            "hue": 277
+          },
+          {
+            "key": "7b-25",
+            "name": "",
+            "hue": 246
+          },
+          {
+            "key": "7b-26",
+            "name": "",
+            "hue": 215
+          },
+          {
+            "key": "7b-27",
+            "name": "",
+            "hue": 184
+          },
+          {
+            "key": "7b-28",
+            "name": "",
+            "hue": 153
+          },
+          {
+            "key": "7b-29",
+            "name": "",
+            "hue": 122
+          },
+          {
+            "key": "7b-30",
+            "name": "",
+            "hue": 91
+          },
+          {
+            "key": "7b-31",
+            "name": "",
+            "hue": 60
+          },
+          {
+            "key": "7b-32",
+            "name": "",
+            "hue": 29
+          },
+          {
+            "key": "7b-33",
+            "name": "",
+            "hue": 358
+          },
+          {
+            "key": "7b-34",
+            "name": "",
+            "hue": 327
+          },
+          {
+            "key": "7b-35",
+            "name": "",
+            "hue": 296
+          }
+        ]
+      },
+      {
+        "id": "8a",
+        "name": "8A",
+        "group": "Middle",
+        "sortOrder": 20,
+        "students": [
+          {
+            "key": "8a-1",
+            "name": "",
+            "hue": 129
+          },
+          {
+            "key": "8a-2",
+            "name": "",
+            "hue": 98
+          },
+          {
+            "key": "8a-3",
+            "name": "",
+            "hue": 67
+          },
+          {
+            "key": "8a-4",
+            "name": "",
+            "hue": 36
+          },
+          {
+            "key": "8a-5",
+            "name": "",
+            "hue": 5
+          },
+          {
+            "key": "8a-6",
+            "name": "",
+            "hue": 334
+          },
+          {
+            "key": "8a-7",
+            "name": "",
+            "hue": 303
+          },
+          {
+            "key": "8a-8",
+            "name": "",
+            "hue": 272
+          },
+          {
+            "key": "8a-9",
+            "name": "",
+            "hue": 241
+          },
+          {
+            "key": "8a-10",
+            "name": "",
+            "hue": 210
+          },
+          {
+            "key": "8a-11",
+            "name": "",
+            "hue": 179
+          },
+          {
+            "key": "8a-12",
+            "name": "",
+            "hue": 148
+          },
+          {
+            "key": "8a-13",
+            "name": "",
+            "hue": 117
+          },
+          {
+            "key": "8a-14",
+            "name": "",
+            "hue": 86
+          },
+          {
+            "key": "8a-15",
+            "name": "",
+            "hue": 55
+          },
+          {
+            "key": "8a-16",
+            "name": "",
+            "hue": 24
+          },
+          {
+            "key": "8a-17",
+            "name": "",
+            "hue": 353
+          },
+          {
+            "key": "8a-18",
+            "name": "",
+            "hue": 322
+          },
+          {
+            "key": "8a-19",
+            "name": "",
+            "hue": 291
+          },
+          {
+            "key": "8a-20",
+            "name": "",
+            "hue": 260
+          },
+          {
+            "key": "8a-21",
+            "name": "",
+            "hue": 229
+          },
+          {
+            "key": "8a-22",
+            "name": "",
+            "hue": 198
+          },
+          {
+            "key": "8a-23",
+            "name": "",
+            "hue": 167
+          },
+          {
+            "key": "8a-24",
+            "name": "",
+            "hue": 136
+          },
+          {
+            "key": "8a-25",
+            "name": "",
+            "hue": 105
+          },
+          {
+            "key": "8a-26",
+            "name": "",
+            "hue": 74
+          },
+          {
+            "key": "8a-27",
+            "name": "",
+            "hue": 43
+          },
+          {
+            "key": "8a-28",
+            "name": "",
+            "hue": 12
+          },
+          {
+            "key": "8a-29",
+            "name": "",
+            "hue": 341
+          },
+          {
+            "key": "8a-30",
+            "name": "",
+            "hue": 310
+          },
+          {
+            "key": "8a-31",
+            "name": "",
+            "hue": 279
+          }
+        ]
+      },
+      {
+        "id": "8b",
+        "name": "8B",
+        "group": "Middle",
+        "sortOrder": 21,
+        "students": [
+          {
+            "key": "8b-1",
+            "name": "",
+            "hue": 317
+          },
+          {
+            "key": "8b-2",
+            "name": "",
+            "hue": 286
+          },
+          {
+            "key": "8b-3",
+            "name": "",
+            "hue": 255
+          },
+          {
+            "key": "8b-4",
+            "name": "",
+            "hue": 224
+          },
+          {
+            "key": "8b-5",
+            "name": "",
+            "hue": 193
+          },
+          {
+            "key": "8b-6",
+            "name": "",
+            "hue": 162
+          },
+          {
+            "key": "8b-7",
+            "name": "",
+            "hue": 131
+          },
+          {
+            "key": "8b-8",
+            "name": "",
+            "hue": 100
+          },
+          {
+            "key": "8b-9",
+            "name": "",
+            "hue": 69
+          },
+          {
+            "key": "8b-10",
+            "name": "",
+            "hue": 38
+          },
+          {
+            "key": "8b-11",
+            "name": "",
+            "hue": 7
+          },
+          {
+            "key": "8b-12",
+            "name": "",
+            "hue": 336
+          },
+          {
+            "key": "8b-13",
+            "name": "",
+            "hue": 305
+          },
+          {
+            "key": "8b-14",
+            "name": "",
+            "hue": 274
+          },
+          {
+            "key": "8b-15",
+            "name": "",
+            "hue": 243
+          },
+          {
+            "key": "8b-16",
+            "name": "",
+            "hue": 212
+          },
+          {
+            "key": "8b-17",
+            "name": "",
+            "hue": 181
+          },
+          {
+            "key": "8b-18",
+            "name": "",
+            "hue": 150
+          },
+          {
+            "key": "8b-19",
+            "name": "",
+            "hue": 119
+          },
+          {
+            "key": "8b-20",
+            "name": "",
+            "hue": 88
+          },
+          {
+            "key": "8b-21",
+            "name": "",
+            "hue": 57
+          },
+          {
+            "key": "8b-22",
+            "name": "",
+            "hue": 26
+          },
+          {
+            "key": "8b-23",
+            "name": "",
+            "hue": 355
+          },
+          {
+            "key": "8b-24",
+            "name": "",
+            "hue": 324
+          },
+          {
+            "key": "8b-25",
+            "name": "",
+            "hue": 293
+          },
+          {
+            "key": "8b-26",
+            "name": "",
+            "hue": 262
+          },
+          {
+            "key": "8b-27",
+            "name": "",
+            "hue": 231
+          },
+          {
+            "key": "8b-28",
+            "name": "",
+            "hue": 200
+          },
+          {
+            "key": "8b-29",
+            "name": "",
+            "hue": 169
+          },
+          {
+            "key": "8b-30",
+            "name": "",
+            "hue": 138
+          },
+          {
+            "key": "8b-31",
+            "name": "",
+            "hue": 107
+          },
+          {
+            "key": "8b-32",
+            "name": "",
+            "hue": 76
+          },
+          {
+            "key": "8b-33",
+            "name": "",
+            "hue": 45
+          },
+          {
+            "key": "8b-34",
+            "name": "",
+            "hue": 14
+          },
+          {
+            "key": "8b-35",
+            "name": "",
+            "hue": 343
+          }
+        ]
+      },
+      {
+        "id": "9a",
+        "name": "9A",
+        "group": "Senior",
+        "sortOrder": 22,
+        "students": [
+          {
+            "key": "9a-1",
+            "name": "",
+            "hue": 176
+          },
+          {
+            "key": "9a-2",
+            "name": "",
+            "hue": 145
+          },
+          {
+            "key": "9a-3",
+            "name": "",
+            "hue": 114
+          },
+          {
+            "key": "9a-4",
+            "name": "",
+            "hue": 83
+          },
+          {
+            "key": "9a-5",
+            "name": "",
+            "hue": 52
+          },
+          {
+            "key": "9a-6",
+            "name": "",
+            "hue": 21
+          },
+          {
+            "key": "9a-7",
+            "name": "",
+            "hue": 350
+          },
+          {
+            "key": "9a-8",
+            "name": "",
+            "hue": 319
+          },
+          {
+            "key": "9a-9",
+            "name": "",
+            "hue": 288
+          },
+          {
+            "key": "9a-10",
+            "name": "",
+            "hue": 257
+          },
+          {
+            "key": "9a-11",
+            "name": "",
+            "hue": 226
+          },
+          {
+            "key": "9a-12",
+            "name": "",
+            "hue": 195
+          },
+          {
+            "key": "9a-13",
+            "name": "",
+            "hue": 164
+          },
+          {
+            "key": "9a-14",
+            "name": "",
+            "hue": 133
+          },
+          {
+            "key": "9a-15",
+            "name": "",
+            "hue": 102
+          },
+          {
+            "key": "9a-16",
+            "name": "",
+            "hue": 71
+          },
+          {
+            "key": "9a-17",
+            "name": "",
+            "hue": 40
+          },
+          {
+            "key": "9a-18",
+            "name": "",
+            "hue": 9
+          },
+          {
+            "key": "9a-19",
+            "name": "",
+            "hue": 338
+          },
+          {
+            "key": "9a-20",
+            "name": "",
+            "hue": 307
+          },
+          {
+            "key": "9a-21",
+            "name": "",
+            "hue": 276
+          },
+          {
+            "key": "9a-22",
+            "name": "",
+            "hue": 245
+          },
+          {
+            "key": "9a-23",
+            "name": "",
+            "hue": 214
+          },
+          {
+            "key": "9a-24",
+            "name": "",
+            "hue": 183
+          },
+          {
+            "key": "9a-25",
+            "name": "",
+            "hue": 152
+          },
+          {
+            "key": "9a-26",
+            "name": "",
+            "hue": 121
+          },
+          {
+            "key": "9a-27",
+            "name": "",
+            "hue": 90
+          },
+          {
+            "key": "9a-28",
+            "name": "",
+            "hue": 59
+          },
+          {
+            "key": "9a-29",
+            "name": "",
+            "hue": 28
+          },
+          {
+            "key": "9a-30",
+            "name": "",
+            "hue": 357
+          },
+          {
+            "key": "9a-31",
+            "name": "",
+            "hue": 326
+          }
+        ]
+      },
+      {
+        "id": "9b",
+        "name": "9B",
+        "group": "Senior",
+        "sortOrder": 23,
+        "students": [
+          {
+            "key": "9b-1",
+            "name": "",
+            "hue": 4
+          },
+          {
+            "key": "9b-2",
+            "name": "",
+            "hue": 333
+          },
+          {
+            "key": "9b-3",
+            "name": "",
+            "hue": 302
+          },
+          {
+            "key": "9b-4",
+            "name": "",
+            "hue": 271
+          },
+          {
+            "key": "9b-5",
+            "name": "",
+            "hue": 240
+          },
+          {
+            "key": "9b-6",
+            "name": "",
+            "hue": 209
+          },
+          {
+            "key": "9b-7",
+            "name": "",
+            "hue": 178
+          },
+          {
+            "key": "9b-8",
+            "name": "",
+            "hue": 147
+          },
+          {
+            "key": "9b-9",
+            "name": "",
+            "hue": 116
+          },
+          {
+            "key": "9b-10",
+            "name": "",
+            "hue": 85
+          },
+          {
+            "key": "9b-11",
+            "name": "",
+            "hue": 54
+          },
+          {
+            "key": "9b-12",
+            "name": "",
+            "hue": 23
+          },
+          {
+            "key": "9b-13",
+            "name": "",
+            "hue": 352
+          },
+          {
+            "key": "9b-14",
+            "name": "",
+            "hue": 321
+          },
+          {
+            "key": "9b-15",
+            "name": "",
+            "hue": 290
+          },
+          {
+            "key": "9b-16",
+            "name": "",
+            "hue": 259
+          },
+          {
+            "key": "9b-17",
+            "name": "",
+            "hue": 228
+          },
+          {
+            "key": "9b-18",
+            "name": "",
+            "hue": 197
+          },
+          {
+            "key": "9b-19",
+            "name": "",
+            "hue": 166
+          },
+          {
+            "key": "9b-20",
+            "name": "",
+            "hue": 135
+          },
+          {
+            "key": "9b-21",
+            "name": "",
+            "hue": 104
+          },
+          {
+            "key": "9b-22",
+            "name": "",
+            "hue": 73
+          },
+          {
+            "key": "9b-23",
+            "name": "",
+            "hue": 42
+          },
+          {
+            "key": "9b-24",
+            "name": "",
+            "hue": 11
+          },
+          {
+            "key": "9b-25",
+            "name": "",
+            "hue": 340
+          },
+          {
+            "key": "9b-26",
+            "name": "",
+            "hue": 309
+          },
+          {
+            "key": "9b-27",
+            "name": "",
+            "hue": 278
+          },
+          {
+            "key": "9b-28",
+            "name": "",
+            "hue": 247
+          },
+          {
+            "key": "9b-29",
+            "name": "",
+            "hue": 216
+          },
+          {
+            "key": "9b-30",
+            "name": "",
+            "hue": 185
+          },
+          {
+            "key": "9b-31",
+            "name": "",
+            "hue": 154
+          },
+          {
+            "key": "9b-32",
+            "name": "",
+            "hue": 123
+          },
+          {
+            "key": "9b-33",
+            "name": "",
+            "hue": 92
+          },
+          {
+            "key": "9b-34",
+            "name": "",
+            "hue": 61
+          },
+          {
+            "key": "9b-35",
+            "name": "",
+            "hue": 30
+          }
+        ]
+      },
+      {
+        "id": "10a",
+        "name": "10A",
+        "group": "Senior",
+        "sortOrder": 24,
+        "students": [
+          {
+            "key": "10a-1",
+            "name": "",
+            "hue": 207
+          },
+          {
+            "key": "10a-2",
+            "name": "",
+            "hue": 176
+          },
+          {
+            "key": "10a-3",
+            "name": "",
+            "hue": 145
+          },
+          {
+            "key": "10a-4",
+            "name": "",
+            "hue": 114
+          },
+          {
+            "key": "10a-5",
+            "name": "",
+            "hue": 83
+          },
+          {
+            "key": "10a-6",
+            "name": "",
+            "hue": 52
+          },
+          {
+            "key": "10a-7",
+            "name": "",
+            "hue": 21
+          },
+          {
+            "key": "10a-8",
+            "name": "",
+            "hue": 350
+          },
+          {
+            "key": "10a-9",
+            "name": "",
+            "hue": 319
+          },
+          {
+            "key": "10a-10",
+            "name": "",
+            "hue": 288
+          },
+          {
+            "key": "10a-11",
+            "name": "",
+            "hue": 257
+          },
+          {
+            "key": "10a-12",
+            "name": "",
+            "hue": 226
+          },
+          {
+            "key": "10a-13",
+            "name": "",
+            "hue": 195
+          },
+          {
+            "key": "10a-14",
+            "name": "",
+            "hue": 164
+          },
+          {
+            "key": "10a-15",
+            "name": "",
+            "hue": 133
+          },
+          {
+            "key": "10a-16",
+            "name": "",
+            "hue": 102
+          },
+          {
+            "key": "10a-17",
+            "name": "",
+            "hue": 71
+          },
+          {
+            "key": "10a-18",
+            "name": "",
+            "hue": 40
+          },
+          {
+            "key": "10a-19",
+            "name": "",
+            "hue": 9
+          },
+          {
+            "key": "10a-20",
+            "name": "",
+            "hue": 338
+          },
+          {
+            "key": "10a-21",
+            "name": "",
+            "hue": 307
+          },
+          {
+            "key": "10a-22",
+            "name": "",
+            "hue": 276
+          },
+          {
+            "key": "10a-23",
+            "name": "",
+            "hue": 245
+          },
+          {
+            "key": "10a-24",
+            "name": "",
+            "hue": 214
+          },
+          {
+            "key": "10a-25",
+            "name": "",
+            "hue": 183
+          },
+          {
+            "key": "10a-26",
+            "name": "",
+            "hue": 152
+          },
+          {
+            "key": "10a-27",
+            "name": "",
+            "hue": 121
+          },
+          {
+            "key": "10a-28",
+            "name": "",
+            "hue": 90
+          },
+          {
+            "key": "10a-29",
+            "name": "",
+            "hue": 59
+          },
+          {
+            "key": "10a-30",
+            "name": "",
+            "hue": 28
+          },
+          {
+            "key": "10a-31",
+            "name": "",
+            "hue": 357
+          },
+          {
+            "key": "10a-32",
+            "name": "",
+            "hue": 326
+          }
+        ]
+      },
+      {
+        "id": "10b",
+        "name": "10B",
+        "group": "Senior",
+        "sortOrder": 25,
+        "students": [
+          {
+            "key": "10b-1",
+            "name": "",
+            "hue": 35
+          },
+          {
+            "key": "10b-2",
+            "name": "",
+            "hue": 4
+          },
+          {
+            "key": "10b-3",
+            "name": "",
+            "hue": 333
+          },
+          {
+            "key": "10b-4",
+            "name": "",
+            "hue": 302
+          },
+          {
+            "key": "10b-5",
+            "name": "",
+            "hue": 271
+          },
+          {
+            "key": "10b-6",
+            "name": "",
+            "hue": 240
+          },
+          {
+            "key": "10b-7",
+            "name": "",
+            "hue": 209
+          },
+          {
+            "key": "10b-8",
+            "name": "",
+            "hue": 178
+          },
+          {
+            "key": "10b-9",
+            "name": "",
+            "hue": 147
+          },
+          {
+            "key": "10b-10",
+            "name": "",
+            "hue": 116
+          },
+          {
+            "key": "10b-11",
+            "name": "",
+            "hue": 85
+          },
+          {
+            "key": "10b-12",
+            "name": "",
+            "hue": 54
+          },
+          {
+            "key": "10b-13",
+            "name": "",
+            "hue": 23
+          },
+          {
+            "key": "10b-14",
+            "name": "",
+            "hue": 352
+          },
+          {
+            "key": "10b-15",
+            "name": "",
+            "hue": 321
+          },
+          {
+            "key": "10b-16",
+            "name": "",
+            "hue": 290
+          },
+          {
+            "key": "10b-17",
+            "name": "",
+            "hue": 259
+          },
+          {
+            "key": "10b-18",
+            "name": "",
+            "hue": 228
+          },
+          {
+            "key": "10b-19",
+            "name": "",
+            "hue": 197
+          },
+          {
+            "key": "10b-20",
+            "name": "",
+            "hue": 166
+          },
+          {
+            "key": "10b-21",
+            "name": "",
+            "hue": 135
+          },
+          {
+            "key": "10b-22",
+            "name": "",
+            "hue": 104
+          },
+          {
+            "key": "10b-23",
+            "name": "",
+            "hue": 73
+          },
+          {
+            "key": "10b-24",
+            "name": "",
+            "hue": 42
+          },
+          {
+            "key": "10b-25",
+            "name": "",
+            "hue": 11
+          },
+          {
+            "key": "10b-26",
+            "name": "",
+            "hue": 340
+          },
+          {
+            "key": "10b-27",
+            "name": "",
+            "hue": 309
+          },
+          {
+            "key": "10b-28",
+            "name": "",
+            "hue": 278
+          },
+          {
+            "key": "10b-29",
+            "name": "",
+            "hue": 247
+          },
+          {
+            "key": "10b-30",
+            "name": "",
+            "hue": 216
+          },
+          {
+            "key": "10b-31",
+            "name": "",
+            "hue": 185
+          },
+          {
+            "key": "10b-32",
+            "name": "",
+            "hue": 154
+          },
+          {
+            "key": "10b-33",
+            "name": "",
+            "hue": 123
+          },
+          {
+            "key": "10b-34",
+            "name": "",
+            "hue": 92
+          },
+          {
+            "key": "10b-35",
+            "name": "",
+            "hue": 61
+          },
+          {
+            "key": "10b-36",
+            "name": "",
+            "hue": 30
+          }
+        ]
+      },
+      {
+        "id": "11a",
+        "name": "11A",
+        "group": "Senior",
+        "sortOrder": 26,
+        "students": [
+          {
+            "key": "11a-1",
+            "name": "",
+            "hue": 207
+          },
+          {
+            "key": "11a-2",
+            "name": "",
+            "hue": 176
+          },
+          {
+            "key": "11a-3",
+            "name": "",
+            "hue": 145
+          },
+          {
+            "key": "11a-4",
+            "name": "",
+            "hue": 114
+          },
+          {
+            "key": "11a-5",
+            "name": "",
+            "hue": 83
+          },
+          {
+            "key": "11a-6",
+            "name": "",
+            "hue": 52
+          },
+          {
+            "key": "11a-7",
+            "name": "",
+            "hue": 21
+          },
+          {
+            "key": "11a-8",
+            "name": "",
+            "hue": 350
+          },
+          {
+            "key": "11a-9",
+            "name": "",
+            "hue": 319
+          },
+          {
+            "key": "11a-10",
+            "name": "",
+            "hue": 288
+          },
+          {
+            "key": "11a-11",
+            "name": "",
+            "hue": 257
+          },
+          {
+            "key": "11a-12",
+            "name": "",
+            "hue": 226
+          },
+          {
+            "key": "11a-13",
+            "name": "",
+            "hue": 195
+          },
+          {
+            "key": "11a-14",
+            "name": "",
+            "hue": 164
+          },
+          {
+            "key": "11a-15",
+            "name": "",
+            "hue": 133
+          },
+          {
+            "key": "11a-16",
+            "name": "",
+            "hue": 102
+          },
+          {
+            "key": "11a-17",
+            "name": "",
+            "hue": 71
+          },
+          {
+            "key": "11a-18",
+            "name": "",
+            "hue": 40
+          },
+          {
+            "key": "11a-19",
+            "name": "",
+            "hue": 9
+          },
+          {
+            "key": "11a-20",
+            "name": "",
+            "hue": 338
+          },
+          {
+            "key": "11a-21",
+            "name": "",
+            "hue": 307
+          },
+          {
+            "key": "11a-22",
+            "name": "",
+            "hue": 276
+          },
+          {
+            "key": "11a-23",
+            "name": "",
+            "hue": 245
+          },
+          {
+            "key": "11a-24",
+            "name": "",
+            "hue": 214
+          },
+          {
+            "key": "11a-25",
+            "name": "",
+            "hue": 183
+          },
+          {
+            "key": "11a-26",
+            "name": "",
+            "hue": 152
+          },
+          {
+            "key": "11a-27",
+            "name": "",
+            "hue": 121
+          },
+          {
+            "key": "11a-28",
+            "name": "",
+            "hue": 90
+          },
+          {
+            "key": "11a-29",
+            "name": "",
+            "hue": 59
+          },
+          {
+            "key": "11a-30",
+            "name": "",
+            "hue": 28
+          },
+          {
+            "key": "11a-31",
+            "name": "",
+            "hue": 357
+          },
+          {
+            "key": "11a-32",
+            "name": "",
+            "hue": 326
+          }
+        ]
+      },
+      {
+        "id": "11b",
+        "name": "11B",
+        "group": "Senior",
+        "sortOrder": 27,
+        "students": [
+          {
+            "key": "11b-1",
+            "name": "",
+            "hue": 35
+          },
+          {
+            "key": "11b-2",
+            "name": "",
+            "hue": 4
+          },
+          {
+            "key": "11b-3",
+            "name": "",
+            "hue": 333
+          },
+          {
+            "key": "11b-4",
+            "name": "",
+            "hue": 302
+          },
+          {
+            "key": "11b-5",
+            "name": "",
+            "hue": 271
+          },
+          {
+            "key": "11b-6",
+            "name": "",
+            "hue": 240
+          },
+          {
+            "key": "11b-7",
+            "name": "",
+            "hue": 209
+          },
+          {
+            "key": "11b-8",
+            "name": "",
+            "hue": 178
+          },
+          {
+            "key": "11b-9",
+            "name": "",
+            "hue": 147
+          },
+          {
+            "key": "11b-10",
+            "name": "",
+            "hue": 116
+          },
+          {
+            "key": "11b-11",
+            "name": "",
+            "hue": 85
+          },
+          {
+            "key": "11b-12",
+            "name": "",
+            "hue": 54
+          },
+          {
+            "key": "11b-13",
+            "name": "",
+            "hue": 23
+          },
+          {
+            "key": "11b-14",
+            "name": "",
+            "hue": 352
+          },
+          {
+            "key": "11b-15",
+            "name": "",
+            "hue": 321
+          },
+          {
+            "key": "11b-16",
+            "name": "",
+            "hue": 290
+          },
+          {
+            "key": "11b-17",
+            "name": "",
+            "hue": 259
+          },
+          {
+            "key": "11b-18",
+            "name": "",
+            "hue": 228
+          },
+          {
+            "key": "11b-19",
+            "name": "",
+            "hue": 197
+          },
+          {
+            "key": "11b-20",
+            "name": "",
+            "hue": 166
+          },
+          {
+            "key": "11b-21",
+            "name": "",
+            "hue": 135
+          },
+          {
+            "key": "11b-22",
+            "name": "",
+            "hue": 104
+          },
+          {
+            "key": "11b-23",
+            "name": "",
+            "hue": 73
+          },
+          {
+            "key": "11b-24",
+            "name": "",
+            "hue": 42
+          },
+          {
+            "key": "11b-25",
+            "name": "",
+            "hue": 11
+          },
+          {
+            "key": "11b-26",
+            "name": "",
+            "hue": 340
+          },
+          {
+            "key": "11b-27",
+            "name": "",
+            "hue": 309
+          },
+          {
+            "key": "11b-28",
+            "name": "",
+            "hue": 278
+          },
+          {
+            "key": "11b-29",
+            "name": "",
+            "hue": 247
+          },
+          {
+            "key": "11b-30",
+            "name": "",
+            "hue": 216
+          },
+          {
+            "key": "11b-31",
+            "name": "",
+            "hue": 185
+          },
+          {
+            "key": "11b-32",
+            "name": "",
+            "hue": 154
+          },
+          {
+            "key": "11b-33",
+            "name": "",
+            "hue": 123
+          },
+          {
+            "key": "11b-34",
+            "name": "",
+            "hue": 92
+          },
+          {
+            "key": "11b-35",
+            "name": "",
+            "hue": 61
+          },
+          {
+            "key": "11b-36",
+            "name": "",
+            "hue": 30
+          }
+        ]
+      },
+      {
+        "id": "12a",
+        "name": "12A",
+        "group": "Senior",
+        "sortOrder": 28,
+        "students": [
+          {
+            "key": "12a-1",
+            "name": "",
+            "hue": 207
+          },
+          {
+            "key": "12a-2",
+            "name": "",
+            "hue": 176
+          },
+          {
+            "key": "12a-3",
+            "name": "",
+            "hue": 145
+          },
+          {
+            "key": "12a-4",
+            "name": "",
+            "hue": 114
+          },
+          {
+            "key": "12a-5",
+            "name": "",
+            "hue": 83
+          },
+          {
+            "key": "12a-6",
+            "name": "",
+            "hue": 52
+          },
+          {
+            "key": "12a-7",
+            "name": "",
+            "hue": 21
+          },
+          {
+            "key": "12a-8",
+            "name": "",
+            "hue": 350
+          },
+          {
+            "key": "12a-9",
+            "name": "",
+            "hue": 319
+          },
+          {
+            "key": "12a-10",
+            "name": "",
+            "hue": 288
+          },
+          {
+            "key": "12a-11",
+            "name": "",
+            "hue": 257
+          },
+          {
+            "key": "12a-12",
+            "name": "",
+            "hue": 226
+          },
+          {
+            "key": "12a-13",
+            "name": "",
+            "hue": 195
+          },
+          {
+            "key": "12a-14",
+            "name": "",
+            "hue": 164
+          },
+          {
+            "key": "12a-15",
+            "name": "",
+            "hue": 133
+          },
+          {
+            "key": "12a-16",
+            "name": "",
+            "hue": 102
+          },
+          {
+            "key": "12a-17",
+            "name": "",
+            "hue": 71
+          },
+          {
+            "key": "12a-18",
+            "name": "",
+            "hue": 40
+          },
+          {
+            "key": "12a-19",
+            "name": "",
+            "hue": 9
+          },
+          {
+            "key": "12a-20",
+            "name": "",
+            "hue": 338
+          },
+          {
+            "key": "12a-21",
+            "name": "",
+            "hue": 307
+          },
+          {
+            "key": "12a-22",
+            "name": "",
+            "hue": 276
+          },
+          {
+            "key": "12a-23",
+            "name": "",
+            "hue": 245
+          },
+          {
+            "key": "12a-24",
+            "name": "",
+            "hue": 214
+          },
+          {
+            "key": "12a-25",
+            "name": "",
+            "hue": 183
+          },
+          {
+            "key": "12a-26",
+            "name": "",
+            "hue": 152
+          },
+          {
+            "key": "12a-27",
+            "name": "",
+            "hue": 121
+          },
+          {
+            "key": "12a-28",
+            "name": "",
+            "hue": 90
+          },
+          {
+            "key": "12a-29",
+            "name": "",
+            "hue": 59
+          },
+          {
+            "key": "12a-30",
+            "name": "",
+            "hue": 28
+          },
+          {
+            "key": "12a-31",
+            "name": "",
+            "hue": 357
+          },
+          {
+            "key": "12a-32",
+            "name": "",
+            "hue": 326
+          }
+        ]
+      },
+      {
+        "id": "12b",
+        "name": "12B",
+        "group": "Senior",
+        "sortOrder": 29,
+        "students": [
+          {
+            "key": "12b-1",
+            "name": "",
+            "hue": 35
+          },
+          {
+            "key": "12b-2",
+            "name": "",
+            "hue": 4
+          },
+          {
+            "key": "12b-3",
+            "name": "",
+            "hue": 333
+          },
+          {
+            "key": "12b-4",
+            "name": "",
+            "hue": 302
+          },
+          {
+            "key": "12b-5",
+            "name": "",
+            "hue": 271
+          },
+          {
+            "key": "12b-6",
+            "name": "",
+            "hue": 240
+          },
+          {
+            "key": "12b-7",
+            "name": "",
+            "hue": 209
+          },
+          {
+            "key": "12b-8",
+            "name": "",
+            "hue": 178
+          },
+          {
+            "key": "12b-9",
+            "name": "",
+            "hue": 147
+          },
+          {
+            "key": "12b-10",
+            "name": "",
+            "hue": 116
+          },
+          {
+            "key": "12b-11",
+            "name": "",
+            "hue": 85
+          },
+          {
+            "key": "12b-12",
+            "name": "",
+            "hue": 54
+          },
+          {
+            "key": "12b-13",
+            "name": "",
+            "hue": 23
+          },
+          {
+            "key": "12b-14",
+            "name": "",
+            "hue": 352
+          },
+          {
+            "key": "12b-15",
+            "name": "",
+            "hue": 321
+          },
+          {
+            "key": "12b-16",
+            "name": "",
+            "hue": 290
+          },
+          {
+            "key": "12b-17",
+            "name": "",
+            "hue": 259
+          },
+          {
+            "key": "12b-18",
+            "name": "",
+            "hue": 228
+          },
+          {
+            "key": "12b-19",
+            "name": "",
+            "hue": 197
+          },
+          {
+            "key": "12b-20",
+            "name": "",
+            "hue": 166
+          },
+          {
+            "key": "12b-21",
+            "name": "",
+            "hue": 135
+          },
+          {
+            "key": "12b-22",
+            "name": "",
+            "hue": 104
+          },
+          {
+            "key": "12b-23",
+            "name": "",
+            "hue": 73
+          },
+          {
+            "key": "12b-24",
+            "name": "",
+            "hue": 42
+          },
+          {
+            "key": "12b-25",
+            "name": "",
+            "hue": 11
+          },
+          {
+            "key": "12b-26",
+            "name": "",
+            "hue": 340
+          },
+          {
+            "key": "12b-27",
+            "name": "",
+            "hue": 309
+          },
+          {
+            "key": "12b-28",
+            "name": "",
+            "hue": 278
+          },
+          {
+            "key": "12b-29",
+            "name": "",
+            "hue": 247
+          },
+          {
+            "key": "12b-30",
+            "name": "",
+            "hue": 216
+          },
+          {
+            "key": "12b-31",
+            "name": "",
+            "hue": 185
+          },
+          {
+            "key": "12b-32",
+            "name": "",
+            "hue": 154
+          },
+          {
+            "key": "12b-33",
+            "name": "",
+            "hue": 123
+          },
+          {
+            "key": "12b-34",
+            "name": "",
+            "hue": 92
+          },
+          {
+            "key": "12b-35",
+            "name": "",
+            "hue": 61
+          },
+          {
+            "key": "12b-36",
+            "name": "",
+            "hue": 30
+          }
+        ]
+      }
+    ]
+  }
+}

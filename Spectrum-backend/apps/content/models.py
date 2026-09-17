@@ -1,0 +1,443 @@
+"""
+Everything on the public site except the footer.
+
+Text fields default to the copy the site shipped with, so a fresh database already
+renders the current site. Wrap a word in [brackets] to paint it with the Spectrum
+gradient, e.g. "Every Moment, [Yours] Forever".
+"""
+
+from django.db import models
+
+from apps.core.models import ProcessedImage, SingletonModel
+
+BRACKET_HELP = "Wrap words in [brackets] to show them in the Spectrum gradient."
+
+
+def line(default: str, max_length: int = 200, help_text: str = "") -> models.CharField:
+    return models.CharField(max_length=max_length, default=default, blank=True, help_text=help_text)
+
+
+def para(default: str, help_text: str = "") -> models.TextField:
+    return models.TextField(default=default, blank=True, help_text=help_text)
+
+
+class Seo(models.Model):
+    seo_title = line("")
+    seo_description = models.TextField(blank=True, default="")
+    og_title = line("", help_text="Title when shared on WhatsApp or social media. Blank uses the page title.")
+    og_description = models.TextField(blank=True, default="")
+
+    class Meta:
+        abstract = True
+
+    def seo(self) -> dict:
+        return {
+            "title": self.seo_title,
+            "description": self.seo_description,
+            "ogTitle": self.og_title or self.seo_title,
+            "ogDescription": self.og_description or self.seo_description,
+        }
+
+
+class Ordered(models.Model):
+    sort_order = models.PositiveIntegerField("order", default=0, db_index=True)
+
+    class Meta:
+        abstract = True
+        ordering = ["sort_order", "pk"]
+
+
+# --------------------------------------------------------------------------- site
+
+
+def site_upload(instance, filename):
+    return f"site/{filename}"
+
+
+class SiteSettings(SingletonModel):
+    logo_light = models.FileField("logo (light, for dark backgrounds)", upload_to=site_upload, blank=True)
+    logo_mark = models.FileField("logo mark (small screens)", upload_to=site_upload, blank=True)
+    favicon = models.FileField(upload_to=site_upload, blank=True)
+    intro_video_webm = models.FileField("intro video (WebM)", upload_to=site_upload, blank=True)
+    intro_video_mp4 = models.FileField("intro video (MP4)", upload_to=site_upload, blank=True)
+    intro_skip_label = line("Skip", 40)
+
+    nav_home = line("Home", 40, help_text="Used in the footer; the navbar shows the logo instead.")
+    nav_events = line("Events", 40)
+    nav_about = line("About Us", 40)
+    nav_contact = line("Contact", 40)
+    nav_portal = line("Institution", 40,
+                      help_text="Only shown to visitors who have unlocked the institution portal.")
+    footer_portal_link = line("Institution Login", 60, help_text="Footer link to the portal's email step.")
+
+    seo_title = line("Spectrum — Every Moment, Yours Forever")
+    seo_description = para("Spectrum captures school and college events across India.")
+    og_title = line("Spectrum — Every Moment, Yours Forever")
+    og_description = para("Premium school and college event photography.")
+
+    not_found_title = line("Page not found")
+    not_found_body = para("The page you're looking for doesn't exist or has been moved.")
+    not_found_cta = line("Go home", 60)
+    error_title = line("This page didn't load")
+    error_body = para("Something went wrong on our end. You can try refreshing or head back home.")
+    error_retry = line("Try again", 60)
+
+    class Meta:
+        verbose_name = "site settings"
+        verbose_name_plural = "site settings"
+
+
+# --------------------------------------------------------------------------- home
+
+
+class HomePage(Seo, SingletonModel):
+    seo_title = line("Spectrum — School & College Event Photography")
+    seo_description = para(
+        "Spectrum captures the events that define institutions. Browse protected galleries, choose your photos, "
+        "and own your memories in full resolution."
+    )
+    og_title = line("Spectrum — Every Moment, Yours Forever")
+    og_description = para("Premium event photography for schools and colleges. Browse, choose, and own your memories.")
+    hero_title = line("Every Moment, [Yours] Forever", help_text=BRACKET_HELP)
+    hero_subtitle = para("Spectrum captures the moments for institutions. Browse, choose, and own your memories.")
+    search_placeholder = line("Find your school, college, or event…")
+    institutions_heading = line("Browse by Institution")
+    services_heading = line("Our Services")
+    services_subtitle = para("We provide professional coverage.")
+    featured_heading = line("Recently Captured")
+    featured_cta = line("View All Events", 60)
+    featured_count = models.PositiveSmallIntegerField("events to feature", default=6)
+
+    class Meta:
+        verbose_name = "home page"
+
+
+class HeroSlide(Ordered, ProcessedImage):
+    VARIANTS = {"web": 1200, "thumb": 400}
+
+    page = models.ForeignKey(HomePage, default=1, on_delete=models.CASCADE, related_name="hero_slides", editable=False)
+    caption = line("")
+
+    class Meta(Ordered.Meta):
+        verbose_name = "hero slide"
+
+    def __str__(self):
+        return self.caption or f"Slide {self.pk}"
+
+
+class Stat(Ordered):
+    page = models.ForeignKey(HomePage, default=1, on_delete=models.CASCADE, related_name="stats", editable=False)
+    value = models.PositiveIntegerField()
+    suffix = models.CharField(max_length=10, blank=True, help_text='Shown after the number, e.g. "+".')
+    label = models.CharField(max_length=80)
+
+    class Meta(Ordered.Meta):
+        verbose_name = "stat"
+
+    def __str__(self):
+        return self.label
+
+
+class Service(Ordered):
+    page = models.ForeignKey(HomePage, default=1, on_delete=models.CASCADE, related_name="services", editable=False)
+    label = models.CharField(max_length=120)
+
+    class Meta(Ordered.Meta):
+        verbose_name = "service"
+
+    def __str__(self):
+        return self.label
+
+
+# --------------------------------------------------------------------------- about
+
+
+class AboutPage(Seo, SingletonModel):
+    seo_title = line("About Us — Spectrum")
+    seo_description = para(
+        "Established in 1980, Spectrum has spent nearly five decades photographing the institutions of the NCR — "
+        "from film to digital, all in-house."
+    )
+    og_title = line("About Us — Spectrum")
+    og_description = para("Nearly five decades of experience, precision, and trust in institutional photography.")
+    back_label = line("Home", 40)
+    lead_line = para(
+        "Established in 1980 — Nearly [Five Decades] of Experience, Precision, and Trust.", BRACKET_HELP
+    )
+    pull_quote = para(
+        "[Technology] has changed. [Photography] has evolved. Our [commitment] to quality remains constant.",
+        BRACKET_HELP,
+    )
+    tieups_heading = line("Our Tie-Ups")
+    tieups_subtitle = para("Decades-long relationships with the institutions we're proud to call partners.")
+    tieup_years_template = line("Tied up for {years} years", help_text="{years} is replaced by each tie-up's years.")
+    faqs_heading = line("FAQs")
+
+    class Meta:
+        verbose_name = "about page"
+
+
+class Capability(Ordered):
+    page = models.ForeignKey(AboutPage, default=1, on_delete=models.CASCADE, related_name="capabilities", editable=False)
+    label = models.CharField(max_length=120)
+
+    class Meta(Ordered.Meta):
+        verbose_name_plural = "capabilities"
+
+    def __str__(self):
+        return self.label
+
+
+class StoryBlock(Ordered, ProcessedImage):
+    VARIANTS = {"web": 1200, "thumb": 400}
+
+    page = models.ForeignKey(AboutPage, default=1, on_delete=models.CASCADE, related_name="story", editable=False)
+    title = models.CharField(max_length=120)
+    body = models.TextField()
+    alt = models.CharField("image description", max_length=200, blank=True)
+
+    class Meta(Ordered.Meta):
+        verbose_name = "story section"
+
+    def __str__(self):
+        return self.title
+
+
+class TieUp(Ordered, ProcessedImage):
+    VARIANTS = {"web": 480, "thumb": 200}
+
+    page = models.ForeignKey(AboutPage, default=1, on_delete=models.CASCADE, related_name="tie_ups", editable=False)
+    name = models.CharField(max_length=160)
+    years = models.CharField(max_length=20, blank=True, help_text='e.g. "15+"')
+
+    class Meta(Ordered.Meta):
+        verbose_name = "tie-up"
+
+    def __str__(self):
+        return self.name
+
+
+class Faq(Ordered):
+    page = models.ForeignKey(AboutPage, default=1, on_delete=models.CASCADE, related_name="faqs", editable=False)
+    question = models.CharField(max_length=300)
+    answer = models.TextField()
+
+    class Meta(Ordered.Meta):
+        verbose_name = "FAQ"
+
+    def __str__(self):
+        return self.question
+
+
+# --------------------------------------------------------------------------- contact
+
+
+class ContactPage(Seo, SingletonModel):
+    seo_title = line("Contact Spectrum — Book Event Photography")
+    seo_description = para(
+        "Talk to Spectrum about covering your school or college event. Email, WhatsApp or send us a message "
+        "and we'll plan the shoot."
+    )
+    og_title = line("Contact Spectrum")
+    og_description = para("Get in touch with Spectrum for school and college event photography in India.")
+    back_label = line("Home", 40)
+    title = line("Get In [Touch]", help_text=BRACKET_HELP)
+    subtitle = para("Planning an annual day, fest or graduation? Tell us the date and we'll take it from there.")
+    name_placeholder = line("Your Name")
+    email_placeholder = line("Email Address")
+    phone_placeholder = line("Phone Number")
+    institution_placeholder = line("Institution")
+    service_placeholder = line("Services")
+    other_service_option = line("Other", 60)
+    other_service_placeholder = line("Tell us which service you need")
+    message_placeholder = line("Tell us about your event")
+    submit_label = line("Send Message", 60)
+    success_message = para("Thank you. We'll get back to you within one working day.")
+    details_heading = line("Reach us directly")
+    reply_note = para(
+        "We reply to every enquiry within one working day. For an event happening this week, WhatsApp is fastest."
+    )
+
+    class Meta:
+        verbose_name = "contact page"
+
+
+class ContactDetail(Ordered):
+    ICONS = [("mail", "Email"), ("phone", "Phone"), ("whatsapp", "WhatsApp"), ("map", "Address"), ("clock", "Hours")]
+
+    page = models.ForeignKey(ContactPage, default=1, on_delete=models.CASCADE, related_name="details", editable=False)
+    icon = models.CharField(max_length=20, choices=ICONS, default="mail")
+    label = models.CharField(max_length=60)
+    value = models.CharField(max_length=200)
+
+    class Meta(Ordered.Meta):
+        verbose_name = "contact detail"
+
+    def __str__(self):
+        return self.label
+
+
+class Enquiry(models.Model):
+    name = models.CharField(max_length=120)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    institution = models.CharField(max_length=160, blank=True)
+    service = models.CharField(max_length=160, blank=True)
+    message = models.TextField(blank=True)
+    handled = models.BooleanField(default=False, db_index=True)
+    ip = models.GenericIPAddressField(null=True, blank=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name_plural = "enquiries"
+
+    def __str__(self):
+        return f"{self.name} · {self.institution or self.email}"
+
+
+# --------------------------------------------------------------------------- events, gallery, portal copy
+
+
+class EventsPage(Seo, SingletonModel):
+    seo_title = line("All Events — Spectrum Event Photography")
+    seo_description = para(
+        "Browse every school and college event captured by Spectrum — annual days, sports meets, graduations "
+        "and cultural fests."
+    )
+    og_title = line("All Events — Spectrum")
+    og_description = para("Browse every school and college event captured by Spectrum.")
+    back_label = line("Home", 40)
+    title = line("All Events")
+    filter_all = line("All", 40)
+    filter_schools = line("Schools", 40)
+    filter_colleges = line("Colleges", 40)
+    filter_recent = line("Recent", 40)
+    filter_popular = line("Popular", 40)
+    empty_state = line("No events match this filter.")
+    search_placeholder = line("Search events or institutions…", 80)
+    search_empty = line("Nothing matches “{query}”. Try the institution's name or the event.")
+    photos_label = line("photos", 40, help_text='Shown on event cards: "March 15, 2025 · 182 photos".')
+    price_prefix = line("From ₹", 40)
+
+    class Meta:
+        verbose_name = "events page"
+
+
+class GalleryPage(SingletonModel):
+    seo_title_template = line("{event} Gallery — {institution} | Spectrum",
+                              help_text="{event} and {institution} are filled in per event.")
+    seo_description_template = para(
+        "Browse every photo from {event} at {institution}. Select the ones you love and get full-resolution files instantly."
+    )
+    back_label = line("All Events", 40)
+    watermark_text = line("Preview Only", 60)
+    select_label = line("Select This Photo", 60)
+    selected_label = line("Selected", 60)
+    selection_one = line("{count} photo selected · ₹{price}")
+    selection_many = line("{count} photos selected · ₹{price}")
+    bundle_selected = line("Full album selected · {photos} photos · ₹{price}")
+    bundle_button = line("Full Album Bundle — Save {savings}% · ₹{price} for all {photos} photos")
+    bundle_button_no_saving = line("Full Album Bundle — ₹{price} for all {photos} photos")
+    pay_cta = line("Pay & Get Photos →", 60)
+
+    summary_heading = line("Order Summary", 60)
+    bundle_line = line("Full Album Bundle — all {photos} photos")
+    total_label = line("Total", 40)
+    name_placeholder = line("Your Name")
+    whatsapp_placeholder = line("WhatsApp Number")
+    email_placeholder = line("Email Address")
+    deliver_via = line("Deliver via {channel}")
+    pay_button = line("Pay ₹{total} with Razorpay →")
+    checkout_error = line("Payment could not be completed. Please try again.")
+
+    success_title = line("Your Memories Are On Their Way.")
+    success_body_whatsapp = para(
+        "We're sending your full-resolution photos to your WhatsApp right now. Check your messages in a while."
+    )
+    success_body_email = para(
+        "We're sending your full-resolution photos to your email right now. Check your inbox in a while."
+    )
+    success_note = line("Didn't receive? Contact us at support@spectrum.in")
+    success_download = line("Open your photos now", 60)
+    success_back = line("Back to Events", 60)
+
+    download_title = line("Your photos")
+    download_subtitle = line("{event} · {institution}")
+    download_all = line("Download all (zip)", 60)
+    download_one = line("Download", 40)
+    download_missing = line("This download link is not valid. Contact support@spectrum.in.")
+
+    class Meta:
+        verbose_name = "gallery & checkout page"
+
+
+class PortalPage(SingletonModel):
+    access_eyebrow = line("Institution Access", 60)
+    access_title = line("Enter your institution email")
+    access_subtitle = para(
+        "The workspace is open to institutions Spectrum works with. Use the email address registered with us."
+    )
+    access_placeholder = line("you@yourschool.edu", 60)
+    access_button = line("Continue →", 60)
+    access_error = line("This email doesn't have workspace access yet. Contact support@spectrum.in.")
+    access_change = line("Use a different email", 60)
+
+    login_eyebrow = line("Institution Login", 60)
+    login_subtitle = line("Institution Workspace")
+    login_title = line("Sign in to your workspace")
+    login_id_placeholder = line("Institution ID", 60)
+    login_password_placeholder = line("Password", 60)
+    login_button = line("Log In →", 60)
+    login_error = line("That ID or password didn't match.")
+    signed_in_as = line("Signed in as", 60)
+    sign_out = line("Sign Out", 40)
+
+    workspace_title = line("What would you like to work on?")
+    workspace_subtitle = line("One institution account, everything in one place.")
+    events_card_title = line("Events", 60)
+    events_card_copy = line("Review and correct photo captions for event moments.")
+    students_card_title = line("Students", 60)
+    students_card_copy = line("Identify students in class photos and export a labeled roster.")
+    # Announced but not built yet: the card shows, and cannot be opened.
+    idcards_card_title = line("ID Cards", 60)
+    idcards_card_copy = line("Design, proof and order student ID cards from the class photos.")
+    idcards_card_badge = line("Coming soon", 40)
+
+    captions_title = line("Caption Workspace")
+
+    # The guidelines popup: shown once per session when a teacher opens the
+    # caption workspace, and again from the link beside the status tag in the
+    # caption editor. Placeholder wording until the real guidelines are written.
+    guidelines_title = line("Caption Guidelines")
+    guidelines_intro = para(
+        "Captions travel with every photo we deliver, so a little care here saves a round of corrections "
+        "later. Please read these before you write or approve a caption."
+    )
+    guidelines_points = para(
+        "Write one clear sentence per photo: who is in it, what is happening, and where or when.\n"
+        "Use full names and correct titles for staff and guests, exactly as the institution spells them.\n"
+        "Check spellings of student names against the class register before approving.\n"
+        "Keep to plain, present-tense language; avoid slang and abbreviations.\n"
+        "If a caption is wrong, describe what should change rather than rewriting it from scratch.",
+        help_text="One pointer per line.",
+    )
+    guidelines_outro = para("Approved captions are locked, so take a moment before you approve.")
+    guidelines_prompt = line("Please follow the guidelines", 80, help_text="Shown beside the status tag in the editor.")
+    guidelines_link = line("View guidelines", 60)
+    guidelines_dismiss = line("Got it", 40)
+    captions_empty_all = line("No images yet.")
+    captions_empty_pending = line("Nothing pending — all caught up.")
+    captions_empty_approved = line("No approved images yet.")
+    locked_title = line("Locked", 40)
+    locked_body = line("This caption is approved and can no longer be edited.")
+
+    classes_subtitle = line("{count} classes · tap a class to name its students.")
+    roster_title = line("{class} — Name the Students")
+    student_placeholder = line("Add student's name…", 60)
+    download_photos = line("Download Class Photos →", 60)
+    download_note = line("Only named students are included — {count} still unnamed.")
+    download_toast = line("{count} photos downloaded", 60)
+
+    class Meta:
+        verbose_name = "institution portal copy"

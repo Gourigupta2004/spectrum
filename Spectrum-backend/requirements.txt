@@ -1,0 +1,7 @@
+# Kept deliberately small: every package here is loaded into each process on the server.
+Django>=5.2.8,<6
+django-storages[s3]>=1.14
+Pillow>=11.3
+pillow-heif>=1.1          # HEIC/HEIF (iPhone) uploads; imported only inside the worker
+psycopg[binary]>=3.2      # only needed when DATABASE_URL points at Postgres
+gunicorn>=23
