@@ -25,7 +25,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.catalog.models import Event, EventPhoto, Institution
+from apps.catalog.models import Event, EventPhoto, Institution, InstitutionKind
 from apps.content.models import (
     Capability, ContactDetail, Faq, HeroSlide, Service, SiteSettings, Stat, StoryBlock, TieUp,
 )
@@ -137,8 +137,12 @@ class Command(BaseCommand):
 
     def home(self):
         if not Stat.objects.exists():
+            # The three demo stats map onto the live counters the home page adds on top.
+            sources = {"Events Captured": Stat.EVENTS, "Schools & Colleges": Stat.INSTITUTIONS,
+                       "Photos Delivered": Stat.PHOTOS}
             Stat.objects.bulk_create(
-                [Stat(value=s["to"], suffix=s["suffix"], label=s["label"], sort_order=i)
+                [Stat(value=s["to"], suffix=s["suffix"], label=s["label"],
+                      source=sources.get(s["label"], ""), sort_order=i)
                  for i, s in enumerate(self.data["stats"])])
         if not Service.objects.exists():
             Service.objects.bulk_create([Service(label=label, sort_order=i)
@@ -184,13 +188,19 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------ catalog
 
+    def kind(self, slug: str) -> InstitutionKind:
+        obj, _ = InstitutionKind.objects.get_or_create(
+            slug=slug, defaults={"name": slug.title(), "plural": f"{slug.title()}s",
+                                 "sort_order": InstitutionKind.objects.count()})
+        return obj
+
     def institutions(self) -> dict:
         found = {i.slug: i for i in Institution.objects.all()}
         for index, data in enumerate(self.data["institutions"]):
             if data["id"] in found:
                 continue
             obj = Institution(slug=data["id"], name=data["name"], short=data["short"], city=data["city"],
-                              kind=data["type"], sort_order=index)
+                              kind=self.kind(data["type"]), sort_order=index)
             self.attach(obj, data["image"], f"{data['id']}.jpg")
             obj.save()
             found[obj.slug] = obj

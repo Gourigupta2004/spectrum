@@ -2,11 +2,11 @@ from django.db.models import Count, OuterRef, Q, Subquery
 
 from apps.core.models import ImageStatus, public_url
 
-from .models import Event, EventPhoto, Institution
+from .models import Event, EventPhoto, Institution, InstitutionKind
 
 EVENT_FIELDS = (
     "slug", "name", "date", "date_label", "price_per_photo", "bundle_price", "is_recent", "is_popular", "web",
-    "institution__slug", "institution__name", "institution__kind",
+    "institution__slug", "institution__name", "institution__kind__slug",
 )
 
 
@@ -17,7 +17,7 @@ def published_events():
 def event_queryset():
     return (
         published_events()
-        .select_related("institution")
+        .select_related("institution__kind")
         .only(*EVENT_FIELDS)
         .annotate(photo_count=Count("photos", filter=Q(photos__image_status=ImageStatus.READY)))
     )
@@ -29,7 +29,7 @@ def event_dict(event) -> dict:
         "name": event.name,
         "institutionId": event.institution.slug,
         "institution": event.institution.name,
-        "institutionType": event.institution.kind,
+        "institutionType": event.institution.kind.slug,
         "date": event.display_date,
         "photos": event.photo_count,
         "pricePerPhoto": event.price_per_photo,
@@ -50,7 +50,8 @@ def institution_list() -> list[dict]:
     first_event = published_events().filter(institution=OuterRef("pk")).order_by("sort_order", "-date", "pk")
     queryset = (
         Institution.objects.filter(is_published=True)
-        .only("slug", "name", "short", "city", "kind", "web")
+        .select_related("kind")
+        .only("slug", "name", "short", "city", "web", "kind__slug")
         .annotate(
             event_count=Count("events", filter=Q(events__is_published=True)),
             first_event_slug=Subquery(first_event.values("slug")[:1]),
@@ -62,13 +63,19 @@ def institution_list() -> list[dict]:
             "name": inst.name,
             "short": inst.short or inst.name,
             "city": inst.city,
-            "type": inst.kind,
+            "type": inst.kind.slug,
             "image": public_url(inst.web),
             "eventCount": inst.event_count,
             "firstEventSlug": inst.first_event_slug,
         }
         for inst in queryset
     ]
+
+
+def kind_list() -> list[dict]:
+    """The filter chips the events page shows between "All" and "Recent"."""
+    return [{"id": slug, "label": plural}
+            for slug, plural in InstitutionKind.objects.values_list("slug", "plural")]
 
 
 def bundle_savings(photos: int, price_per_photo: int, bundle_price: int) -> int:

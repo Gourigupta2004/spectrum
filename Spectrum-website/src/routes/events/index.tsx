@@ -24,9 +24,6 @@ export const Route = createFileRoute("/events/")({
   component: EventsPage,
 });
 
-const filters = ["All", "Schools", "Colleges", "Recent", "Popular"] as const;
-type Filter = (typeof filters)[number];
-
 const norm = (s: string) =>
   s
     .toLowerCase()
@@ -45,15 +42,16 @@ function matches(query: string, e: SpectrumEvent, inst: Institution | undefined)
 
 function EventsPage() {
   const { institution, q } = Route.useSearch();
-  const { copy, events, institutions } = Route.useLoaderData();
-  const labels: Record<Filter, string> = {
-    All: copy.filterAll,
-    Schools: copy.filterSchools,
-    Colleges: copy.filterColleges,
-    Recent: copy.filterRecent,
-    Popular: copy.filterPopular,
-  };
-  const [filter, setFilter] = useState<Filter>("All");
+  const { copy, types, events, institutions } = Route.useLoaderData();
+  // "All"/"Recent"/"Popular" are fixed; between them one chip per institution
+  // type, straight from the admin (type: prefix keeps ids from colliding).
+  const filters = [
+    { key: "All", label: copy.filterAll },
+    ...types.map((t) => ({ key: `type:${t.id}`, label: t.label })),
+    { key: "Recent", label: copy.filterRecent },
+    { key: "Popular", label: copy.filterPopular },
+  ];
+  const [filter, setFilter] = useState("All");
   const [inst, setInst] = useState<string | undefined>(institution);
   const [query, setQuery] = useState(q ?? "");
   // The URL is the source of truth when it changes (a new search from the
@@ -68,8 +66,7 @@ function EventsPage() {
     if (inst && e.institutionId !== inst) return false;
     if (!matches(query, e, byId.get(e.institutionId))) return false;
     const type = e.institutionType ?? byId.get(e.institutionId)?.type;
-    if (filter === "Schools") return type === "school";
-    if (filter === "Colleges") return type === "college";
+    if (filter.startsWith("type:")) return type === filter.slice("type:".length);
     if (filter === "Recent") return e.tags.includes("recent");
     if (filter === "Popular") return e.tags.includes("popular");
     return true;
@@ -105,18 +102,18 @@ function EventsPage() {
           <div className="no-scrollbar -mx-6 flex gap-3 overflow-x-auto px-6 pb-2 md:mx-0 md:px-0 md:pb-0">
             {filters.map((f) => (
               <button
-                key={f}
+                key={f.key}
                 onClick={() => {
-                  setFilter(f);
-                  if (f === "All") setInst(undefined);
+                  setFilter(f.key);
+                  if (f.key === "All") setInst(undefined);
                 }}
                 className={`spectrum-border shrink-0 rounded-full px-5 py-2 text-xs transition-colors ${
-                  filter === f && !(f === "All" && inst)
+                  filter === f.key && !(f.key === "All" && inst)
                     ? "bg-violet text-foreground"
                     : "text-foreground"
                 }`}
               >
-                {labels[f]}
+                {f.label}
               </button>
             ))}
             {instObj && (

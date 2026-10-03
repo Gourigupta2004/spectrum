@@ -20,6 +20,7 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
     list_filter = ("institution", "group")
     list_select_related = ("institution",)
     search_fields = ("name", "institution__name")
+    prepopulated_fields = {"slug": ("name",)}
     fields = ("institution", "name", "slug", "group", "sort_order")
     autocomplete_fields = ("institution",)
 
@@ -44,8 +45,7 @@ class StudentAdmin(ImagePreviewMixin, admin.ModelAdmin):
     list_select_related = ("school_class__institution",)
     list_per_page = 100
     search_fields = ("name",)
-    readonly_fields = ("preview",)
-    fields = ("school_class", "name", "original", "preview", "sort_order")
+    fields = ("school_class", "name", "original", "sort_order")
     autocomplete_fields = ("school_class",)
     actions = ["reprocess_images"]
 
@@ -178,8 +178,8 @@ class CaptionItemAdmin(RetagActionsMixin, ImagePreviewMixin, admin.ModelAdmin):
     list_select_related = ("institution", "event")
     list_per_page = 100
     search_fields = ("moment_title", "caption", "correction", "institution__name")
-    readonly_fields = ("preview", "institution", "correction", "status", "action_by", "updated_at")
-    fields = ("institution", "event", "original", "preview", "moment_title", "caption", "correction", "requested",
+    readonly_fields = ("institution", "correction", "status", "action_by", "updated_at")
+    fields = ("institution", "event", "original", "moment_title", "caption", "correction", "requested",
               "status", "action_by", "updated_at", "sort_order")
     autocomplete_fields = ("event",)
     actions = ["reprocess_images", "mark_needs_caption", "mark_needs_approval", "mark_needs_correction"]

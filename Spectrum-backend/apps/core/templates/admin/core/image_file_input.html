@@ -1,0 +1,13 @@
+{% if widget.is_initial %}
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+    {% if link %}<a href="{{ link }}" target="_blank" rel="noopener" title="Open the original">{{ thumb }}</a>{% else %}{{ thumb }}{% endif %}
+    {% if not widget.required %}
+      <span class="clearable-file-input">
+        <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}>
+        <label for="{{ widget.checkbox_id }}" style="display:inline">{{ widget.clear_checkbox_label }}</label>
+      </span>
+    {% endif %}
+  </div>
+  {{ widget.input_text }}:
+{% endif %}
+<input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>

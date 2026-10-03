@@ -1,5 +1,6 @@
 """Shared admin building blocks: singletons, bulk upload drop zones, thumbnails."""
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.shortcuts import redirect
@@ -33,8 +34,29 @@ def thumb_html(obj, size: int = 56):
     )
 
 
+class ImageFileInput(forms.ClearableFileInput):
+    """The upload widget with a thumbnail instead of the raw storage path."""
+
+    template_name = "admin/core/image_file_input.html"
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        instance = getattr(value, "instance", None)
+        context["thumb"] = thumb_html(instance, 84) if instance is not None else ""
+        try:
+            context["link"] = value.url if value else ""
+        except Exception:  # a storage without URLs, or a missing file
+            context["link"] = ""
+        return context
+
+
 class ImagePreviewMixin:
-    """Adds a `preview` readonly column/field and a Reprocess action."""
+    """Adds a `preview` readonly column/field, a thumbnail upload widget, and a Reprocess action."""
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "original":
+            kwargs.setdefault("widget", ImageFileInput)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     @admin.display(description="Preview")
     def preview(self, obj):
@@ -99,4 +121,7 @@ class SingletonAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         messages.success(request, f"{obj} saved.")
-        return redirect(request.path)
+        if "_continue" in request.POST:
+            return redirect(request.path)
+        # "Save" closes the form. The changelist just bounces back here, so go to the admin home.
+        return redirect("admin:index")

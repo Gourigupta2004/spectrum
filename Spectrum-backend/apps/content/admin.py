@@ -25,8 +25,7 @@ class SiteSettingsAdmin(SingletonAdmin):
     fieldsets = (
         ("Logo & intro video", {"fields": ("logo_light", "logo_mark", "favicon", "intro_video_webm",
                                            "intro_video_mp4", "intro_skip_label")}),
-        ("Navigation", {"fields": ("nav_home", "nav_events", "nav_about", "nav_contact", "nav_portal",
-                                   "footer_portal_link")}),
+        ("Navigation", {"fields": ("nav_home", "nav_events", "nav_about", "nav_contact", "nav_portal")}),
         ("Default search & sharing", {"fields": ("seo_title", "seo_description", "og_title", "og_description")}),
         ("Error pages", {"classes": ("collapse",), "fields": ("not_found_title", "not_found_body",
                                                              "not_found_cta", "error_title", "error_body",
@@ -36,12 +35,12 @@ class SiteSettingsAdmin(SingletonAdmin):
 
 class HeroSlideInline(ImageInline):
     model = HeroSlide
-    fields = ("preview", "caption", "original", "sort_order")
+    fields = ("original", "caption", "sort_order")
 
 
 class StatInline(OrderedInline):
     model = Stat
-    fields = ("value", "suffix", "label", "sort_order")
+    fields = ("value", "suffix", "label", "source", "sort_order")
 
 
 class ServiceInline(OrderedInline):
@@ -68,12 +67,12 @@ class CapabilityInline(OrderedInline):
 
 class StoryInline(ImageInline):
     model = StoryBlock
-    fields = ("preview", "title", "body", "original", "alt", "sort_order")
+    fields = ("original", "title", "body", "alt", "sort_order")
 
 
 class TieUpInline(ImageInline):
     model = TieUp
-    fields = ("preview", "name", "years", "original", "sort_order")
+    fields = ("original", "name", "years", "sort_order")
 
 
 class FaqInline(OrderedInline):
@@ -116,8 +115,9 @@ class EventsPageAdmin(SingletonAdmin):
     fieldsets = (
         (None, {"fields": ("back_label", "title", "empty_state", "photos_label", "price_prefix")}),
         ("Search", {"fields": ("search_placeholder", "search_empty")}),
-        ("Filters", {"fields": ("filter_all", "filter_schools", "filter_colleges", "filter_recent",
-                                "filter_popular")}),
+        ("Filters", {"description": "The type chips (Schools, Colleges, …) are edited under "
+                                    "Catalog → Institution types.",
+                     "fields": ("filter_all", "filter_recent", "filter_popular")}),
         SEO,
     )
 

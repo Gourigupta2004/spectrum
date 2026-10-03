@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
+from apps.catalog.models import Event, EventPhoto, Institution
 from apps.catalog.serializers import event_list, institution_list
 from apps.core.cache import cached_bytes
 from apps.core.http import ApiError, api, client_ip, json_response, rate_limit, text
@@ -44,15 +45,36 @@ def services() -> list[str]:
     return list(Service.objects.values_list("label", flat=True))
 
 
+def live_counts(sources: set[str]) -> dict[str, int]:
+    """What the platform has actually delivered, per Stat.source. Queried only for the sources in use."""
+    counts: dict[str, int] = {}
+    if Stat.EVENTS in sources:
+        counts[Stat.EVENTS] = Event.objects.filter(is_published=True).count()
+    if Stat.INSTITUTIONS in sources:
+        counts[Stat.INSTITUTIONS] = Institution.objects.filter(is_published=True).count()
+    if Stat.PHOTOS in sources:
+        from apps.orders.models import Order, OrderItem
+
+        paid = (Order.PAID, Order.DELIVERED)
+        singles = OrderItem.objects.filter(order__status__in=paid).count()
+        # A bundle order has no items; it delivers every photo of its event.
+        bundles = EventPhoto.objects.filter(event__orders__status__in=paid,
+                                            event__orders__kind=Order.BUNDLE).count()
+        counts[Stat.PHOTOS] = singles + bundles
+    return counts
+
+
 def build_home() -> dict:
     page = HomePage.load()
     slides = HeroSlide.objects.filter(image_status=ImageStatus.READY).values_list("pk", "caption", "web")
+    stats = list(Stat.objects.values_list("value", "suffix", "label", "source"))
+    counts = live_counts({source for *_, source in stats if source})
     return {
         "seo": page.seo(),
         "copy": copy_of(page),
         "heroSlides": [{"id": pk, "src": storage_url(web), "caption": caption} for pk, caption, web in slides],
-        "stats": [{"to": value, "suffix": suffix, "label": label}
-                  for value, suffix, label in Stat.objects.values_list("value", "suffix", "label")],
+        "stats": [{"to": value + counts.get(source, 0), "suffix": suffix, "label": label}
+                  for value, suffix, label, source in stats],
         "services": services(),
         "institutions": institution_list(),
         "events": event_list(limit=page.featured_count),

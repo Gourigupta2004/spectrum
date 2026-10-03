@@ -3,14 +3,15 @@ from apps.content.serializers import copy_of
 from apps.core.cache import cached_bytes
 from apps.core.http import ApiError, api
 
-from .serializers import bundle_savings, event_dict, event_list, event_queryset, gallery, institution_list
+from .serializers import bundle_savings, event_dict, event_list, event_queryset, gallery, institution_list, kind_list
 
 MAX_AGE = 60
 
 
 def build_events() -> dict:
     page = EventsPage.load()
-    return {"seo": page.seo(), "copy": copy_of(page), "events": event_list(), "institutions": institution_list()}
+    return {"seo": page.seo(), "copy": copy_of(page), "types": kind_list(), "events": event_list(),
+            "institutions": institution_list()}
 
 
 @api(max_age=MAX_AGE)

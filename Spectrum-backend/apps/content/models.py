@@ -66,9 +66,7 @@ class SiteSettings(SingletonModel):
     nav_events = line("Events", 40)
     nav_about = line("About Us", 40)
     nav_contact = line("Contact", 40)
-    nav_portal = line("Institution", 40,
-                      help_text="Only shown to visitors who have unlocked the institution portal.")
-    footer_portal_link = line("Institution Login", 60, help_text="Footer link to the portal's email step.")
+    nav_portal = line("Institution Portal", 40, help_text="Navbar link to the institution portal.")
 
     seo_title = line("Spectrum — Every Moment, Yours Forever")
     seo_description = para("Spectrum captures school and college events across India.")
@@ -126,10 +124,20 @@ class HeroSlide(Ordered, ProcessedImage):
 
 
 class Stat(Ordered):
+    EVENTS, INSTITUTIONS, PHOTOS = "events", "institutions", "photos"
+    SOURCES = [
+        ("", "Nothing — show the number as is"),
+        (EVENTS, "Published events"),
+        (INSTITUTIONS, "Published institutions"),
+        (PHOTOS, "Photos delivered (paid orders)"),
+    ]
+
     page = models.ForeignKey(HomePage, default=1, on_delete=models.CASCADE, related_name="stats", editable=False)
-    value = models.PositiveIntegerField()
+    value = models.PositiveIntegerField(help_text="Base number. The live count, if chosen, is added on top.")
     suffix = models.CharField(max_length=10, blank=True, help_text='Shown after the number, e.g. "+".')
     label = models.CharField(max_length=80)
+    source = models.CharField("add live count of", max_length=12, choices=SOURCES, default="", blank=True,
+                              help_text="The number grows by itself as the platform delivers more.")
 
     class Meta(Ordered.Meta):
         verbose_name = "stat"
@@ -310,8 +318,7 @@ class EventsPage(Seo, SingletonModel):
     back_label = line("Home", 40)
     title = line("All Events")
     filter_all = line("All", 40)
-    filter_schools = line("Schools", 40)
-    filter_colleges = line("Colleges", 40)
+    # The chips between "All" and "Recent" come from the institution types in the catalog.
     filter_recent = line("Recent", 40)
     filter_popular = line("Popular", 40)
     empty_state = line("No events match this filter.")

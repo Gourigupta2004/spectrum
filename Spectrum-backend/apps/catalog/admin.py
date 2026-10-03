@@ -6,7 +6,21 @@ from apps.core.models import ImageStatus
 
 from apps.portal.models import PortalAccessEmail
 
-from .models import Event, EventPhoto, Institution
+from .models import Event, EventPhoto, Institution, InstitutionKind
+
+
+@admin.register(InstitutionKind)
+class InstitutionKindAdmin(admin.ModelAdmin):
+    list_display = ("name", "plural", "slug", "institution_count", "sort_order")
+    list_editable = ("sort_order",)
+    prepopulated_fields = {"slug": ("name",)}
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(total=Count("institutions"))
+
+    @admin.display(description="Institutions", ordering="total")
+    def institution_count(self, obj):
+        return obj.total
 
 
 class PortalAccessEmailInline(admin.TabularInline):
@@ -27,8 +41,7 @@ class InstitutionAdmin(ImagePreviewMixin, admin.ModelAdmin):
     list_filter = ("kind", "is_published")
     search_fields = ("name", "short", "city")
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("preview",)
-    fields = ("name", "short", "slug", "city", "kind", "original", "preview", "is_published", "sort_order")
+    fields = ("name", "short", "slug", "city", "kind", "original", "is_published", "sort_order")
     actions = ["reprocess_images"]
 
     def get_queryset(self, request):
@@ -50,13 +63,12 @@ class EventAdmin(BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
     list_select_related = ("institution",)
     search_fields = ("name", "slug", "institution__name")
     prepopulated_fields = {"slug": ("name",)}
-    readonly_fields = ("preview",)
     autocomplete_fields = ("institution",)
     date_hierarchy = "date"
     actions = ["reprocess_images"]
     fieldsets = (
         (None, {"fields": ("name", "slug", "institution", "date", "date_label")}),
-        ("Cover & pricing", {"fields": ("original", "preview", "price_per_photo", "bundle_price")}),
+        ("Cover & pricing", {"fields": ("original", "price_per_photo", "bundle_price")}),
         ("Listing", {"fields": ("is_recent", "is_popular", "is_published", "sort_order")}),
     )
 
@@ -77,8 +89,8 @@ class EventPhotoAdmin(ImagePreviewMixin, admin.ModelAdmin):
     list_select_related = ("event",)
     list_per_page = 100
     search_fields = ("title", "event__name")
-    readonly_fields = ("preview", "image_status", "image_error", "width", "height")
-    fields = ("event", "title", "original", "preview", "sort_order", "image_status", "image_error", "width", "height")
+    readonly_fields = ("image_status", "image_error", "width", "height")
+    fields = ("event", "title", "original", "sort_order", "image_status", "image_error", "width", "height")
     autocomplete_fields = ("event",)
     actions = ["reprocess_images"]
 

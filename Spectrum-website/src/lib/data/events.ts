@@ -15,12 +15,21 @@ import { fill } from "../text";
 import { eventsCopy, galleryCopy, type EventsCopy, type GalleryCopy } from "./defaults";
 import type { Seo } from "./site";
 
+/** An institution type as a filter chip: id matches Institution.type, label is what the chip says. */
+export type InstitutionType = { id: string; label: string };
+
 export type EventsData = {
   seo: Seo;
   copy: EventsCopy;
+  types: InstitutionType[];
   events: SpectrumEvent[];
   institutions: Institution[];
 };
+
+const fallbackTypes: InstitutionType[] = [
+  { id: "school", label: "Schools" },
+  { id: "college", label: "Colleges" },
+];
 
 export type EventDetail = SpectrumEvent & { bundlePrice: number; bundleSavings: number };
 export type GalleryData = { event: EventDetail; photos: Photo[]; seo: Seo; copy: GalleryCopy };
@@ -28,7 +37,7 @@ export type GalleryData = { event: EventDetail; photos: Photo[]; seo: Seo; copy:
 export async function getEvents(): Promise<EventsData> {
   if (hasApi) {
     const data = await apiFetch<EventsData>("/api/events/");
-    return { ...data, copy: { ...eventsCopy, ...data.copy } };
+    return { ...data, copy: { ...eventsCopy, ...data.copy }, types: data.types ?? fallbackTypes };
   }
   return {
     seo: {
@@ -39,6 +48,7 @@ export async function getEvents(): Promise<EventsData> {
       ogDescription: "Browse every school and college event captured by Spectrum.",
     },
     copy: eventsCopy,
+    types: fallbackTypes,
     events,
     institutions,
   };

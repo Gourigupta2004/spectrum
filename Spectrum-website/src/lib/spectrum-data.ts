@@ -30,7 +30,7 @@ export type Institution = {
   short: string;
   city: string;
   image: string;
-  type: "school" | "college";
+  type: string; // institution type id, e.g. "school" — the list is configurable in the admin
   /** Supplied by the API (and derived in demo mode) for the homepage click-through. */
   eventCount?: number;
   firstEventSlug?: string | null;
@@ -89,7 +89,7 @@ export type SpectrumEvent = {
   pricePerPhoto: number;
   image: string;
   tags: ("recent" | "popular")[];
-  institutionType?: "school" | "college";
+  institutionType?: string;
 };
 
 /**

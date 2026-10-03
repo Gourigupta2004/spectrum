@@ -47,10 +47,13 @@ class SpectrumTestCase(TestCase):
         shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
 
     def make_catalog(self):
-        from apps.catalog.models import Event, Institution
+        from apps.catalog.models import Event, Institution, InstitutionKind
 
-        self.institution = Institution.objects.create(slug="dps", name="Delhi Public School", city="New Delhi")
-        self.other = Institution.objects.create(slug="doon", name="The Doon School", kind="school")
+        school, _ = InstitutionKind.objects.get_or_create(slug="school",
+                                                          defaults={"name": "School", "plural": "Schools"})
+        self.institution = Institution.objects.create(slug="dps", name="Delhi Public School", city="New Delhi",
+                                                      kind=school)
+        self.other = Institution.objects.create(slug="doon", name="The Doon School", kind=school)
         self.event = Event.objects.create(slug="annual-day", name="Annual Day", institution=self.institution,
                                           price_per_photo=29, bundle_price=299)
         self.other_event = Event.objects.create(slug="founders", name="Founder's Day", institution=self.other)

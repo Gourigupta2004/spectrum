@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.core.cache import bump
 from apps.core.tasks import enqueue
 
 from .models import Order, Payment
@@ -93,6 +94,8 @@ def mark_paid(order_id, payment_id: str, *, via: str, amount_paise: int = 0, met
         order.save(update_fields=["status", "paid_at"])
         pk = str(order.pk)
         transaction.on_commit(lambda: enqueue("orders.fulfil_order", pk))
+        # The home page's "photos delivered" stat counts paid orders.
+        transaction.on_commit(bump)
     return order
 
 

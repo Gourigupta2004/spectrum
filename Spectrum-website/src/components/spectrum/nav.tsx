@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSelection } from "./selection-context";
 import { useIntro } from "./intro-context";
-import { usePortalAccess, useSignedIn } from "@/lib/portal-session";
 import { useSite } from "@/lib/use-site";
 
 type NavLink = { label: string; to: "/events" | "/about" | "/contact" | "/portal" };
@@ -15,20 +14,11 @@ export function SpectrumNav() {
   const { navLogoVisible } = useIntro();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const site = useSite();
-  /*
-   * The portal is invitation-only. Its link appears once this browser has
-   * verified an institution email that Spectrum has given access to (or is
-   * signed in). Everyone else never sees it — the workspace is not a public
-   * page, so it is not advertised as one.
-   */
-  const access = usePortalAccess();
-  const signedIn = useSignedIn();
-  const portalVisible = signedIn || access !== null;
   const links: NavLink[] = [
     { label: site.copy.navEvents, to: "/events" },
     { label: site.copy.navAbout, to: "/about" },
     { label: site.copy.navContact, to: "/contact" },
-    ...(portalVisible ? [{ label: site.copy.navPortal, to: "/portal" as const }] : []),
+    { label: site.copy.navPortal, to: "/portal" },
   ];
 
   useEffect(() => {

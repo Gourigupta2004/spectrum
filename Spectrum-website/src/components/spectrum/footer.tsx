@@ -59,14 +59,6 @@ export function Footer() {
                 {copy.navContact}
               </Link>
             </li>
-            <li>
-              <Link
-                to="/portal"
-                className="inline-block py-1.5 text-muted-foreground transition-colors hover:text-teal"
-              >
-                {copy.footerPortalLink}
-              </Link>
-            </li>
           </ul>
         </div>
 

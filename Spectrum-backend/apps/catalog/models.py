@@ -4,15 +4,31 @@ from apps.core.models import ProcessedImage
 from spectrum.storages import public_storage
 
 
+class InstitutionKind(models.Model):
+    """A type of institution — School, College… Add a row here to introduce a new one."""
+
+    slug = models.SlugField(unique=True, help_text="Short id used in filters, e.g. school.")
+    name = models.CharField(max_length=60, help_text='Singular, e.g. "School".')
+    plural = models.CharField(max_length=60, help_text='Filter chip on the events page, e.g. "Schools".')
+    sort_order = models.PositiveIntegerField("order", default=0)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        verbose_name = "institution type"
+
+    def __str__(self):
+        return self.name
+
+
 class Institution(ProcessedImage):
     VARIANTS = {"web": 500, "thumb": 200}
-    SCHOOL, COLLEGE = "school", "college"
 
     slug = models.SlugField(unique=True, help_text="Short id used in links, e.g. dps.")
     name = models.CharField(max_length=160)
     short = models.CharField("short name", max_length=80, blank=True, help_text="Shown under the round photo.")
     city = models.CharField(max_length=80, blank=True)
-    kind = models.CharField("type", max_length=10, choices=[(SCHOOL, "School"), (COLLEGE, "College")], default=SCHOOL)
+    kind = models.ForeignKey(InstitutionKind, on_delete=models.PROTECT, related_name="institutions",
+                             verbose_name="type")
     is_published = models.BooleanField("published", default=True)
     sort_order = models.PositiveIntegerField("order", default=0)
 
