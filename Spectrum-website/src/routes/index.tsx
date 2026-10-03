@@ -121,11 +121,13 @@ function Home() {
         <h2 className="mt-12 text-center font-display text-xs font-semibold uppercase tracking-[0.28em] text-foreground/80 sm:mt-16">
           {copy.institutionsHeading}
         </h2>
-        {/* Scrolls on a phone and centres once they all fit. The row is bled to
-            the screen edges with a matching scroll padding, so a half-visible
-            circle reads as "there is more this way" rather than as a clipped
-            layout, and the first one still lines up with the copy above it. */}
-        <div className="no-scrollbar -mx-6 mt-8 flex snap-x snap-mandatory gap-6 overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:gap-8 md:mx-0 md:justify-center md:px-1">
+        {/* Scrolls on a phone; on larger screens it wraps into centred rows so
+            every institution is visible. (A centred single row would overflow
+            both edges once it no longer fits, hiding the leftmost circles with
+            no way to scroll to them.) The phone row is bled to the screen edges
+            with matching scroll padding, so a half-visible circle reads as
+            "there is more this way" rather than as a clipped layout. */}
+        <div className="no-scrollbar -mx-6 mt-8 flex snap-x snap-mandatory gap-6 overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:gap-8 md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-1">
           {institutions.map((inst) => (
             <button
               key={inst.id}
