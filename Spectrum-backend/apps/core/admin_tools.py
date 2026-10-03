@@ -51,15 +51,17 @@ class ImageFileInput(forms.ClearableFileInput):
 
 
 class ImagePreviewMixin:
-    """Adds a `preview` readonly column/field, a thumbnail upload widget, and a Reprocess action."""
+    """Adds a `thumbnail` list column, a thumbnail upload widget, and a Reprocess action."""
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == "original":
             kwargs.setdefault("widget", ImageFileInput)
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
+    # Named `thumbnail`, not `preview`: a model field of the same name (EventPhoto
+    # has one) would win the admin's lookup and render as a file link instead.
     @admin.display(description="Preview")
-    def preview(self, obj):
+    def thumbnail(self, obj):
         return thumb_html(obj)
 
     @admin.action(description="Re-make image variants")

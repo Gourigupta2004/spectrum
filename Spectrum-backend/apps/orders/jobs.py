@@ -36,8 +36,9 @@ def fulfil_order(order_id: str) -> None:
         delivery, _ = Delivery.objects.get_or_create(order=order, channel=channel)
         if delivery.status == Delivery.PENDING:
             enqueue("orders.send_delivery", delivery.pk)
-    count = order.items.count()
-    if not order.zip_file and 1 < count <= settings.ORDER_ZIP_MAX_ITEMS:
+    # Videos are not zipped (they can be huge); they download individually from the page.
+    photo_count = order.items.filter(photo__isnull=False).count()
+    if not order.zip_file and 1 < photo_count <= settings.ORDER_ZIP_MAX_ITEMS:
         enqueue("orders.build_zip", str(order.pk))
 
 
@@ -94,7 +95,8 @@ def build_zip(order_id: str) -> None:
     if order.zip_file:
         return
     storage = private_storage()
-    rows = order.items.order_by("photo__sort_order", "pk").values_list("pk", "photo__title", "photo__original")
+    rows = (order.items.filter(photo__isnull=False).order_by("photo__sort_order", "pk")
+            .values_list("pk", "photo__title", "photo__original"))
     settings.WORK_DIR.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(suffix=".zip", dir=settings.WORK_DIR) as tmp:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_STORED, allowZip64=True) as archive:

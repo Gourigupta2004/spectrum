@@ -6,8 +6,12 @@ from .cache import bump_for
 from .models import ImageStatus, ProcessedImage
 
 
+def _private_fields(instance) -> list[str]:
+    return ["original", *getattr(instance, "EXTRA_PRIVATE_FILES", ())]
+
+
 def _file_fields(instance) -> list[str]:
-    return ["original", *instance.variant_names()]
+    return [*_private_fields(instance), *instance.variant_names()]
 
 
 @receiver(pre_delete)
@@ -30,8 +34,9 @@ def remove_image_files(sender, instance, **kwargs):
         return
     from .tasks import enqueue
 
-    private = [row["original"]] if row.get("original") else []
-    public = [name for key, name in row.items() if key != "original" and name]
+    private_keys = set(_private_fields(instance))
+    private = [name for key, name in row.items() if key in private_keys and name]
+    public = [name for key, name in row.items() if key not in private_keys and name]
     # Deleting from S3 is slow; do it in the worker once the delete has committed.
     if private:
         transaction.on_commit(lambda: enqueue("core.delete_files", "private", private))

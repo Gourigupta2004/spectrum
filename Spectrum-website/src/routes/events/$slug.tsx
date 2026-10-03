@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Lock, Check } from "lucide-react";
+import { Lock, Check, Play } from "lucide-react";
 import { Orb } from "@/components/spectrum/orb";
 import { CheckoutModal } from "@/components/spectrum/checkout-modal";
 import { SuccessOverlay } from "@/components/spectrum/success-overlay";
@@ -32,10 +32,17 @@ export const Route = createFileRoute("/events/$slug")({
 });
 
 function GalleryPage() {
-  const { event: galleryEvent, photos: galleryPhotos, copy } = Route.useLoaderData();
+  const {
+    event: galleryEvent,
+    photos: galleryPhotos,
+    videos: galleryVideos,
+    copy,
+  } = Route.useLoaderData();
   const BUNDLE_PRICE = galleryEvent.bundlePrice;
+  const VIDEO_PRICE = galleryEvent.pricePerVideo ?? 0;
   const bundleSavings = galleryEvent.bundleSavings;
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
   const [bundle, setBundle] = useState(false);
   const [open, setOpen] = useState(false);
   const [paid, setPaid] = useState<Order | true | null>(null);
@@ -45,9 +52,17 @@ function GalleryPage() {
     () => galleryPhotos.filter((m) => selected.includes(m.id)),
     [galleryPhotos, selected],
   );
-  const price = bundle ? BUNDLE_PRICE : chosen.length * galleryEvent.pricePerPhoto;
+  const chosenVideos = useMemo(
+    () => galleryVideos.filter((v) => selectedVideos.includes(v.id)),
+    [galleryVideos, selectedVideos],
+  );
+  // The bundle covers every photo; videos are always priced per video on top.
+  const price =
+    (bundle ? BUNDLE_PRICE : chosen.length * galleryEvent.pricePerPhoto) +
+    chosenVideos.length * VIDEO_PRICE;
+  const selectionCount = selected.length + selectedVideos.length;
 
-  useEffect(() => setCount(selected.length), [selected.length, setCount]);
+  useEffect(() => setCount(selectionCount), [selectionCount, setCount]);
   useEffect(() => setOpenCheckout(() => setOpen(true)), [setOpenCheckout]);
   useEffect(() => () => setCount(0), [setCount]);
 
@@ -61,6 +76,9 @@ function GalleryPage() {
   const toggle = (id: string) => {
     setBundle(false);
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  };
+  const toggleVideo = (id: string) => {
+    setSelectedVideos((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   };
 
   return (
@@ -88,8 +106,60 @@ function GalleryPage() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {galleryEvent.date} · {galleryEvent.photos} photos
+            {galleryVideos.length > 0 && <> · {galleryVideos.length} videos</>}
           </p>
         </div>
+
+        {galleryVideos.length > 0 && (
+          <div className="mt-10">
+            <h2 className="font-display text-xl text-foreground">{copy.videosHeading}</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {galleryVideos.map((v) => {
+                const isSel = selectedVideos.includes(v.id);
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => toggleVideo(v.id)}
+                    className={`group relative block aspect-video w-full overflow-hidden rounded-2xl bg-secondary text-left ${
+                      isSel ? "spectrum-border spectrum-border-thick" : ""
+                    }`}
+                  >
+                    {v.image && (
+                      <img
+                        src={v.image}
+                        alt={v.title}
+                        loading="lazy"
+                        draggable={false}
+                        className="undraggable absolute inset-0 h-full w-full select-none object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                      />
+                    )}
+                    <span className="pointer-events-none absolute inset-0 z-[2] grid place-items-center">
+                      <span className="spectrum-fill grid h-14 w-14 place-items-center rounded-full">
+                        <Play className="ml-0.5 h-6 w-6 fill-current" />
+                      </span>
+                    </span>
+                    {isSel && (
+                      <span className="absolute left-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full bg-teal">
+                        <Check className="h-4 w-4 text-[#14231d]" />
+                      </span>
+                    )}
+                    {v.duration && (
+                      <span className="absolute right-3 top-3 z-[3] rounded-full bg-black/60 px-2.5 py-1 text-[0.7rem] font-semibold text-foreground">
+                        {v.duration}
+                      </span>
+                    )}
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-end justify-between gap-3 bg-gradient-to-t from-[#1C1A22] via-[#1C1A22]/60 to-transparent p-4">
+                      <span className="line-clamp-2 min-w-0 font-display text-sm text-foreground">
+                        {v.title}
+                      </span>
+                      <span className="shrink-0 text-sm text-foreground">₹{VIDEO_PRICE}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div
           id="gallery-grid"
@@ -179,12 +249,18 @@ function GalleryPage() {
         <div className="spectrum-hairline w-full" />
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-2.5 px-5 py-3 text-center md:flex-row md:justify-between md:gap-3 md:px-6 md:py-4 md:text-left">
           <p className="text-sm text-foreground">
-            {bundle
-              ? fill(copy.bundleSelected, { photos: galleryEvent.photos, price: BUNDLE_PRICE })
-              : fill(selected.length === 1 ? copy.selectionOne : copy.selectionMany, {
-                  count: selected.length,
+            {selectedVideos.length > 0
+              ? fill(copy.selectionMixed, {
+                  photos: bundle ? galleryEvent.photos : selected.length,
+                  videos: selectedVideos.length,
                   price,
-                })}
+                })
+              : bundle
+                ? fill(copy.bundleSelected, { photos: galleryEvent.photos, price: BUNDLE_PRICE })
+                : fill(selected.length === 1 ? copy.selectionOne : copy.selectionMany, {
+                    count: selected.length,
+                    price,
+                  })}
           </p>
           <button
             onClick={() => {
@@ -200,7 +276,7 @@ function GalleryPage() {
             })}
           </button>
           <button
-            disabled={selected.length === 0}
+            disabled={selectionCount === 0}
             onClick={() => setOpen(true)}
             className="spectrum-fill rounded-full px-6 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -213,6 +289,7 @@ function GalleryPage() {
         event={galleryEvent}
         copy={copy}
         pricePerPhoto={galleryEvent.pricePerPhoto}
+        pricePerVideo={VIDEO_PRICE}
         bundlePrice={BUNDLE_PRICE}
         albumSize={galleryEvent.photos}
         open={open}
@@ -220,10 +297,12 @@ function GalleryPage() {
         onPaid={(order) => {
           setOpen(false);
           setSelected([]);
+          setSelectedVideos([]);
           setBundle(false);
           setPaid(order ?? true);
         }}
         selected={chosen}
+        selectedVideos={chosenVideos}
         bundle={bundle}
         total={price}
       />

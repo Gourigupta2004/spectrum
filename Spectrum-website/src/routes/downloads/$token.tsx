@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Download } from "lucide-react";
+import { Download, Play } from "lucide-react";
 import { Orb } from "@/components/spectrum/orb";
 import { galleryCopy } from "@/lib/data/defaults";
 import { ApiError } from "@/lib/api";
@@ -43,7 +43,7 @@ function DownloadPage() {
             institution: data.event.institution,
           })}
           {" · "}
-          {data.items.length} photos
+          {data.items.length} files
         </p>
 
         {data.zipUrl && (
@@ -77,6 +77,13 @@ function DownloadPage() {
                     loading="lazy"
                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
+                )}
+                {item.kind === "video" && (
+                  <span className="pointer-events-none absolute inset-0 grid place-items-center">
+                    <span className="spectrum-fill grid h-11 w-11 place-items-center rounded-full">
+                      <Play className="ml-0.5 h-5 w-5 fill-current" />
+                    </span>
+                  </span>
                 )}
                 <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-[#1C1A22] to-transparent p-3">
                   <span className="truncate font-display text-sm text-foreground">

@@ -6,10 +6,13 @@ import {
   events,
   galleryEvent,
   galleryPhotos,
+  galleryVideos,
   institutions,
+  VIDEO_PRICE,
   type Institution,
   type Photo,
   type SpectrumEvent,
+  type Video,
 } from "../spectrum-data";
 import { fill } from "../text";
 import { eventsCopy, galleryCopy, type EventsCopy, type GalleryCopy } from "./defaults";
@@ -32,7 +35,13 @@ const fallbackTypes: InstitutionType[] = [
 ];
 
 export type EventDetail = SpectrumEvent & { bundlePrice: number; bundleSavings: number };
-export type GalleryData = { event: EventDetail; photos: Photo[]; seo: Seo; copy: GalleryCopy };
+export type GalleryData = {
+  event: EventDetail;
+  photos: Photo[];
+  videos: Video[];
+  seo: Seo;
+  copy: GalleryCopy;
+};
 
 export async function getEvents(): Promise<EventsData> {
   if (hasApi) {
@@ -58,7 +67,7 @@ export async function getEvent(slug: string): Promise<GalleryData> {
   if (hasApi) {
     try {
       const data = await apiFetch<GalleryData>(`/api/events/${encodeURIComponent(slug)}/`);
-      return { ...data, copy: { ...galleryCopy, ...data.copy } };
+      return { ...data, copy: { ...galleryCopy, ...data.copy }, videos: data.videos ?? [] };
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) throw notFound();
       throw error;
@@ -68,8 +77,9 @@ export async function getEvent(slug: string): Promise<GalleryData> {
   const event = galleryEvent;
   const vars = { event: event.name, institution: event.institution };
   return {
-    event: { ...event, bundlePrice: BUNDLE_PRICE, bundleSavings },
+    event: { ...event, bundlePrice: BUNDLE_PRICE, bundleSavings, pricePerVideo: VIDEO_PRICE },
     photos: galleryPhotos,
+    videos: galleryVideos,
     seo: {
       title: fill(galleryCopy.seoTitleTemplate, vars),
       description: fill(galleryCopy.seoDescriptionTemplate, vars),

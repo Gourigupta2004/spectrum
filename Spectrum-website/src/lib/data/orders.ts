@@ -5,6 +5,7 @@ export type DeliverVia = "whatsapp" | "email";
 export type OrderInput = {
   eventSlug: string;
   photoIds: string[];
+  videoIds: string[];
   bundle: boolean;
   name: string;
   phone: string;
@@ -31,7 +32,7 @@ export type Order = {
 export type Download = {
   publicId: string;
   event: { name: string; institution: string };
-  items: { id: number; title: string; thumb: string; url: string }[];
+  items: { id: number; title: string; thumb: string; kind?: "photo" | "video"; url: string }[];
   zipUrl: string | null;
   preparing: boolean;
 };

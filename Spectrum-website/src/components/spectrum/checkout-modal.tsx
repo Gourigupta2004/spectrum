@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { MessageCircle, Mail, X } from "lucide-react";
-import type { Photo, SpectrumEvent } from "@/lib/spectrum-data";
+import { MessageCircle, Mail, Play, X } from "lucide-react";
+import type { Photo, SpectrumEvent, Video } from "@/lib/spectrum-data";
 import type { GalleryCopy } from "@/lib/data/defaults";
 import { hasApi } from "@/lib/api";
 import { payForPhotos, type Order } from "@/lib/data/orders";
@@ -22,9 +22,11 @@ export function CheckoutModal({
   event,
   copy,
   selected,
+  selectedVideos,
   bundle,
   total,
   pricePerPhoto,
+  pricePerVideo,
   bundlePrice,
   albumSize,
 }: {
@@ -35,11 +37,13 @@ export function CheckoutModal({
   event: SpectrumEvent;
   copy: GalleryCopy;
   selected: Photo[];
+  selectedVideos: Video[];
   bundle: boolean;
   total: number;
   pricePerPhoto: number;
+  pricePerVideo: number;
   bundlePrice: number;
-  /** Every photo in the event — what the bundle buys. */
+  /** Every photo in the event — what the bundle buys. Videos are always priced on top. */
   albumSize: number;
 }) {
   const [whatsapp, setWhatsapp] = useState(true);
@@ -51,7 +55,10 @@ export function CheckoutModal({
   const [attempt, setAttempt] = useState(0);
 
   // One key per distinct basket, so a double click or retry never creates two orders.
-  const basket = bundle ? "bundle" : selected.map((p) => p.id).join(",");
+  const basket =
+    (bundle ? "bundle" : selected.map((p) => p.id).join(",")) +
+    "|" +
+    selectedVideos.map((v) => v.id).join(",");
   const idempotencyKey = useMemo(() => newKey(), [basket, event.slug, open, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -77,6 +84,7 @@ export function CheckoutModal({
         {
           eventSlug: event.slug,
           photoIds: bundle ? [] : selected.map((p) => p.id),
+          videoIds: selectedVideos.map((v) => v.id),
           bundle,
           name: name.trim(),
           phone: phone.trim(),
@@ -143,6 +151,25 @@ export function CheckoutModal({
                     </div>
                   ))
                 )}
+                {selectedVideos.map((v) => (
+                  <div key={v.id} className="flex items-center gap-3">
+                    <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-secondary">
+                      {(v.thumb || v.image) && (
+                        <img
+                          src={v.thumb || v.image}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          draggable={false}
+                        />
+                      )}
+                      <span className="absolute inset-0 grid place-items-center bg-black/30">
+                        <Play className="h-4 w-4 fill-current text-foreground" />
+                      </span>
+                    </span>
+                    <p className="min-w-0 flex-1 truncate text-sm text-foreground">{v.title}</p>
+                    <span className="text-sm text-foreground">₹{pricePerVideo}</span>
+                  </div>
+                ))}
               </div>
               <div className="spectrum-hairline my-4" />
               <div className="flex items-center justify-between font-display text-lg text-foreground">

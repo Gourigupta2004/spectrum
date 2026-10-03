@@ -2,11 +2,11 @@ from django.db.models import Count, OuterRef, Q, Subquery
 
 from apps.core.models import ImageStatus, public_url
 
-from .models import Event, EventPhoto, Institution, InstitutionKind
+from .models import Event, EventPhoto, EventVideo, Institution, InstitutionKind
 
 EVENT_FIELDS = (
-    "slug", "name", "date", "date_label", "price_per_photo", "bundle_price", "is_recent", "is_popular", "web",
-    "institution__slug", "institution__name", "institution__kind__slug",
+    "slug", "name", "date", "date_label", "price_per_photo", "price_per_video", "bundle_price",
+    "is_recent", "is_popular", "web", "institution__slug", "institution__name", "institution__kind__slug",
 )
 
 
@@ -19,7 +19,8 @@ def event_queryset():
         published_events()
         .select_related("institution__kind")
         .only(*EVENT_FIELDS)
-        .annotate(photo_count=Count("photos", filter=Q(photos__image_status=ImageStatus.READY)))
+        .annotate(photo_count=Count("photos", filter=Q(photos__image_status=ImageStatus.READY), distinct=True),
+                  video_count=Count("videos", filter=~Q(videos__video=""), distinct=True))
     )
 
 
@@ -32,7 +33,9 @@ def event_dict(event) -> dict:
         "institutionType": event.institution.kind.slug,
         "date": event.display_date,
         "photos": event.photo_count,
+        "videos": event.video_count,
         "pricePerPhoto": event.price_per_photo,
+        "pricePerVideo": event.price_per_video,
         "bundlePrice": event.bundle_price,
         "image": public_url(event.web),
         "tags": event.tags,
@@ -99,4 +102,20 @@ def gallery(event_id: int) -> list[dict]:
         {"id": str(pk), "title": title, "image": storage_url(preview), "thumb": storage_url(thumb),
          "width": width, "height": height}
         for pk, title, preview, thumb, width, height in rows
+    ]
+
+
+def video_gallery(event_id: int) -> list[dict]:
+    """Purchasable videos: watermarked poster + duration; the video file itself stays private."""
+    from apps.core.models import storage_url
+
+    rows = (
+        EventVideo.objects.filter(event_id=event_id).exclude(video="")
+        .order_by("sort_order", "pk")
+        .values_list("pk", "title", "preview", "thumb", "duration_label")
+    )
+    return [
+        {"id": str(pk), "title": title, "image": storage_url(preview), "thumb": storage_url(thumb),
+         "duration": duration}
+        for pk, title, preview, thumb, duration in rows
     ]

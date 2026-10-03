@@ -53,12 +53,28 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    """One purchased photo or video — exactly one of the two is set."""
+
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    photo = models.ForeignKey("catalog.EventPhoto", on_delete=models.PROTECT, related_name="+")
+    photo = models.ForeignKey("catalog.EventPhoto", on_delete=models.PROTECT, related_name="+",
+                              null=True, blank=True)
+    video = models.ForeignKey("catalog.EventVideo", on_delete=models.PROTECT, related_name="+",
+                              null=True, blank=True)
     unit_price_paise = models.PositiveIntegerField(default=0)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["order", "photo"], name="uniq_order_photo")]
+        constraints = [
+            models.UniqueConstraint(fields=["order", "photo"], name="uniq_order_photo"),
+            models.UniqueConstraint(fields=["order", "video"], name="uniq_order_video"),
+            models.CheckConstraint(
+                condition=(models.Q(photo__isnull=False, video__isnull=True)
+                           | models.Q(photo__isnull=True, video__isnull=False)),
+                name="orderitem_photo_or_video"),
+        ]
+
+    @property
+    def media(self):
+        return self.photo if self.photo_id else self.video
 
 
 class Payment(models.Model):

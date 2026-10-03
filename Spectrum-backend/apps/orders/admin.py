@@ -39,12 +39,12 @@ class DeliveryInline(ReadOnlyInline):
 
 class ItemInline(ReadOnlyInline):
     model = OrderItem
-    fields = ("photo", "unit_price_paise")
+    fields = ("photo", "video", "unit_price_paise")
     readonly_fields = fields
     classes = ("collapse",)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("photo")
+        return super().get_queryset(request).select_related("photo", "video")
 
 
 @admin.register(Order)

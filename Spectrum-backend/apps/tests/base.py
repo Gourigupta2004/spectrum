@@ -58,6 +58,16 @@ class SpectrumTestCase(TestCase):
                                           price_per_photo=29, bundle_price=299)
         self.other_event = Event.objects.create(slug="founders", name="Founder's Day", institution=self.other)
 
+    def video(self, event, title="Video", sort_order=0):
+        from django.core.files.base import ContentFile
+
+        from apps.catalog.models import EventVideo
+
+        obj = EventVideo(event=event, title=title, sort_order=sort_order)
+        obj.video.save("clip.mp4", ContentFile(b"fake-video-bytes"), save=False)
+        obj.save()
+        return obj
+
     def make_staff(self):
         return get_user_model().objects.create_superuser("admin", "admin@example.com", "pass")
 

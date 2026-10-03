@@ -39,7 +39,7 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
 
 @admin.register(Student)
 class StudentAdmin(ImagePreviewMixin, admin.ModelAdmin):
-    list_display = ("preview", "name", "school_class", "image_status", "sort_order")
+    list_display = ("thumbnail", "name", "school_class", "image_status", "sort_order")
     list_editable = ("name", "sort_order")
     list_filter = ("school_class__institution", "school_class")
     list_select_related = ("school_class__institution",)
@@ -172,7 +172,7 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
 @admin.register(CaptionItem)
 class CaptionItemAdmin(RetagActionsMixin, ImagePreviewMixin, admin.ModelAdmin):
     form = CaptionItemForm
-    list_display = ("preview", "moment_title", "institution", "status", "action_by", "updated_at")
+    list_display = ("thumbnail", "moment_title", "institution", "status", "action_by", "updated_at")
     list_editable = ("moment_title",)
     list_filter = ("status", "institution", "event")
     list_select_related = ("institution", "event")

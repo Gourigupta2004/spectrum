@@ -86,7 +86,10 @@ export type SpectrumEvent = {
   institution: string;
   date: string;
   photos: number;
+  /** Purchasable videos in the event's gallery (0 when there are none). */
+  videos?: number;
   pricePerPhoto: number;
+  pricePerVideo?: number;
   image: string;
   tags: ("recent" | "popular")[];
   institutionType?: string;
@@ -134,6 +137,28 @@ export const galleryPhotos: Photo[] = GALLERY.map((title, i) => ({
   image: IMG(pick(i + 3), 800, 1000),
 }));
 
+export type Video = {
+  id: string;
+  title: string;
+  /** Watermarked poster image; empty string when no poster is uploaded yet. */
+  image: string;
+  thumb?: string;
+  /** Display label, e.g. "2:41". */
+  duration?: string;
+};
+
+export const VIDEO_PRICE = 199;
+
+export const galleryVideos: Video[] = [
+  { id: "v-0", title: "Event Highlights Film", image: IMG(pick(2), 1200, 675), duration: "3:12" },
+  {
+    id: "v-1",
+    title: "Grand Finale — Full Performance",
+    image: IMG(pick(7), 1200, 675),
+    duration: "9:48",
+  },
+];
+
 export const events: SpectrumEvent[] = [
   {
     slug: "annual-day-2025-dps",
@@ -142,7 +167,9 @@ export const events: SpectrumEvent[] = [
     institution: "Delhi Public School",
     date: "March 15, 2025",
     photos: galleryPhotos.length, // the gallery is the source of truth for this event
+    videos: galleryVideos.length,
     pricePerPhoto: 29,
+    pricePerVideo: VIDEO_PRICE,
     image: IMG(pick(4)),
     tags: ["recent", "popular"],
   },

@@ -3,7 +3,9 @@ from apps.content.serializers import copy_of
 from apps.core.cache import cached_bytes
 from apps.core.http import ApiError, api
 
-from .serializers import bundle_savings, event_dict, event_list, event_queryset, gallery, institution_list, kind_list
+from .serializers import (
+    bundle_savings, event_dict, event_list, event_queryset, gallery, institution_list, kind_list, video_gallery,
+)
 
 MAX_AGE = 60
 
@@ -34,6 +36,7 @@ def build_event(slug: str) -> dict:
     return {
         "event": data,
         "photos": gallery(event.pk),
+        "videos": video_gallery(event.pk),
         "seo": {
             "title": page.seo_title_template.format_map(_Safe(fill)),
             "description": page.seo_description_template.format_map(_Safe(fill)),

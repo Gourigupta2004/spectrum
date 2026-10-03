@@ -1,7 +1,26 @@
+import os
+import uuid
+
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.core.models import ProcessedImage
-from spectrum.storages import public_storage
+from spectrum.storages import private_storage, public_storage
+
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm"}
+
+
+def validate_video_extension(value):
+    ext = os.path.splitext(value.name)[1].lower()
+    if ext and ext not in VIDEO_EXTENSIONS:
+        raise ValidationError(f"Unsupported video type {ext}. Use MP4, MOV or WebM.")
+
+
+def video_upload_to(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in VIDEO_EXTENSIONS:
+        ext = ".mp4"
+    return f"catalog/eventvideo/videos/{uuid.uuid4().hex}{ext}"
 
 
 class InstitutionKind(models.Model):
@@ -48,7 +67,9 @@ class Event(ProcessedImage):
     date = models.DateField(null=True, blank=True)
     date_label = models.CharField(max_length=60, blank=True, help_text='Optional display text. Blank shows the date, e.g. "March 15, 2025".')
     price_per_photo = models.PositiveIntegerField("price per photo (₹)", default=29)
-    bundle_price = models.PositiveIntegerField("full album price (₹)", default=299)
+    price_per_video = models.PositiveIntegerField("price per video (₹)", default=199)
+    bundle_price = models.PositiveIntegerField("full album price (₹)", default=299,
+                                               help_text="All photos. Videos are priced per video on top.")
     is_recent = models.BooleanField("tag: recent", default=False)
     is_popular = models.BooleanField("tag: popular", default=False)
     is_published = models.BooleanField("published", default=True)
@@ -97,3 +118,31 @@ class EventPhoto(ProcessedImage):
         from apps.core.models import public_url
 
         return public_url(self.preview)
+
+
+class EventVideo(ProcessedImage):
+    """
+    A purchasable event video. The video file itself stays private until bought;
+    the public only sees the poster image (`original`, watermarked like a photo).
+    """
+
+    VARIANTS = {"preview": 1200, "thumb": 400}
+    WATERMARKED = frozenset({"preview"})
+    EXTRA_PRIVATE_FILES = ("video",)  # cleaned from storage with the row, like the original
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="videos")
+    title = models.CharField(max_length=200, blank=True)
+    video = models.FileField("video file", storage=private_storage, upload_to=video_upload_to, max_length=255,
+                             validators=[validate_video_extension])
+    duration_label = models.CharField("duration", max_length=20, blank=True,
+                                      help_text='Shown on the card, e.g. "2:41".')
+    preview = models.FileField(storage=public_storage, max_length=255, blank=True, editable=False)
+    sort_order = models.PositiveIntegerField("order", default=0)
+
+    class Meta:
+        ordering = ["sort_order", "pk"]
+        indexes = [models.Index(fields=["event", "sort_order"])]
+        verbose_name = "event video"
+
+    def __str__(self):
+        return self.title or f"Video {self.pk}"

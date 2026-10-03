@@ -12,7 +12,7 @@ from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from apps.catalog.models import Event, EventPhoto
+from apps.catalog.models import Event, EventPhoto, EventVideo
 from apps.core.http import ApiError, api, rate_limit, text
 from apps.core.models import ImageStatus, storage_url
 from spectrum.storages import private_storage
@@ -55,14 +55,17 @@ def create_order(request):
     rate_limit(request, "orders", limit=20, window=600)
     data = request.json
     raw_ids = data.get("photoIds") or []
-    if not isinstance(raw_ids, list):
-        raise ApiError("photoIds must be a list.")
+    raw_video_ids = data.get("videoIds") or []
+    if not isinstance(raw_ids, list) or not isinstance(raw_video_ids, list):
+        raise ApiError("photoIds and videoIds must be lists.")
     client_key = text(data, "idempotencyKey", 64)
     idempotency_key = None
     if len(client_key) >= 16:
         # Bound to the basket and contact, so a guessed key never returns someone else's order.
         basket = "|".join([client_key, text(data, "eventSlug", 120), str(bool(data.get("bundle"))),
-                           ",".join(sorted(str(x) for x in raw_ids)), text(data, "phone", 30), text(data, "email", 254)])
+                           ",".join(sorted(str(x) for x in raw_ids)),
+                           ",".join(sorted(str(x) for x in raw_video_ids)),
+                           text(data, "phone", 30), text(data, "email", 254)])
         idempotency_key = hashlib.sha256(basket.encode()).hexdigest()
         existing = Order.objects.filter(idempotency_key=idempotency_key).first()
         if existing:
@@ -86,6 +89,9 @@ def create_order(request):
         raise ApiError("Please enter your email address.", field="email")
 
     photos = EventPhoto.objects.filter(event=event, image_status=ImageStatus.READY)
+    requested_videos = {int(x) for x in raw_video_ids[:200] if str(x).isdigit()}
+    video_ids = list(EventVideo.objects.filter(event=event, pk__in=requested_videos)
+                     .exclude(video="").values_list("pk", flat=True))
     bundle = bool(data.get("bundle"))
     if bundle:
         if not photos.exists():
@@ -94,9 +100,10 @@ def create_order(request):
     else:
         requested = {int(x) for x in raw_ids[:2000] if str(x).isdigit()}
         photo_ids = list(photos.filter(pk__in=requested).values_list("pk", flat=True))
-        if not photo_ids:
-            raise ApiError("Select at least one photo.")
+        if not photo_ids and not video_ids:
+            raise ApiError("Select at least one photo or video.")
         amount = len(photo_ids) * event.price_per_photo * 100
+    amount += len(video_ids) * event.price_per_video * 100
     if amount <= 0:
         raise ApiError("This order has no amount to pay.")
 
@@ -108,7 +115,10 @@ def create_order(request):
                 amount_paise=amount, idempotency_key=idempotency_key,
             )
             OrderItem.objects.bulk_create(
-                [OrderItem(order=order, photo_id=pk, unit_price_paise=event.price_per_photo * 100) for pk in photo_ids],
+                [OrderItem(order=order, photo_id=pk, unit_price_paise=event.price_per_photo * 100)
+                 for pk in photo_ids]
+                + [OrderItem(order=order, video_id=pk, unit_price_paise=event.price_per_video * 100)
+                   for pk in video_ids],
                 batch_size=500,
             )
     except IntegrityError:
@@ -229,9 +239,12 @@ def _paid_order(token: str) -> Order:
 def download(request, token):
     order = _paid_order(token)
     base = f"{settings.API_URL}/api/downloads/{token}"
-    rows = order.items.order_by("photo__sort_order", "pk").values_list("pk", "photo__title", "photo__thumb")
-    items = [{"id": pk, "title": title, "thumb": storage_url(thumb), "url": f"{base}/photos/{pk}/"}
-             for pk, title, thumb in rows]
+    rows = order.items.order_by("photo__sort_order", "video__sort_order", "pk").values_list(
+        "pk", "photo__title", "photo__thumb", "video__title", "video__thumb", "video_id")
+    items = [{"id": pk, "title": video_title if video_id else title,
+              "thumb": storage_url(video_thumb if video_id else thumb),
+              "kind": "video" if video_id else "photo", "url": f"{base}/photos/{pk}/"}
+             for pk, title, thumb, video_title, video_thumb, video_id in rows]
     return {
         "publicId": order.public_id,
         "event": {"name": order.event.name, "institution": order.event.institution.name},
@@ -262,12 +275,20 @@ def download_photo(request, token, item_id):
         order = _paid_order(token)
     except ApiError:
         return HttpResponse("This download link is not valid.", status=404)
-    item = order.items.select_related("photo").only("pk", "photo__title", "photo__original").filter(pk=item_id).first()
-    if item is None or not item.photo.original:
+    item = (order.items.select_related("photo", "video")
+            .only("pk", "photo__title", "photo__original", "video__title", "video__video")
+            .filter(pk=item_id).first())
+    if item is None:
         return HttpResponse("Not found", status=404)
-    ext = os.path.splitext(item.photo.original.name)[1] or ".jpg"
-    filename = f"{slugify(item.photo.title) or 'photo'}-{item.pk}{ext}"
-    return _serve_private(item.photo.original.name, filename)
+    if item.video_id:
+        source, fallback = item.video.video, "video"
+    else:
+        source, fallback = item.photo.original, "photo"
+    if not source:
+        return HttpResponse("Not found", status=404)
+    ext = os.path.splitext(source.name)[1] or (".mp4" if item.video_id else ".jpg")
+    filename = f"{slugify(item.media.title) or fallback}-{item.pk}{ext}"
+    return _serve_private(source.name, filename)
 
 
 def download_zip(request, token):

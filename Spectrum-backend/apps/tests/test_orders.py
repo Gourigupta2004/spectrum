@@ -38,6 +38,26 @@ class OrderTests(SpectrumTestCase):
         self.assertEqual(bundle["amount"], 299)
         self.assertEqual(Order.objects.count(), 2)
 
+    def test_videos_are_priced_and_downloadable(self):
+        clip = self.video(self.event, "Highlights")
+        order = self.create(videoIds=[str(clip.pk), "999"], idempotencyKey="key-v-aaaaaaaaaaaaaaaa").json()
+        self.assertEqual(order["amount"], 58 + 199)  # two photos + one video
+        bundle = self.create(bundle=True, videoIds=[str(clip.pk)], idempotencyKey="key-w-aaaaaaaaaaaaaaaa").json()
+        self.assertEqual(bundle["amount"], 299 + 199)  # full album + the video on top
+
+        signature = sign("secret", b"order_RZP1|pay_1")
+        with self.captureOnCommitCallbacks(execute=True):
+            paid = self.client.post(f"/api/orders/{order['id']}/verify/", json.dumps({
+                "razorpayOrderId": "order_RZP1", "razorpayPaymentId": "pay_1", "razorpaySignature": signature}),
+                content_type="application/json").json()
+        listing = self.client.get(f"/api/downloads/{paid['downloadToken']}/").json()
+        self.assertEqual(len(listing["items"]), 3)
+        video_items = [item for item in listing["items"] if item["kind"] == "video"]
+        self.assertEqual(len(video_items), 1)
+        file_response = self.client.get(video_items[0]["url"].replace("http://localhost:8000", ""))
+        self.assertEqual(file_response.status_code, 200)
+        self.assertIn(".mp4", file_response["Content-Disposition"])
+
     def test_whatsapp_requires_valid_phone(self):
         response = self.create(phone="12", deliverVia="whatsapp", idempotencyKey="key-3-aaaaaaaaaaaaaaaa")
         self.assertEqual(response.status_code, 400)
