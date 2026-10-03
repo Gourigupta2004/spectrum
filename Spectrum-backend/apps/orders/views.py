@@ -245,7 +245,7 @@ def _serve_private(name: str, filename: str):
     storage = private_storage()
     if hasattr(storage, "bucket_name"):
         url = storage.url(name, parameters={"ResponseContentDisposition": f'attachment; filename="{filename}"'},
-                          expire=3600)
+                          expire=settings.PRIVATE_URL_EXPIRE)
         return HttpResponseRedirect(url)
     if settings.PRIVATE_ACCEL_PREFIX:
         # nginx streams the file itself; the Django thread is freed immediately.

@@ -131,6 +131,8 @@ if TESTING:
     MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="spectrum-test-media-"))
 
 USE_S3 = env_bool("USE_S3", False)
+# Lifetime of signed download links. Each click mints a fresh one after the purchase check, so keep it short.
+PRIVATE_URL_EXPIRE = int(env("PRIVATE_URL_EXPIRE", "300"))
 if USE_S3:
     _s3 = {
         "bucket_name": env("AWS_STORAGE_BUCKET_NAME"),
@@ -155,7 +157,7 @@ if USE_S3:
             "BACKEND": "storages.backends.s3.S3Storage",
             # max_memory_size: spill downloaded originals to disk above 2 MB instead of RAM.
             "OPTIONS": {**_s3, "location": "private", "default_acl": "private", "querystring_auth": True,
-                        "querystring_expire": 3600, "max_memory_size": 2 * 1024 * 1024},
+                        "querystring_expire": PRIVATE_URL_EXPIRE, "max_memory_size": 2 * 1024 * 1024},
         },
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
