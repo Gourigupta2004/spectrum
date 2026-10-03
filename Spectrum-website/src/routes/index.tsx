@@ -121,38 +121,41 @@ function Home() {
         <h2 className="mt-12 text-center font-display text-xs font-semibold uppercase tracking-[0.28em] text-foreground/80 sm:mt-16">
           {copy.institutionsHeading}
         </h2>
-        {/* Scrolls on a phone; on larger screens it wraps into centred rows so
-            every institution is visible. (A centred single row would overflow
-            both edges once it no longer fits, hiding the leftmost circles with
-            no way to scroll to them.) The phone row is bled to the screen edges
+        {/* One horizontally scrollable row at every size. The icons sit on an
+            inner w-max track with mx-auto: it centres itself while everything
+            fits and otherwise starts at the left edge and scrolls — centring
+            the scroller itself would push the leftmost circles past the edge
+            where no scroll can reach them. The row is bled to the screen edges
             with matching scroll padding, so a half-visible circle reads as
             "there is more this way" rather than as a clipped layout. */}
-        <div className="no-scrollbar -mx-6 mt-8 flex snap-x snap-mandatory gap-6 overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:gap-8 md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-1">
-          {institutions.map((inst) => (
-            <button
-              key={inst.id}
-              onClick={() => onInstitution(inst.id)}
-              className="group flex w-24 shrink-0 snap-start flex-col items-center gap-3 sm:w-28 sm:snap-center"
-            >
-              <span className="spectrum-border spectrum-border-thick relative block h-20 w-20 rounded-full p-[3px] transition-all duration-400 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_-14px_rgba(139,92,246,0.7)] sm:h-24 sm:w-24">
-                {inst.image ? (
-                  <img
-                    src={inst.image}
-                    alt={inst.name}
-                    loading="lazy"
-                    className="h-full w-full rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="block h-full w-full rounded-full bg-surface" />
-                )}
-              </span>
-              {/* Two lines reserved either way, so names of different lengths
+        <div className="no-scrollbar -mx-6 mt-8 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] md:mx-0 md:px-1">
+          <div className="mx-auto flex w-max gap-6 sm:gap-8">
+            {institutions.map((inst) => (
+              <button
+                key={inst.id}
+                onClick={() => onInstitution(inst.id)}
+                className="group flex w-24 shrink-0 snap-start flex-col items-center gap-3 sm:w-28 sm:snap-center"
+              >
+                <span className="spectrum-border spectrum-border-thick relative block h-20 w-20 rounded-full p-[3px] transition-all duration-400 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_-14px_rgba(139,92,246,0.7)] sm:h-24 sm:w-24">
+                  {inst.image ? (
+                    <img
+                      src={inst.image}
+                      alt={inst.name}
+                      loading="lazy"
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="block h-full w-full rounded-full bg-surface" />
+                  )}
+                </span>
+                {/* Two lines reserved either way, so names of different lengths
                   keep the circles on one baseline instead of stepping. */}
-              <span className="line-clamp-2 min-h-[2.1rem] font-display text-[0.7rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground sm:min-h-0 sm:text-[0.65rem] sm:tracking-[0.14em]">
-                {inst.short}
-              </span>
-            </button>
-          ))}
+                <span className="line-clamp-2 min-h-[2.1rem] font-display text-[0.7rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground sm:min-h-0 sm:text-[0.65rem] sm:tracking-[0.14em]">
+                  {inst.short}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
