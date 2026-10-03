@@ -52,9 +52,25 @@ class InstitutionAdmin(ImagePreviewMixin, admin.ModelAdmin):
         return obj.event_total
 
 
+class EventVideoInline(ImagePreviewMixin, admin.TabularInline):
+    """Upload the event's purchasable videos right on the event page."""
+
+    model = EventVideo
+    extra = 1
+    ordering = ("sort_order", "pk")
+    fields = ("video", "title", "duration_label", "original", "sort_order")
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "original":
+            kwargs["label"] = "Poster image"
+            kwargs["help_text"] = "Shown in the gallery with the watermark; buyers get the video file."
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+
 @admin.register(Event)
 class EventAdmin(BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
     bulk_upload_targets = ("catalog.eventphoto",)
+    inlines = (EventVideoInline,)
     list_display = ("thumbnail", "name", "institution", "date", "gallery_count", "video_count", "price_per_photo",
                     "price_per_video", "bundle_price", "is_published")
     list_display_links = ("thumbnail", "name")
