@@ -45,7 +45,7 @@ export type AboutData = {
   copy: AboutCopy;
   capabilities: string[];
   story: { title: string; body: string; image: string; alt: string }[];
-  tieUps: { name: string; years: string; image: string }[];
+  tieUps: { name: string; note: string; image: string }[];
   faqs: { q: string; a: string }[];
 };
 

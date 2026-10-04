@@ -16,6 +16,7 @@ import { SpectrumNav } from "@/components/spectrum/nav";
 import { Footer } from "@/components/spectrum/footer";
 import { SelectionProvider } from "@/components/spectrum/selection-context";
 import { IntroProvider, useIntro } from "@/components/spectrum/intro-context";
+import { MusicProvider } from "@/components/spectrum/session-music";
 
 import { BrandIntro, INTRO_EASE, INTRO_FADE_MS } from "@/components/spectrum/brand-intro";
 import { getSite, seoMeta } from "@/lib/data/site";
@@ -172,7 +173,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <IntroProvider initialContentHidden={withIntro}>
-        <SelectionProvider>{withIntro ? <SiteShell /> : <PlainShell />}</SelectionProvider>
+        <MusicProvider>
+          <SelectionProvider>{withIntro ? <SiteShell /> : <PlainShell />}</SelectionProvider>
+        </MusicProvider>
       </IntroProvider>
     </QueryClientProvider>
   );

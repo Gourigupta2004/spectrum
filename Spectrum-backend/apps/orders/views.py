@@ -86,17 +86,18 @@ def create_order(request):
         raise ApiError("Event not found", status=404)
     name = text(data, "name", 120, required=True)
     email = text(data, "email", 254)
-    phone = normalise_phone(text(data, "phone", 30))
-    via = "email" if data.get("deliverVia") == "email" else "whatsapp"
-    if via == "whatsapp" and not phone:
+    # Delivery goes wherever the buyer filled something in: WhatsApp, email, or both.
+    raw_phone = text(data, "phone", 30)
+    phone = normalise_phone(raw_phone)
+    if raw_phone and not phone:
         raise ApiError("Please enter a valid WhatsApp number.", field="phone")
     if email:
         try:
             validate_email(email)
         except ValidationError:
             raise ApiError("Please check the email address.", field="email")
-    if via == "email" and not email:
-        raise ApiError("Please enter your email address.", field="email")
+    if not phone and not email:
+        raise ApiError("Add a WhatsApp number or email address.", field="phone")
 
     photos = EventPhoto.objects.filter(event=event, image_status=ImageStatus.READY)
     requested_videos = {int(x) for x in raw_video_ids[:200] if str(x).isdigit()}
@@ -121,7 +122,7 @@ def create_order(request):
         with transaction.atomic():
             order = Order.objects.create(
                 event=event, kind=Order.BUNDLE if bundle else Order.PHOTOS, name=name, email=email, phone=phone,
-                deliver_whatsapp=via == "whatsapp", deliver_email=via == "email" or bool(email),
+                deliver_whatsapp=bool(phone), deliver_email=bool(email),
                 amount_paise=amount, idempotency_key=idempotency_key,
             )
             OrderItem.objects.bulk_create(

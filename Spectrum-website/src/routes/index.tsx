@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
-import { Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { HeroCarousel } from "@/components/spectrum/hero-carousel";
 import { EventCard } from "@/components/spectrum/event-card";
 import { Orb } from "@/components/spectrum/orb";
@@ -53,6 +53,29 @@ function Home() {
   // live, so landing straight inside a gallery skipped the context.
   const onInstitution = (id: string) => navigate({ to: "/events", search: { institution: id } });
 
+  // Chevrons flank the institutions row whenever more icons hide beyond an
+  // edge — a visible "scroll this way" marker that also scrolls on click.
+  const instRow = useRef<HTMLDivElement>(null);
+  const [instHint, setInstHint] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = instRow.current;
+    if (!el) return;
+    const update = () =>
+      setInstHint({
+        left: el.scrollLeft > 8,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 8,
+      });
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [institutions.length]);
+  const nudgeInstitutions = (dir: 1 | -1) =>
+    instRow.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+
   return (
     <div className="grain relative overflow-x-clip">
       {/* HERO */}
@@ -79,7 +102,7 @@ function Home() {
           </p>
         </motion.div>
 
-        <div className="relative z-10 mt-6 w-full">
+        <div className="relative z-10 mt-9 w-full">
           <HeroCarousel slides={heroSlides} />
         </div>
       </section>
@@ -110,33 +133,56 @@ function Home() {
             where no scroll can reach them. The row is bled to the screen edges
             with matching scroll padding, so a half-visible circle reads as
             "there is more this way" rather than as a clipped layout. */}
-        <div className="no-scrollbar -mx-6 mt-8 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] md:mx-0 md:px-1">
-          <div className="mx-auto flex w-max gap-6 sm:gap-8">
-            {institutions.map((inst) => (
-              <button
-                key={inst.id}
-                onClick={() => onInstitution(inst.id)}
-                className="group flex w-24 shrink-0 snap-start flex-col items-center gap-3 sm:w-28 sm:snap-center"
-              >
-                <span className="spectrum-border spectrum-border-thick relative block h-20 w-20 rounded-full p-[3px] transition-all duration-400 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_-14px_rgba(139,92,246,0.7)] sm:h-24 sm:w-24">
-                  {inst.image ? (
-                    <img
-                      src={inst.image}
-                      alt={inst.name}
-                      loading="lazy"
-                      className="h-full w-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="block h-full w-full rounded-full bg-surface" />
-                  )}
-                </span>
-                {/* Two lines reserved either way, so names of different lengths
+        <div className="relative mt-8">
+          {instHint.left && (
+            <button
+              onClick={() => nudgeInstitutions(-1)}
+              aria-label="Scroll institutions left"
+              className="spectrum-border glass absolute -left-1 top-5 z-10 grid h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:top-7 md:-left-4"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+          {instHint.right && (
+            <button
+              onClick={() => nudgeInstitutions(1)}
+              aria-label="Scroll institutions right"
+              className="spectrum-border glass absolute -right-1 top-5 z-10 grid h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:top-7 md:-right-4"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
+          <div
+            ref={instRow}
+            className="no-scrollbar -mx-6 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] md:mx-0 md:px-1"
+          >
+            <div className="mx-auto flex w-max gap-6 sm:gap-8">
+              {institutions.map((inst) => (
+                <button
+                  key={inst.id}
+                  onClick={() => onInstitution(inst.id)}
+                  className="group flex w-24 shrink-0 snap-start flex-col items-center gap-3 sm:w-28 sm:snap-center"
+                >
+                  <span className="spectrum-border spectrum-border-thick relative block h-20 w-20 rounded-full p-[3px] transition-all duration-400 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_-14px_rgba(139,92,246,0.7)] sm:h-24 sm:w-24">
+                    {inst.image ? (
+                      <img
+                        src={inst.image}
+                        alt={inst.name}
+                        loading="lazy"
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="block h-full w-full rounded-full bg-surface" />
+                    )}
+                  </span>
+                  {/* Two lines reserved either way, so names of different lengths
                   keep the circles on one baseline instead of stepping. */}
-                <span className="line-clamp-2 min-h-[2.1rem] font-display text-[0.7rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground sm:min-h-0 sm:text-[0.65rem] sm:tracking-[0.14em]">
-                  {inst.short}
-                </span>
-              </button>
-            ))}
+                  <span className="line-clamp-2 min-h-[2.1rem] font-display text-[0.7rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground sm:min-h-0 sm:text-[0.65rem] sm:tracking-[0.14em]">
+                    {inst.short}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>

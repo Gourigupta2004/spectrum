@@ -58,19 +58,19 @@ const CAMPUS = [
 ];
 
 export const tieUps = [
-  { name: "Amity Group of Institutions", years: "30+" },
-  { name: "K.R. Mangalam Group of Institutions", years: "20+" },
-  { name: "St. Andrews Group of Schools", years: "4+" },
-  { name: "DPS International – Gurugram", years: "3+" },
-  { name: "Bal Bharati Public School – Noida", years: "15+" },
-  { name: "G.D. Goenka Public School – Gurugram", years: "15+" },
-  { name: "G.D. Goenka Global School – Noida", years: "3+" },
-  { name: "ASN Sr. Secondary School – New Delhi", years: "15+" },
-  { name: "Colonel's Central Academy – Gurugram", years: "15+" },
-  { name: "Mount Olympus School – Gurugram", years: "7+" },
-  { name: "GBN Sr. Sec. School – Faridabad", years: "15+" },
-  { name: "Universal Public School – New Delhi", years: "15+" },
-  { name: "Balwant Rai Mehta School – New Delhi", years: "10+" },
+  { name: "Amity Group of Institutions", note: "Tied up for 30+ years" },
+  { name: "K.R. Mangalam Group of Institutions", note: "Tied up for 20+ years" },
+  { name: "St. Andrews Group of Schools", note: "Tied up for 4+ years" },
+  { name: "DPS International – Gurugram", note: "Tied up for 3+ years" },
+  { name: "Bal Bharati Public School – Noida", note: "Tied up for 15+ years" },
+  { name: "G.D. Goenka Public School – Gurugram", note: "Tied up for 15+ years" },
+  { name: "G.D. Goenka Global School – Noida", note: "Tied up for 3+ years" },
+  { name: "ASN Sr. Secondary School – New Delhi", note: "Tied up for 15+ years" },
+  { name: "Colonel's Central Academy – Gurugram", note: "Tied up for 15+ years" },
+  { name: "Mount Olympus School – Gurugram", note: "Tied up for 7+ years" },
+  { name: "GBN Sr. Sec. School – Faridabad", note: "Tied up for 15+ years" },
+  { name: "Universal Public School – New Delhi", note: "Tied up for 15+ years" },
+  { name: "Balwant Rai Mehta School – New Delhi", note: "Tied up for 10+ years" },
 ].map((t, i) => ({ ...t, image: CAMPUS[i % CAMPUS.length]! }));
 
 export const faqs = [

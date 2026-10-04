@@ -7,7 +7,6 @@ import { GlassChips } from "@/components/spectrum/glass-chips";
 import { Highlight } from "@/components/spectrum/highlight";
 import { getAbout, type AboutData } from "@/lib/data/pages";
 import { seoMeta } from "@/lib/data/site";
-import { fill } from "@/lib/text";
 
 export const Route = createFileRoute("/about")({
   loader: () => getAbout(),
@@ -187,7 +186,7 @@ function AboutPage() {
         </section>
       </div>
 
-      <TieUpRow tieUps={tieUps} yearsTemplate={copy.tieupYearsTemplate} />
+      <TieUpRow tieUps={tieUps} />
 
       {/* 4 — FAQs */}
       <div className="relative z-10 mx-auto max-w-5xl px-6">
@@ -235,17 +234,17 @@ function StoryTicker({ text }: { text: string }) {
   // Slim on purpose — one or two sentences in view at a time, wide enough that
   // most lines sit on a single line. Hovering pauses it for reading.
   return (
-    <div className="story-ticker relative mx-auto mt-4 h-36 overflow-hidden px-6 md:h-40 md:px-16">
+    <div className="story-ticker relative mx-auto mt-4 h-28 overflow-hidden px-6 md:h-32 md:px-16">
       <div
         className="story-ticker-track"
         style={{ animationDuration: `${Math.max(18, lines.length * 4)}s` }}
       >
         {[0, 1].map((pass) => (
-          <div key={pass} aria-hidden={pass === 1} className="flex flex-col gap-5 pb-5 text-center">
+          <div key={pass} aria-hidden={pass === 1} className="flex flex-col gap-3 pb-3 text-center">
             {lines.map((line, i) => (
               <p
                 key={i}
-                className="mx-auto max-w-6xl font-display text-2xl leading-snug text-foreground/95 md:text-[1.75rem]"
+                className="mx-auto max-w-6xl font-display text-lg leading-tight text-foreground/95 md:text-xl"
               >
                 <Highlight text={line} />
               </p>
@@ -257,7 +256,7 @@ function StoryTicker({ text }: { text: string }) {
   );
 }
 
-function TieUpRow({ tieUps, yearsTemplate }: { tieUps: TieUp[]; yearsTemplate: string }) {
+function TieUpRow({ tieUps }: { tieUps: TieUp[] }) {
   const ref = useRef<HTMLUListElement>(null);
   const [first, setFirst] = useState(0);
   const [atEnd, setAtEnd] = useState(false);
@@ -334,9 +333,11 @@ function TieUpRow({ tieUps, yearsTemplate }: { tieUps: TieUp[]; yearsTemplate: s
                 <p className="font-display text-base font-semibold leading-snug text-[#1C1A22] sm:text-lg md:text-xl">
                   {t.name}
                 </p>
-                <p className="mt-1.5 text-sm font-medium text-[#1C1A22]/70 sm:mt-2 sm:text-base">
-                  {fill(yearsTemplate, { years: t.years })}
-                </p>
+                {t.note && (
+                  <p className="mt-1.5 text-sm font-medium text-[#1C1A22]/70 sm:mt-2 sm:text-base">
+                    {t.note}
+                  </p>
+                )}
               </div>
             </div>
           </li>

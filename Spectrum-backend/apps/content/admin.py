@@ -24,7 +24,7 @@ class ImageInline(ImagePreviewMixin, OrderedInline):
 class SiteSettingsAdmin(SingletonAdmin):
     fieldsets = (
         ("Logo & intro video", {"fields": ("logo_light", "logo_mark", "favicon", "intro_video_webm",
-                                           "intro_video_mp4", "intro_skip_label")}),
+                                           "intro_video_mp4", "intro_audio", "session_audio", "intro_skip_label")}),
         ("Navigation", {"fields": ("nav_home", "nav_events", "nav_about", "nav_contact", "nav_portal")}),
         ("Default search & sharing", {"fields": ("seo_title", "seo_description", "og_title", "og_description")}),
         ("Error pages", {"classes": ("collapse",), "fields": ("not_found_title", "not_found_body",
@@ -72,7 +72,7 @@ class StoryInline(ImageInline):
 
 class TieUpInline(ImageInline):
     model = TieUp
-    fields = ("original", "name", "years", "sort_order")
+    fields = ("original", "name", "note", "sort_order")
 
 
 class FaqInline(OrderedInline):
@@ -86,7 +86,7 @@ class AboutPageAdmin(BulkUploadMixin, SingletonAdmin):
     inlines = [CapabilityInline, StoryInline, TieUpInline, FaqInline]
     fieldsets = (
         ("Copy", {"fields": ("back_label", "lead_line", "pull_quote", "tieups_heading", "tieups_subtitle",
-                             "tieup_years_template", "faqs_heading")}),
+                             "faqs_heading")}),
         ("Our story ticker", {"description": "The slim band above the tie-ups where the story text rises and "
                                              "fades away. One line per sentence.",
                               "fields": ("ticker_heading", "ticker_text")}),
@@ -135,8 +135,8 @@ class GalleryPageAdmin(SingletonAdmin):
                                       "filter_photos", "filter_videos", "bundle_selected", "bundle_button",
                                       "bundle_button_no_saving", "pay_cta")}),
         ("Checkout", {"fields": ("summary_heading", "bundle_line", "total_label", "name_placeholder",
-                                 "whatsapp_placeholder", "email_placeholder", "deliver_via", "pay_button",
-                                 "checkout_error")}),
+                                 "whatsapp_placeholder", "whatsapp_hint", "email_placeholder", "email_hint",
+                                 "contact_required", "pay_button", "checkout_error")}),
         ("After payment", {"fields": ("success_title", "success_body_whatsapp", "success_body_email",
                                       "success_note", "success_back")}),
     )

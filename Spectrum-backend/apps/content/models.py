@@ -60,7 +60,13 @@ class SiteSettings(SingletonModel):
     favicon = models.FileField(upload_to=site_upload, blank=True)
     intro_video_webm = models.FileField("intro video (WebM)", upload_to=site_upload, blank=True)
     intro_video_mp4 = models.FileField("intro video (MP4)", upload_to=site_upload, blank=True)
+    intro_audio = models.FileField("intro sound (MP3)", upload_to=site_upload, blank=True,
+                                   help_text="Plays with the brand intro. Browsers only allow sound after the "
+                                             "visitor has interacted, so it may start on their first tap/click.")
     intro_skip_label = line("Skip", 40)
+    session_audio = models.FileField("background music (MP3)", upload_to=site_upload, blank=True,
+                                     help_text="Soft loop that plays through the visit, starting a beat after "
+                                               "the intro. Visitors can mute it from the navbar.")
 
     nav_home = line("Home", 40, help_text="Used in the footer; the navbar shows the logo instead.")
     nav_events = line("Events", 40)
@@ -191,7 +197,6 @@ class AboutPage(Seo, SingletonModel):
     )
     tieups_heading = line("Our Tie-Ups")
     tieups_subtitle = para("Decades-long relationships with the institutions we're proud to call partners.")
-    tieup_years_template = line("Tied up for {years} years", help_text="{years} is replaced by each tie-up's years.")
     faqs_heading = line("FAQs")
 
     class Meta:
@@ -229,7 +234,8 @@ class TieUp(Ordered, ProcessedImage):
 
     page = models.ForeignKey(AboutPage, default=1, on_delete=models.CASCADE, related_name="tie_ups", editable=False)
     name = models.CharField(max_length=160)
-    years = models.CharField(max_length=20, blank=True, help_text='e.g. "15+"')
+    note = models.CharField("line under the name", max_length=120, blank=True,
+                            help_text='Shown as written, e.g. "Tied up for 15+ years". Blank shows nothing.')
 
     class Meta(Ordered.Meta):
         verbose_name = "tie-up"
@@ -374,8 +380,10 @@ class GalleryPage(SingletonModel):
     total_label = line("Total", 40)
     name_placeholder = line("Your Name")
     whatsapp_placeholder = line("WhatsApp Number")
+    whatsapp_hint = line("Add, if you want photographs on WhatsApp")
     email_placeholder = line("Email Address")
-    deliver_via = line("Deliver via {channel}")
+    email_hint = line("Add, if you want photographs on email")
+    contact_required = line("Add a WhatsApp number or email address so we can deliver your memories.")
     pay_button = line("Pay ₹{total} with Razorpay →")
     checkout_error = line("Payment could not be completed. Please try again.")
 

@@ -9,6 +9,10 @@ export type SiteData = {
   favicon: string;
   introVideoWebm: string;
   introVideoMp4: string;
+  /** Licensed intro sting (MP3); empty string when none is uploaded. */
+  introAudio: string;
+  /** Soft session-long background loop; empty string when none is uploaded. */
+  sessionAudio: string;
   copy: SiteCopy;
   seo: Seo;
 };
@@ -19,6 +23,8 @@ export const fallbackSite: SiteData = {
   favicon: "/favicon.png",
   introVideoWebm: "/spr-intro.webm",
   introVideoMp4: "/spr-intro.mp4",
+  introAudio: "",
+  sessionAudio: "",
   copy: siteCopy,
   seo: {
     title: "Spectrum — Every Moment, Yours Forever",
@@ -40,6 +46,8 @@ export async function getSite(): Promise<SiteData> {
       favicon: data.favicon || fallbackSite.favicon,
       introVideoWebm: data.introVideoWebm || fallbackSite.introVideoWebm,
       introVideoMp4: data.introVideoMp4 || fallbackSite.introVideoMp4,
+      introAudio: data.introAudio || "",
+      sessionAudio: data.sessionAudio || "",
       copy: { ...siteCopy, ...data.copy },
     };
   } catch (error) {

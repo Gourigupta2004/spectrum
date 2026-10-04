@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useSelection } from "./selection-context";
 import { useIntro } from "./intro-context";
 import { useSite } from "@/lib/use-site";
+import { useMusic } from "./session-music";
+import { Volume2, VolumeX } from "lucide-react";
 
 type NavLink = { label: string; to: "/institutions" | "/about" | "/contact" | "/portal" };
 
@@ -14,6 +16,7 @@ export function SpectrumNav() {
   const { navLogoVisible } = useIntro();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const site = useSite();
+  const music = useMusic();
   // Events starts at the institution picker: institutions → events → gallery.
   const links: NavLink[] = [
     { label: site.copy.navEvents, to: "/institutions" },
@@ -93,6 +96,16 @@ export function SpectrumNav() {
               );
             })}
           </div>
+
+          {music.available && (
+            <button
+              onClick={music.toggle}
+              aria-label={music.muted ? "Turn music on" : "Turn music off"}
+              className="-my-2 grid h-10 w-7 place-items-center text-foreground/60 transition-colors hover:text-foreground"
+            >
+              {music.muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+          )}
 
           {/* Padded to a full 44px touch target: the three dots alone were four
               pixels tall, which is nothing to aim at on a phone. */}

@@ -26,6 +26,8 @@ def build_site() -> dict:
         "favicon": public_url(site.favicon),
         "introVideoWebm": public_url(site.intro_video_webm),
         "introVideoMp4": public_url(site.intro_video_mp4),
+        "introAudio": public_url(site.intro_audio),
+        "sessionAudio": public_url(site.session_audio),
         "copy": copy_of(site),
         "seo": {
             "title": site.seo_title,
@@ -97,8 +99,8 @@ def build_about() -> dict:
             for title, body, alt, web in StoryBlock.objects.values_list("title", "body", "alt", "web")
         ],
         "tieUps": [
-            {"name": name, "years": years, "image": storage_url(web)}
-            for name, years, web in TieUp.objects.values_list("name", "years", "web")
+            {"name": name, "note": note, "image": storage_url(web)}
+            for name, note, web in TieUp.objects.values_list("name", "note", "web")
         ],
         "faqs": [{"q": q, "a": a} for q, a in Faq.objects.values_list("question", "answer")],
     }

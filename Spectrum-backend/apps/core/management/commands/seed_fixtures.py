@@ -124,6 +124,7 @@ class Command(BaseCommand):
             "favicon": "favicon.png",
             "intro_video_webm": "spr-intro.webm",
             "intro_video_mp4": "spr-intro.mp4",
+            "intro_audio": "spr-intro.mp3",
         }
         changed = False
         for field, filename in files.items():
@@ -174,7 +175,7 @@ class Command(BaseCommand):
         for i, tie in enumerate(self.data["tieUps"]):
             if tie["name"] in names:
                 continue
-            obj = TieUp(name=tie["name"], years=tie["years"], sort_order=i)
+            obj = TieUp(name=tie["name"], note=tie["note"], sort_order=i)
             self.attach(obj, tie["image"], f"tieup-{i}.jpg")
             obj.save()
         self.stdout.write("About page seeded.")

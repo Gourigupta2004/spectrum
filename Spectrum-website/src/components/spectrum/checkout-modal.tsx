@@ -46,7 +46,6 @@ export function CheckoutModal({
   /** Every photo in the event — what the bundle buys. Videos are always priced on top. */
   albumSize: number;
 }) {
-  const [whatsapp, setWhatsapp] = useState(true);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -76,8 +75,11 @@ export function CheckoutModal({
     }
     setError("");
     if (!name.trim()) return setError(copy.namePlaceholder);
-    if (whatsapp && phone.replace(/\D/g, "").length < 10) return setError(copy.whatsappPlaceholder);
-    if (!whatsapp && !email.includes("@")) return setError(copy.emailPlaceholder);
+    // Files go wherever something is filled in: WhatsApp, email, or both.
+    if (phone.trim() && phone.replace(/\D/g, "").length < 10)
+      return setError(copy.whatsappPlaceholder);
+    if (email.trim() && !email.includes("@")) return setError(copy.emailPlaceholder);
+    if (!phone.trim() && !email.trim()) return setError(copy.contactRequired);
     setBusy(true);
     try {
       const order = await payForPhotos(
@@ -89,7 +91,7 @@ export function CheckoutModal({
           name: name.trim(),
           phone: phone.trim(),
           email: email.trim(),
-          deliverVia: whatsapp ? "whatsapp" : "email",
+          deliverVia: phone.trim() ? "whatsapp" : "email",
           idempotencyKey,
         },
         `${event.name} · ${event.institution}`,
@@ -196,6 +198,9 @@ export function CheckoutModal({
                   placeholder={copy.whatsappPlaceholder}
                   className={`${inputClass} pl-11`}
                 />
+                <p className="mt-1.5 px-1 text-[0.7rem] text-muted-foreground">
+                  {copy.whatsappHint}
+                </p>
               </div>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-teal" />
@@ -207,23 +212,7 @@ export function CheckoutModal({
                   placeholder={copy.emailPlaceholder}
                   className={`${inputClass} pl-11`}
                 />
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-foreground">
-                <span>{fill(copy.deliverVia, { channel: whatsapp ? "WhatsApp" : "Email" })}</span>
-                <button
-                  onClick={() => setWhatsapp((v) => !v)}
-                  aria-label="Toggle delivery method"
-                  className={`relative h-6 w-11 rounded-full transition-colors ${
-                    whatsapp ? "bg-violet" : "bg-secondary"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-foreground transition-all ${
-                      whatsapp ? "left-[1.4rem]" : "left-0.5"
-                    }`}
-                  />
-                </button>
+                <p className="mt-1.5 px-1 text-[0.7rem] text-muted-foreground">{copy.emailHint}</p>
               </div>
 
               <button

@@ -22,8 +22,10 @@ class OrderTests(SpectrumTestCase):
         self.photos = [self.photo(self.event, f"P{i}", i) for i in range(3)]
 
     def create(self, **overrides):
+        # Email-only by default: a filled field now IS the delivery channel, and
+        # the test environment has no Twilio to take a WhatsApp send.
         body = {"eventSlug": "annual-day", "photoIds": [str(self.photos[0].pk), str(self.photos[1].pk), "999"],
-                "name": "Asha", "phone": "98100 44120", "email": "asha@example.com", "deliverVia": "email",
+                "name": "Asha", "phone": "", "email": "asha@example.com",
                 "idempotencyKey": "key-1-aaaaaaaaaaaaaaaa", **overrides}
         ids = iter(f"order_RZP{i}" for i in range(Order.objects.count() + 1, 100))
         with mock.patch("apps.orders.views.razorpay_create_order", side_effect=lambda order: next(ids)):
@@ -66,8 +68,19 @@ class OrderTests(SpectrumTestCase):
         self.assertEqual(self.client.get(video_path).status_code, 410)
 
     def test_whatsapp_requires_valid_phone(self):
-        response = self.create(phone="12", deliverVia="whatsapp", idempotencyKey="key-3-aaaaaaaaaaaaaaaa")
+        response = self.create(phone="12", idempotencyKey="key-3-aaaaaaaaaaaaaaaa")
         self.assertEqual(response.status_code, 400)
+
+    def test_some_contact_is_required(self):
+        response = self.create(phone="", email="", idempotencyKey="key-4-aaaaaaaaaaaaaaaa")
+        self.assertEqual(response.status_code, 400)
+
+    def test_both_channels_when_both_given(self):
+        order = self.create(phone="98100 44120", idempotencyKey="key-5-aaaaaaaaaaaaaaaa").json()
+        from apps.orders.models import Order as O
+        db = O.objects.get(pk=order["id"])
+        self.assertTrue(db.deliver_whatsapp)
+        self.assertTrue(db.deliver_email)
 
     def test_verify_rejects_bad_signature(self):
         order = self.create().json()

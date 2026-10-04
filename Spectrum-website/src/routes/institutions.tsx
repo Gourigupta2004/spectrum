@@ -93,7 +93,7 @@ function InstitutionsPage() {
                   <span className="block h-full w-full rounded-full bg-surface" />
                 )}
               </span>
-              <span className="line-clamp-2 min-h-[2.1rem] font-display text-[0.72rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground">
+              <span className="line-clamp-2 font-display text-[0.72rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground">
                 {inst.short}
               </span>
               {typeof inst.eventCount === "number" && inst.eventCount > 0 && (

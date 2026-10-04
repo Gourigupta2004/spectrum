@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Volume2 } from "lucide-react";
 import { useIntro } from "./intro-context";
 import { Orb } from "./orb";
 import { useSite } from "@/lib/use-site";
@@ -31,16 +32,17 @@ const CUT_AT = 3.76;
  * Every hand-off overlaps rather than cuts.
  */
 const LOCKUP_HOLD = 0.6; // s — the lockup at full presence before it starts to go
-const LOCKUP_FADE = 1.5; // s — the lockup's own slow dissolve, on the shared easing
+const LOCKUP_FADE = 1.0; // s — the lockup's own slow dissolve, on the shared easing
 const LOCKUP_END = LOCKUP_HOLD + LOCKUP_FADE;
 const HOLD_IN = 0.5; // s — the beat crossfades in under the lockup's back half...
 const HOLD_LEAD = 0.1; // s — ...and is fully present this long before the lockup is gone
 /**
  * Gap between the lockup clearing and the cloud block starting. The beat
  * carries no text, so it only needs to register as a resting surface before
- * the clouds come: a short pause, not a dwell.
+ * the clouds come: a short pause, not a dwell — kept brief so the blank
+ * surface never reads as the site stalling.
  */
-const HOLD = 0.6;
+const HOLD = 0.15;
 const REVEAL_AT = LOCKUP_END + HOLD; // s — the cloud reveal below begins here
 /**
  * The site's background hue, one shade darker — oklch(0.235 0.034 305) against
@@ -151,10 +153,57 @@ export function BrandIntro() {
   const site = useSite();
   const [phase, setPhase] = useState<Phase>("video");
   const [showSkip, setShowSkip] = useState(false);
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const [audioUrl, setAudioUrl] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const startedAtRef = useRef(0);
   const closedRef = useRef(false);
   const fadeRef = useRef(FADE);
   const timersRef = useRef<number[]>([]);
+
+  /** Short volume ramp to silence, so stopping the sting never clicks. */
+  const fadeOutAudio = useCallback((ms: number) => {
+    const a = audioRef.current;
+    if (!a || a.paused) return;
+    const from = a.volume;
+    const started = performance.now();
+    const step = () => {
+      const t = Math.min(1, (performance.now() - started) / ms);
+      a.volume = from * (1 - t);
+      if (t < 1) requestAnimationFrame(step);
+      else a.pause();
+    };
+    requestAnimationFrame(step);
+  }, []);
+
+  /**
+   * Browsers only allow audible playback after a user gesture, so this runs
+   * once on mount (works for returning visitors whose engagement score allows
+   * it) and again on the first tap/click/key. A late start is seeked to the
+   * visual clock so sound and picture stay in step.
+   */
+  const tryPlaySound = useCallback(() => {
+    const a = audioRef.current;
+    if (!a || closedRef.current) return;
+    if (!a.paused) return;
+    const elapsed = (performance.now() - startedAtRef.current) / 1000;
+    if (Number.isFinite(a.duration) && elapsed > a.duration - 0.3) return; // too late to be worth it
+    const seek = () => {
+      try {
+        a.currentTime = Math.max(0, elapsed);
+      } catch {
+        /* unseekable — starting from 0 is close enough this early */
+      }
+    };
+    // Seeking before the metadata arrives is silently ignored, so wait for it.
+    if (a.readyState >= 1) seek();
+    else a.addEventListener("loadedmetadata", seek, { once: true });
+    a.volume = 1;
+    a.play()
+      .then(() => setSoundBlocked(false))
+      .catch(() => setSoundBlocked(true));
+  }, []);
 
   const startClosing = useCallback(
     (quick: boolean) => {
@@ -175,6 +224,11 @@ export function BrandIntro() {
           }
         }
       }
+
+      // The sting is cut to the intro's full arc, so the slow path lets it
+      // resolve on its own; only the skip cuts it short, gently.
+      if (quick) fadeOutAudio(350);
+      setSoundBlocked(false);
 
       fadeRef.current = quick ? 0.4 : FADE;
       if (quick) {
@@ -197,12 +251,37 @@ export function BrandIntro() {
         window.setTimeout(() => setPhase("done"), (REVEAL_AT + FADE) * 1000 + 80),
       );
     },
-    [setContentHidden],
+    [setContentHidden, fadeOutAudio],
   );
+
+  useEffect(() => {
+    if (!site.introAudio) return;
+    let url = "";
+    let cancelled = false;
+    fetch(site.introAudio)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+      .then((blob) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+      })
+      .catch(() => setAudioUrl(site.introAudio)); // direct src still plays, just from 0
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [site.introAudio]);
+
+  // Once the sting is ready, try to start it (autoplay may still be blocked,
+  // which surfaces the Sound affordance instead).
+  useEffect(() => {
+    if (audioUrl) tryPlaySound();
+  }, [audioUrl, tryPlaySound]);
 
   useEffect(() => {
     const v = videoRef.current;
     if (v) v.play().catch(() => {});
+    startedAtRef.current = performance.now();
     timersRef.current.push(
       window.setTimeout(() => setShowSkip(true), 700),
       window.setTimeout(() => startClosing(false), HARD_FALLBACK),
@@ -211,9 +290,20 @@ export function BrandIntro() {
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) startClosing(true);
+    else tryPlaySound();
+    // Any first gesture — a tap, a key, the skip itself — unlocks the sound.
+    const onGesture = () => tryPlaySound();
+    window.addEventListener("pointerdown", onGesture);
+    window.addEventListener("keydown", onGesture);
     const timers = timersRef.current;
-    return () => timers.forEach(window.clearTimeout);
-  }, [startClosing]);
+    const audio = audioRef.current;
+    return () => {
+      timers.forEach(window.clearTimeout);
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
+      audio?.pause();
+    };
+  }, [startClosing, tryPlaySound]);
 
   // Frame-accurate cut so the freeze lands on the intended frame rather than up
   // to 250ms late, which at this point in the clip is a visibly different frame.
@@ -403,6 +493,27 @@ export function BrandIntro() {
               />
             ))}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {audioUrl && (
+        /* The licensed sting, cut to the intro's full arc. Muted-autoplay rules
+           mean it may only start on the first gesture; tryPlaySound keeps it in
+           sync with the visual clock whenever it does. */
+        <audio ref={audioRef} src={audioUrl} preload="auto" />
+      )}
+
+      <AnimatePresence>
+        {audioUrl && soundBlocked && !ending && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={tryPlaySound}
+            className="absolute bottom-6 left-6 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-white/55 transition-colors hover:text-white/90"
+          >
+            <Volume2 className="h-3.5 w-3.5" /> Sound
+          </motion.button>
         )}
       </AnimatePresence>
 

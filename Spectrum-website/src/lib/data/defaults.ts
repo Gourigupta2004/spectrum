@@ -46,7 +46,6 @@ export const aboutCopy = {
   ].join("\n"),
   tieupsHeading: "Our Tie-Ups",
   tieupsSubtitle: "Decades-long relationships with the institutions we're proud to call partners.",
-  tieupYearsTemplate: "Tied up for {years} years",
   faqsHeading: "FAQs",
 };
 
@@ -109,8 +108,10 @@ export const galleryCopy = {
   totalLabel: "Total",
   namePlaceholder: "Your Name",
   whatsappPlaceholder: "WhatsApp Number",
+  whatsappHint: "Add, if you want photographs on WhatsApp",
   emailPlaceholder: "Email Address",
-  deliverVia: "Deliver via {channel}",
+  emailHint: "Add, if you want photographs on email",
+  contactRequired: "Add a WhatsApp number or email address so we can deliver your memories.",
   payButton: "Pay ₹{total} with Razorpay →",
   checkoutError: "Payment could not be completed. Please try again.",
   successTitle: "Your Memories Are On Their Way.",
