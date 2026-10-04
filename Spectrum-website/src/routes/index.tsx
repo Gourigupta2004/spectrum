@@ -67,10 +67,15 @@ function Home() {
       });
     update();
     el.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    // Re-measure whenever the scroller or its track changes size (viewport
+    // resizes, web fonts and images landing), not just on mount — a mount-time
+    // measurement can miss the overflow and leave the right chevron hidden.
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
     return () => {
       el.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      ro.disconnect();
     };
   }, [institutions.length]);
   const nudgeInstitutions = (dir: 1 | -1) =>
@@ -130,15 +135,17 @@ function Home() {
             inner w-max track with mx-auto: it centres itself while everything
             fits and otherwise starts at the left edge and scrolls — centring
             the scroller itself would push the leftmost circles past the edge
-            where no scroll can reach them. The row is bled to the screen edges
-            with matching scroll padding, so a half-visible circle reads as
-            "there is more this way" rather than as a clipped layout. */}
+            where no scroll can reach them. On phones the row is bled to the
+            screen edges with matching scroll padding, so a half-visible circle
+            reads as "there is more this way"; from sm up the chevrons live in
+            reserved side gutters and an edge fade melts cropped icons away
+            beneath them instead of letting the buttons cover them. */}
         <div className="relative mt-8">
           {instHint.left && (
             <button
               onClick={() => nudgeInstitutions(-1)}
               aria-label="Scroll institutions left"
-              className="spectrum-border glass absolute -left-1 top-5 z-10 grid h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:top-7 md:-left-4"
+              className="spectrum-border glass absolute left-0 top-7 z-10 hidden h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:grid"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -147,14 +154,14 @@ function Home() {
             <button
               onClick={() => nudgeInstitutions(1)}
               aria-label="Scroll institutions right"
-              className="spectrum-border glass absolute -right-1 top-5 z-10 grid h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:top-7 md:-right-4"
+              className="spectrum-border glass absolute right-0 top-7 z-10 hidden h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:grid"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           )}
           <div
             ref={instRow}
-            className="no-scrollbar -mx-6 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] md:mx-0 md:px-1"
+            className="no-scrollbar -mx-6 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:mx-0 sm:px-14 sm:[scroll-padding-left:3.5rem] sm:[mask-image:linear-gradient(to_right,transparent,#000_3.25rem,#000_calc(100%-3.25rem),transparent)]"
           >
             <div className="mx-auto flex w-max gap-6 sm:gap-8">
               {institutions.map((inst) => (
