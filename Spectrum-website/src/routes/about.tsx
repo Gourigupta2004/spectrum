@@ -115,21 +115,61 @@ function AboutPage() {
             <Highlight text={copy.pullQuote} />
           </motion.p>
         </section>
+      </div>
 
-        {/* 3 — Our Story ticker: a slim band where the story rises line by
-            line and melts away at the top. Copy lives in the admin. */}
-        {copy.tickerText.trim() && (
-          <section className="mt-28">
-            <motion.h2
-              {...reveal}
-              className="text-center font-display text-3xl font-semibold text-foreground md:text-4xl"
+      {/* 3 — Our Story: a wide framed band of its own, so the rising story
+          reads as a destination rather than loose text. The frame is only the
+          top and bottom arcs — the sides fade out, like big curved brackets.
+          Copy lives in the admin. */}
+      {copy.tickerText.trim() && (
+        <section className="relative z-10 mx-auto mt-28 max-w-7xl px-6">
+          <Orb
+            className="left-[-10%] top-[-40%]"
+            colors={["#7C4DE0", "#D6339A"]}
+            size={420}
+            opacity={0.09}
+          />
+          <motion.div {...reveal} className="relative overflow-hidden rounded-[2rem]">
+            {/* Only the top and bottom arcs of the ring: each window clips a
+                full ring to its corner band, so the sides stop short and the
+                frame reads as big curved brackets, not a closed box. */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-14 overflow-hidden [-webkit-mask-image:linear-gradient(to_bottom,#000_55%,transparent_100%)] [mask-image:linear-gradient(to_bottom,#000_55%,transparent_100%)]"
             >
-              <Highlight text={copy.tickerHeading} />
-            </motion.h2>
+              <span className="spectrum-border absolute inset-x-0 top-0 h-28 rounded-[2rem]" />
+            </span>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-14 overflow-hidden [-webkit-mask-image:linear-gradient(to_top,#000_55%,transparent_100%)] [mask-image:linear-gradient(to_top,#000_55%,transparent_100%)]"
+            >
+              <span className="spectrum-border absolute inset-x-0 bottom-0 h-28 rounded-[2rem]" />
+            </span>
+            {/* A quiet inner glow pulls the eye without fighting the text. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(90% 130% at 50% 0%, rgba(124,77,224,0.16), transparent 58%), radial-gradient(70% 110% at 88% 100%, rgba(47,191,143,0.1), transparent 62%), radial-gradient(60% 110% at 10% 100%, rgba(247,194,31,0.08), transparent 62%)",
+                maskImage:
+                  "linear-gradient(to right, transparent, #000 12%, #000 88%, transparent)",
+                WebkitMaskImage:
+                  "linear-gradient(to right, transparent, #000 12%, #000 88%, transparent)",
+              }}
+            />
+            <div className="relative px-6 pt-5 text-center md:px-14">
+              <h2 className="font-display text-3xl font-semibold text-foreground md:text-4xl">
+                <Highlight text={copy.tickerHeading} />
+              </h2>
+              <div className="spectrum-hairline mx-auto mt-5 w-28" />
+            </div>
             <StoryTicker text={copy.tickerText} />
-          </section>
-        )}
+          </motion.div>
+        </section>
+      )}
 
+      <div className="relative z-10 mx-auto max-w-5xl px-6">
         {/* 4 — Our Tie-Ups */}
         <section className="mt-28">
           <motion.h2
@@ -192,18 +232,20 @@ function StoryTicker({ text }: { text: string }) {
     .filter(Boolean);
   // Two stacked copies scroll up by exactly one copy's height, so the loop is
   // seamless; the CSS mask melts lines in at the bottom and away at the top.
+  // Slim on purpose — one or two sentences in view at a time, wide enough that
+  // most lines sit on a single line. Hovering pauses it for reading.
   return (
-    <div className="story-ticker relative mx-auto mt-8 h-52 max-w-3xl overflow-hidden md:h-60">
+    <div className="story-ticker relative mx-auto mt-4 h-36 overflow-hidden px-6 md:h-40 md:px-16">
       <div
         className="story-ticker-track"
         style={{ animationDuration: `${Math.max(18, lines.length * 4)}s` }}
       >
         {[0, 1].map((pass) => (
-          <div key={pass} aria-hidden={pass === 1} className="flex flex-col gap-7 pb-7 text-center">
+          <div key={pass} aria-hidden={pass === 1} className="flex flex-col gap-5 pb-5 text-center">
             {lines.map((line, i) => (
               <p
                 key={i}
-                className="font-display text-xl leading-snug text-foreground/90 md:text-2xl"
+                className="mx-auto max-w-6xl font-display text-2xl leading-snug text-foreground/95 md:text-[1.75rem]"
               >
                 <Highlight text={line} />
               </p>

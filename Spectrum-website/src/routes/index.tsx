@@ -200,7 +200,7 @@ function Home() {
           </div>
           <div className="mt-12 text-center">
             <button
-              onClick={() => navigate({ to: "/events" })}
+              onClick={() => navigate({ to: "/institutions" })}
               className="spectrum-fill rounded-full px-8 py-3.5 text-sm font-semibold"
             >
               {copy.featuredCta}
