@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Count, Q
 
-from apps.core.admin_tools import BulkUploadMixin, ImagePreviewMixin
+from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin
 from apps.core.models import ImageStatus
 
 from apps.portal.models import PortalAccessEmail
@@ -10,7 +10,7 @@ from .models import Event, EventPhoto, EventVideo, Institution, InstitutionKind
 
 
 @admin.register(InstitutionKind)
-class InstitutionKindAdmin(admin.ModelAdmin):
+class InstitutionKindAdmin(AppendOrderMixin, admin.ModelAdmin):
     list_display = ("name", "plural", "slug", "institution_count", "sort_order")
     list_editable = ("sort_order",)
     prepopulated_fields = {"slug": ("name",)}
@@ -33,7 +33,7 @@ class PortalAccessEmailInline(admin.TabularInline):
 
 
 @admin.register(Institution)
-class InstitutionAdmin(ImagePreviewMixin, admin.ModelAdmin):
+class InstitutionAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
     inlines = (PortalAccessEmailInline,)
     list_display = ("thumbnail", "name", "short", "city", "kind", "event_count", "is_published", "sort_order")
     list_display_links = ("thumbnail", "name")
@@ -68,7 +68,7 @@ class EventVideoInline(ImagePreviewMixin, admin.TabularInline):
 
 
 @admin.register(Event)
-class EventAdmin(BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
+class EventAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
     bulk_upload_targets = ("catalog.eventphoto",)
     inlines = (EventVideoInline,)
     list_display = ("thumbnail", "name", "institution", "date", "gallery_count", "video_count", "price_per_photo",
@@ -103,7 +103,7 @@ class EventAdmin(BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
 
 
 @admin.register(EventPhoto)
-class EventPhotoAdmin(ImagePreviewMixin, admin.ModelAdmin):
+class EventPhotoAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
     list_display = ("thumbnail", "title", "event", "image_status", "sort_order")
     list_editable = ("title", "sort_order")
     list_filter = ("image_status", "event__institution", "event")
@@ -122,7 +122,7 @@ class EventPhotoAdmin(ImagePreviewMixin, admin.ModelAdmin):
 
 
 @admin.register(EventVideo)
-class EventVideoAdmin(ImagePreviewMixin, admin.ModelAdmin):
+class EventVideoAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
     list_display = ("thumbnail", "title", "event", "duration_label", "image_status", "sort_order")
     list_editable = ("title", "duration_label", "sort_order")
     list_filter = ("event__institution", "event")

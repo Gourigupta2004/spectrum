@@ -3,6 +3,7 @@
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
+from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.html import format_html
@@ -48,6 +49,21 @@ class ImageFileInput(forms.ClearableFileInput):
         except Exception:  # a storage without URLs, or a missing file
             context["link"] = ""
         return context
+
+
+class AppendOrderMixin:
+    """New rows land at the end: the Add form pre-fills `order` with max + 1.
+
+    Without this every new row defaults to 0 and jumps to the front, which
+    reads as "ordering is broken" the moment a curated list gains a row.
+    """
+
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        if "sort_order" not in initial:
+            top = self.model.objects.aggregate(top=models.Max("sort_order"))["top"]
+            initial["sort_order"] = 0 if top is None else top + 1
+        return initial
 
 
 class ImagePreviewMixin:

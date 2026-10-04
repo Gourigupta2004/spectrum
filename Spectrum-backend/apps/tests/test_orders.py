@@ -50,13 +50,20 @@ class OrderTests(SpectrumTestCase):
             paid = self.client.post(f"/api/orders/{order['id']}/verify/", json.dumps({
                 "razorpayOrderId": "order_RZP1", "razorpayPaymentId": "pay_1", "razorpaySignature": signature}),
                 content_type="application/json").json()
-        listing = self.client.get(f"/api/downloads/{paid['downloadToken']}/").json()
-        self.assertEqual(len(listing["items"]), 3)
-        video_items = [item for item in listing["items"] if item["kind"] == "video"]
-        self.assertEqual(len(video_items), 1)
-        file_response = self.client.get(video_items[0]["url"].replace("http://localhost:8000", ""))
-        self.assertEqual(file_response.status_code, 200)
-        self.assertIn(".mp4", file_response["Content-Disposition"])
+        self.assertEqual(paid["status"], "paid")
+        db_order = Order.objects.exclude(status=Order.CREATED).get()
+        body = mail.outbox[0].body
+        item = db_order.items.get(video__isnull=False)
+        video_path = f"/api/downloads/{db_order.download_token}/photos/{item.pk}/"
+        self.assertIn(f"/api/downloads/{db_order.download_token}/zip/", body)
+        self.assertIn(video_path, body)
+        self.assertIn("one-time", body)
+
+        # The video link works exactly once.
+        first = self.client.get(video_path)
+        self.assertEqual(first.status_code, 200)
+        self.assertIn(".mp4", first["Content-Disposition"])
+        self.assertEqual(self.client.get(video_path).status_code, 410)
 
     def test_whatsapp_requires_valid_phone(self):
         response = self.create(phone="12", deliverVia="whatsapp", idempotencyKey="key-3-aaaaaaaaaaaaaaaa")
@@ -78,17 +85,18 @@ class OrderTests(SpectrumTestCase):
                 content_type="application/json").json()
         self.assertEqual(paid["status"], "paid")
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn(paid["downloadToken"], mail.outbox[0].body)
         self.assertEqual(Delivery.objects.get().status, Delivery.SENT)
-        self.assertEqual(Order.objects.get().status, Order.DELIVERED)
+        db_order = Order.objects.get()
+        self.assertEqual(db_order.status, Order.DELIVERED)
 
-        listing = self.client.get(f"/api/downloads/{paid['downloadToken']}/").json()
-        self.assertEqual(len(listing["items"]), 2)
-        self.assertIsNotNone(listing["zipUrl"])
-        file_response = self.client.get(listing["items"][0]["url"].replace("http://localhost:8000", ""))
+        # The email links straight to the photos zip; the zip is built before sending.
+        self.assertTrue(db_order.zip_file)
+        zip_path = f"/api/downloads/{db_order.download_token}/zip/"
+        self.assertIn(zip_path, mail.outbox[0].body)
+        file_response = self.client.get(zip_path)
         self.assertEqual(file_response.status_code, 200)
         self.assertIn("attachment", file_response["Content-Disposition"])
-        self.assertEqual(self.client.get("/api/downloads/not-a-token/").status_code, 404)
+        self.assertEqual(self.client.get("/api/downloads/not-a-token/zip/").status_code, 404)
 
     def test_webhook_is_verified_and_deduplicated(self):
         order = self.create(bundle=True, idempotencyKey="key-9-aaaaaaaaaaaaaaaa").json()

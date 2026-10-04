@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib import admin, messages
 from django.utils.html import format_html
 
@@ -72,12 +71,18 @@ class OrderAdmin(admin.ModelAdmin):
     def status_badge(self, obj):
         return badge(obj.status, obj.get_status_display())
 
-    @admin.display(description="Customer download page")
+    @admin.display(description="Download links")
     def download_link(self, obj):
         if obj.status not in (Order.PAID, Order.DELIVERED):
             return "Available after payment"
-        url = f"{settings.SITE_URL}/downloads/{obj.download_token}"
-        return format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', url, url)
+        from .views import video_links, zip_url
+
+        links = []
+        if obj.zip_file:
+            links.append(format_html('<a href="{}" target="_blank" rel="noopener">Photos zip</a>', zip_url(obj)))
+        for title, url in video_links(obj):
+            links.append(format_html('<a href="{}" target="_blank" rel="noopener">{} (one-time)</a>', url, title))
+        return format_html(" · ".join(["{}"] * len(links)), *links) if links else "Preparing…"
 
     def _resend(self, request, queryset, channel):
         count = 0

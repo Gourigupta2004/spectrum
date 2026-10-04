@@ -33,32 +33,45 @@ def fulfil_order(order_id: str) -> None:
                                       batch_size=500, ignore_conflicts=True)
     channels = ([Delivery.WHATSAPP] if order.deliver_whatsapp else []) + ([Delivery.EMAIL] if order.deliver_email else [])
     for channel in channels:
-        delivery, _ = Delivery.objects.get_or_create(order=order, channel=channel)
-        if delivery.status == Delivery.PENDING:
-            enqueue("orders.send_delivery", delivery.pk)
-    # Videos are not zipped (they can be huge); they download individually from the page.
+        Delivery.objects.get_or_create(order=order, channel=channel)
+    # The message carries the actual download links, so the photos zip has to
+    # exist before anything is sent: build it first and let build_zip queue the
+    # sends. Videos are never zipped (they can be huge); each gets its own
+    # one-time link in the message.
     photo_count = order.items.filter(photo__isnull=False).count()
-    if not order.zip_file and 1 < photo_count <= settings.ORDER_ZIP_MAX_ITEMS:
+    if not order.zip_file and 0 < photo_count <= settings.ORDER_ZIP_MAX_ITEMS:
         enqueue("orders.build_zip", str(order.pk))
+    else:
+        send_pending_deliveries(order)
+
+
+def send_pending_deliveries(order) -> None:
+    from .models import Delivery
+
+    for pk in order.deliveries.filter(status=Delivery.PENDING).values_list("pk", flat=True):
+        enqueue("orders.send_delivery", pk)
 
 
 @job("orders.send_delivery")
 def send_delivery(delivery_id: int) -> None:
     from .models import Delivery, Order
     from .services import twilio_send_whatsapp
-    from .views import download_page_url
+    from .views import video_links, zip_url
 
     delivery = Delivery.objects.select_related("order__event__institution").get(pk=delivery_id)
     if delivery.status in (Delivery.SENT, Delivery.DELIVERED):
         return
     order = delivery.order
-    link = download_page_url(order)
+    photo_count = order.items.filter(photo__isnull=False).count()
+    videos = video_links(order)
+    file_link = zip_url(order) if order.zip_file else (videos[0][1] if videos else "")
     count = order.items.count()
-    context = {"order": order, "event": order.event, "count": count, "link": link}
+    context = {"order": order, "event": order.event, "count": count, "photo_count": photo_count,
+               "zip_url": zip_url(order) if order.zip_file else "", "videos": videos}
     try:
         if delivery.channel == Delivery.EMAIL:
             message = EmailMultiAlternatives(
-                subject=f"Your photos from {order.event.name} are ready",
+                subject=f"Your memories from {order.event.name} are ready",
                 body=render_to_string("orders/delivery_email.txt", context),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[order.email],
@@ -67,9 +80,17 @@ def send_delivery(delivery_id: int) -> None:
             message.send()
             message_id = ""
         else:
-            body = (f"Hi {order.name}, your {count} photos from {order.event.name} "
-                    f"({order.event.institution.name}) are ready. Download them here: {link}")
-            message_id = twilio_send_whatsapp(order.phone, {"1": order.event.name, "2": str(count), "3": link}, body)
+            lines = [f"Hi {order.name}, your memories from {order.event.name} "
+                     f"({order.event.institution.name}) are ready."]
+            if order.zip_file and photo_count:
+                lines.append(f"Your {photo_count} photo{'s' if photo_count != 1 else ''} (zip): "
+                             f"{zip_url(order)}")
+            for title, url in videos:
+                lines.append(f"{title} (one-time link): {url}")
+            lines.append(f"Order {order.public_id}.")
+            body = "\n".join(lines)
+            message_id = twilio_send_whatsapp(order.phone, {"1": order.event.name, "2": str(count),
+                                                            "3": file_link}, body)
     except Exception as exc:
         attempts = delivery.attempts + 1
         failed = attempts >= 3
@@ -93,6 +114,7 @@ def build_zip(order_id: str) -> None:
 
     order = Order.objects.select_related("event").get(pk=order_id)
     if order.zip_file:
+        send_pending_deliveries(order)
         return
     storage = private_storage()
     rows = (order.items.filter(photo__isnull=False).order_by("photo__sort_order", "pk")
@@ -111,3 +133,6 @@ def build_zip(order_id: str) -> None:
         tmp.seek(0)
         saved = storage.save(f"orders/{order.public_id}.zip", File(tmp))
     Order.objects.filter(pk=order.pk).update(zip_file=saved)
+    # The delivery message links straight to this zip, so the sends wait here.
+    order.zip_file = saved
+    send_pending_deliveries(order)

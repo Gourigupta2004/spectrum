@@ -61,6 +61,8 @@ class OrderItem(models.Model):
     video = models.ForeignKey("catalog.EventVideo", on_delete=models.PROTECT, related_name="+",
                               null=True, blank=True)
     unit_price_paise = models.PositiveIntegerField(default=0)
+    video_used_at = models.DateTimeField(null=True, blank=True,
+                                         help_text="Video links are one-time; set when the download is taken.")
 
     class Meta:
         constraints = [

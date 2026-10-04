@@ -98,7 +98,8 @@ class HomePage(Seo, SingletonModel):
     og_description = para("Premium event photography for schools and colleges. Browse, choose, and own your memories.")
     hero_title = line("Every Moment, [Yours] Forever", help_text=BRACKET_HELP)
     hero_subtitle = para("Spectrum captures the moments for institutions. Browse, choose, and own your memories.")
-    search_placeholder = line("Find your school, college, or event…")
+    search_placeholder = line("Click here to browse institutions…",
+                              help_text="Label on the search-bar-styled button that opens the institutions page.")
     institutions_heading = line("Browse by Institution")
     services_heading = line("Our Services")
     services_subtitle = para("We provide professional coverage.")
@@ -175,6 +176,18 @@ class AboutPage(Seo, SingletonModel):
     pull_quote = para(
         "[Technology] has changed. [Photography] has evolved. Our [commitment] to quality remains constant.",
         BRACKET_HELP,
+    )
+    ticker_heading = line("Our [Story]", 80, help_text=BRACKET_HELP)
+    ticker_text = para(
+        "In 1980, a single camera and a belief: every institution's moments deserve to be kept beautifully.\n"
+        "We began in the darkrooms of Delhi, printing school annual days frame by frame.\n"
+        "Film gave way to digital; our standards never did.\n"
+        "Four decades on, the same families recognise us at the school gate.\n"
+        "Every event we cover is edited, curated and delivered entirely in-house.\n"
+        "Because a photograph is not a file — it is the day itself, kept safe.\n"
+        "Spectrum — imagination that works, since 1980.",
+        help_text="The slowly rising story above the tie-ups. Each line scrolls past on its own; "
+                  "wrap words in [brackets] for the gradient.",
     )
     tieups_heading = line("Our Tie-Ups")
     tieups_subtitle = para("Decades-long relationships with the institutions we're proud to call partners.")
@@ -317,6 +330,9 @@ class EventsPage(Seo, SingletonModel):
     og_description = para("Browse every school and college event captured by Spectrum.")
     back_label = line("Home", 40)
     title = line("All Events")
+    browse_title = line("Choose Your [Institution]", help_text=BRACKET_HELP)
+    browse_subtitle = para("Pick your school or college to see every event we've covered there.")
+    browse_events_template = line("{count} events", 60, help_text="Under each icon; {count} is the event count.")
     filter_all = line("All", 40)
     # The chips between "All" and "Recent" come from the institution types in the catalog.
     filter_recent = line("Recent", 40)
@@ -346,6 +362,8 @@ class GalleryPage(SingletonModel):
     selection_mixed = line("{photos} photos + {videos} videos · ₹{price}",
                            help_text="Shown when the selection includes videos.")
     videos_heading = line("Event Videos", 80, help_text="Heading above the videos; hidden when an event has none.")
+    filter_photos = line("Photos", 40, help_text="Gallery filter chip; shown when the event has videos.")
+    filter_videos = line("Videos", 40)
     bundle_selected = line("Full album selected · {photos} photos · ₹{price}")
     bundle_button = line("Full Album Bundle — Save {savings}% · ₹{price} for all {photos} photos")
     bundle_button_no_saving = line("Full Album Bundle — ₹{price} for all {photos} photos")
@@ -369,14 +387,7 @@ class GalleryPage(SingletonModel):
         "We're sending your full-resolution photos to your email right now. Check your inbox in a while."
     )
     success_note = line("Didn't receive? Contact us at support@spectrum.in")
-    success_download = line("Open your photos now", 60)
     success_back = line("Back to Events", 60)
-
-    download_title = line("Your photos")
-    download_subtitle = line("{event} · {institution}")
-    download_all = line("Download all (zip)", 60)
-    download_one = line("Download", 40)
-    download_missing = line("This download link is not valid. Contact support@spectrum.in.")
 
     class Meta:
         verbose_name = "gallery & checkout page"

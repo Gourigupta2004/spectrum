@@ -9,9 +9,11 @@ WorkingDirectory=/srv/spectrum/Spectrum-backend
 EnvironmentFile=/srv/spectrum/Spectrum-backend/.env
 # 2 workers x 4 threads handles a busy small site in ~130 MB. --preload shares the
 # loaded code between workers; --max-requests recycles them to cap any memory growth.
+# --timeout is generous so a multi-gigabyte admin video upload (received from
+# nginx, then pushed to S3) is never cut off mid-request.
 ExecStart=/srv/spectrum/Spectrum-backend/.venv/bin/gunicorn spectrum.wsgi \
     --bind 127.0.0.1:8000 --workers 2 --worker-class gthread --threads 4 \
-    --preload --max-requests 1000 --max-requests-jitter 100 --timeout 60
+    --preload --max-requests 1000 --max-requests-jitter 100 --timeout 1800
 Restart=always
 MemoryMax=400M
 PrivateTmp=true

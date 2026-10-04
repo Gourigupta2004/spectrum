@@ -5,7 +5,7 @@ import { useSelection } from "./selection-context";
 import { useIntro } from "./intro-context";
 import { useSite } from "@/lib/use-site";
 
-type NavLink = { label: string; to: "/events" | "/about" | "/contact" | "/portal" };
+type NavLink = { label: string; to: "/institutions" | "/about" | "/contact" | "/portal" };
 
 export function SpectrumNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -14,8 +14,9 @@ export function SpectrumNav() {
   const { navLogoVisible } = useIntro();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const site = useSite();
+  // Events starts at the institution picker: institutions → events → gallery.
   const links: NavLink[] = [
-    { label: site.copy.navEvents, to: "/events" },
+    { label: site.copy.navEvents, to: "/institutions" },
     { label: site.copy.navAbout, to: "/about" },
     { label: site.copy.navContact, to: "/contact" },
     { label: site.copy.navPortal, to: "/portal" },
@@ -72,7 +73,10 @@ export function SpectrumNav() {
 
           <div className="hidden items-center gap-8 md:flex">
             {links.map((l) => {
-              const active = pathname === l.to || pathname.startsWith(`${l.to}/`);
+              const active =
+                pathname === l.to ||
+                pathname.startsWith(`${l.to}/`) ||
+                (l.to === "/institutions" && pathname.startsWith("/events"));
               return (
                 <Link
                   key={l.to}

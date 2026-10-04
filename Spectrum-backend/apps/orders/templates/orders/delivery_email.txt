@@ -1,10 +1,13 @@
 Hi {{ order.name }},
 
-Your {{ count }} photo{{ count|pluralize }} from {{ event.name }} ({{ event.institution.name }}) are ready.
-
-Download them here:
-{{ link }}
-
-The link does not expire. Order number: {{ order.public_id }}.
+Your memories from {{ event.name }} ({{ event.institution.name }}) are ready.
+{% if zip_url %}
+Your {{ photo_count }} photo{{ photo_count|pluralize }} in one file:
+{{ zip_url }}
+{% endif %}{% for title, url in videos %}
+{{ title }} — one-time download link (it works once, so save the file when you use it):
+{{ url }}
+{% endfor %}
+Order number: {{ order.public_id }}.
 
 — Spectrum

@@ -43,6 +43,10 @@ function GalleryPage() {
   const bundleSavings = galleryEvent.bundleSavings;
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
+  // "all" until a chip is chosen; clicking the active chip shows everything again.
+  const [mediaFilter, setMediaFilter] = useState<"all" | "photos" | "videos">("all");
+  const showPhotos = mediaFilter !== "videos";
+  const showVideos = mediaFilter !== "photos";
   const [bundle, setBundle] = useState(false);
   const [open, setOpen] = useState(false);
   const [paid, setPaid] = useState<Order | true | null>(null);
@@ -111,6 +115,27 @@ function GalleryPage() {
         </div>
 
         {galleryVideos.length > 0 && (
+          <div className="mt-8 flex gap-3">
+            {(
+              [
+                ["photos", copy.filterPhotos],
+                ["videos", copy.filterVideos],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setMediaFilter((f) => (f === key ? "all" : key))}
+                className={`spectrum-border rounded-full px-5 py-2 text-xs transition-colors ${
+                  mediaFilter === key ? "bg-violet text-foreground" : "text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showVideos && galleryVideos.length > 0 && (
           <div className="mt-10">
             <h2 className="font-display text-xl text-foreground">{copy.videosHeading}</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -161,87 +186,89 @@ function GalleryPage() {
           </div>
         )}
 
-        <div
-          id="gallery-grid"
-          /* Deterrents only: blocks the right-click "save image as" path and drops
+        {showPhotos && (
+          <div
+            id="gallery-grid"
+            /* Deterrents only: blocks the right-click "save image as" path and drops
              the grid out of print/print-to-PDF. The translucent watermark is the
              real signal that these are previews. */
-          onContextMenu={(e) => e.preventDefault()}
-          /* Column flow rather than a grid: each photo keeps its own proportions,
+            onContextMenu={(e) => e.preventDefault()}
+            /* Column flow rather than a grid: each photo keeps its own proportions,
              so rows would not line up. Columns pack them like prints on a wall. */
-          className="no-capture mt-10 select-none columns-2 gap-4 md:columns-3"
-        >
-          {galleryPhotos.map((m, i) => {
-            const isSel = selected.includes(m.id);
-            return (
-              <motion.button
-                key={m.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ duration: 0.45, delay: (i % 6) * 0.05 }}
-                onClick={() => toggle(m.id)}
-                style={{ aspectRatio: photoAspect(m, "4 / 5") }}
-                className={`group @container relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-2xl text-left ${
-                  isSel ? "spectrum-border spectrum-border-thick" : ""
-                }`}
-              >
-                <img
-                  src={m.image}
-                  alt={m.title}
-                  loading="lazy"
-                  draggable={false}
-                  className="undraggable absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                />
-                {!hasApi && (
-                  <span className="pointer-events-none absolute inset-0 z-[4] grid place-items-center overflow-hidden">
-                    {/* Sized from the card itself (container units) so the whole mark
+            className="no-capture mt-10 select-none columns-2 gap-4 md:columns-3"
+          >
+            {galleryPhotos.map((m, i) => {
+              const isSel = selected.includes(m.id);
+              return (
+                <motion.button
+                  key={m.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.45, delay: (i % 6) * 0.05 }}
+                  onClick={() => toggle(m.id)}
+                  style={{ aspectRatio: photoAspect(m, "4 / 5") }}
+                  className={`group @container relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-2xl text-left ${
+                    isSel ? "spectrum-border spectrum-border-thick" : ""
+                  }`}
+                >
+                  <img
+                    src={m.image}
+                    alt={m.title}
+                    loading="lazy"
+                    draggable={false}
+                    className="undraggable absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                  />
+                  {!hasApi && (
+                    <span className="pointer-events-none absolute inset-0 z-[4] grid place-items-center overflow-hidden">
+                      {/* Sized from the card itself (container units) so the whole mark
                         always spans the photo corner to corner, whatever the grid width. */}
-                    <span className="rotate-[-28deg] whitespace-nowrap text-center text-[11cqw] font-black leading-none tracking-[0.06em] text-white/35 antialiased">
-                      {copy.watermarkText}
+                      <span className="rotate-[-28deg] whitespace-nowrap text-center text-[11cqw] font-black leading-none tracking-[0.06em] text-white/35 antialiased">
+                        {copy.watermarkText}
+                      </span>
+                    </span>
+                  )}
+
+                  <span className="spectrum-fill absolute right-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full">
+                    <Lock className="h-3.5 w-3.5" />
+                  </span>
+
+                  {isSel && (
+                    <span className="absolute left-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full bg-teal">
+                      <Check className="h-4 w-4 text-[#14231d]" />
+                    </span>
+                  )}
+
+                  {/* shimmer */}
+                  <span className="pointer-events-none absolute inset-0 overflow-hidden">
+                    <span
+                      className="absolute inset-y-0 -left-1/3 w-1/3 opacity-0 group-hover:opacity-100"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, transparent, rgba(247,194,31,0.25), rgba(139,92,246,0.28), transparent)",
+                        animation: "shimmer-sweep 1.1s ease-out",
+                      }}
+                    />
+                  </span>
+
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-gradient-to-t from-[#1C1A22] via-[#1C1A22]/60 to-transparent p-3 sm:p-4">
+                    <span className="line-clamp-2 block font-display text-[0.8rem] leading-snug text-foreground sm:text-sm">
+                      {m.title}
                     </span>
                   </span>
-                )}
 
-                <span className="spectrum-fill absolute right-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full">
-                  <Lock className="h-3.5 w-3.5" />
-                </span>
-
-                {isSel && (
-                  <span className="absolute left-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full bg-teal">
-                    <Check className="h-4 w-4 text-[#14231d]" />
-                  </span>
-                )}
-
-                {/* shimmer */}
-                <span className="pointer-events-none absolute inset-0 overflow-hidden">
-                  <span
-                    className="absolute inset-y-0 -left-1/3 w-1/3 opacity-0 group-hover:opacity-100"
-                    style={{
-                      background:
-                        "linear-gradient(90deg, transparent, rgba(247,194,31,0.25), rgba(139,92,246,0.28), transparent)",
-                      animation: "shimmer-sweep 1.1s ease-out",
-                    }}
-                  />
-                </span>
-
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-gradient-to-t from-[#1C1A22] via-[#1C1A22]/60 to-transparent p-3 sm:p-4">
-                  <span className="line-clamp-2 block font-display text-[0.8rem] leading-snug text-foreground sm:text-sm">
-                    {m.title}
-                  </span>
-                </span>
-
-                {/* Above the watermark (z-4): the watermark is now large enough to
+                  {/* Above the watermark (z-4): the watermark is now large enough to
                     bury this affordance, and it only shows on hover anyway. */}
-                <span className="pointer-events-none absolute inset-0 z-[5] grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                  <span className="spectrum-border glass rounded-full px-4 py-2 text-xs text-foreground">
-                    {isSel ? copy.selectedLabel : copy.selectLabel}
+                  <span className="pointer-events-none absolute inset-0 z-[5] grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <span className="spectrum-border glass rounded-full px-4 py-2 text-xs text-foreground">
+                      {isSel ? copy.selectedLabel : copy.selectLabel}
+                    </span>
                   </span>
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* STICKY BAR */}

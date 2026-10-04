@@ -63,16 +63,6 @@ export function SuccessOverlay({
           {order?.deliverVia === "email" ? copy.successBodyEmail : copy.successBodyWhatsapp}
         </p>
         <p className="mt-3 text-xs text-muted-foreground">{copy.successNote}</p>
-        {order?.downloadToken && (
-          <Link
-            to="/downloads/$token"
-            params={{ token: order.downloadToken }}
-            onClick={onClose}
-            className="spectrum-fill mt-8 inline-block rounded-full px-6 py-3 text-sm font-semibold"
-          >
-            {copy.successDownload}
-          </Link>
-        )}
         <Link
           to="/events"
           onClick={onClose}

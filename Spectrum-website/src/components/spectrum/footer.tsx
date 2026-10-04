@@ -37,7 +37,7 @@ export function Footer() {
             </li>
             <li>
               <Link
-                to="/events"
+                to="/institutions"
                 className="inline-block py-1.5 text-foreground transition-colors hover:text-teal"
               >
                 {copy.navEvents}

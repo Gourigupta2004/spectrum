@@ -6,11 +6,19 @@
       <tr><td style="padding:32px">
         <h1 style="margin:0 0 12px;font-family:Georgia,serif;font-size:26px;font-weight:normal">Your memories are here.</h1>
         <p style="margin:0 0 20px;color:#C3BEC9;font-size:15px;line-height:1.5">
-          Hi {{ order.name }}, your {{ count }} full-resolution photo{{ count|pluralize }} from
+          Hi {{ order.name }}, your memories from
           <strong style="color:#F6F4F1">{{ event.name }}</strong> ({{ event.institution.name }}) are ready.
         </p>
-        <a href="{{ link }}" style="display:inline-block;background:#7C4DE0;color:#fff;text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:bold">Download your photos</a>
-        <p style="margin:24px 0 0;color:#C3BEC9;font-size:12px">The link does not expire. Order {{ order.public_id }}.</p>
+        {% if zip_url %}
+        <a href="{{ zip_url }}" style="display:inline-block;background:#7C4DE0;color:#fff;text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:bold">Download your {{ photo_count }} photo{{ photo_count|pluralize }}</a>
+        {% endif %}
+        {% for title, url in videos %}
+        <p style="margin:20px 0 0">
+          <a href="{{ url }}" style="display:inline-block;background:#2FBF8F;color:#14231d;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:bold">Download video — {{ title }}</a><br>
+          <span style="color:#C3BEC9;font-size:12px">One-time link: it works once, so save the file when you use it.</span>
+        </p>
+        {% endfor %}
+        <p style="margin:24px 0 0;color:#C3BEC9;font-size:12px">Order {{ order.public_id }}.</p>
       </td></tr>
     </table>
   </td></tr></table>

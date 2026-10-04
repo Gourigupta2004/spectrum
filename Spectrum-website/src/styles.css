@@ -152,6 +152,34 @@
   }
 }
 
+/* About page "Our Story" band: the track holds two copies of the text and
+   rises by one copy's height per loop, so it scrolls forever without a seam.
+   The mask fades lines in near the bottom and melts them away toward the top. */
+.story-ticker {
+  mask-image: linear-gradient(to bottom, transparent 2%, #000 30%, #000 62%, transparent 96%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 2%, #000 30%, #000 62%, transparent 96%);
+}
+.story-ticker-track {
+  animation: story-rise linear infinite;
+  will-change: transform;
+}
+.story-ticker:hover .story-ticker-track {
+  animation-play-state: paused;
+}
+@keyframes story-rise {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story-ticker-track {
+    animation: none;
+  }
+}
+
 @keyframes shimmer-sweep {
   0% {
     transform: translateX(-120%) skewX(-12deg);

@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
 import { Search } from "lucide-react";
 import { HeroCarousel } from "@/components/spectrum/hero-carousel";
@@ -48,18 +48,10 @@ function Home() {
   const navigate = useNavigate();
   const { copy, heroSlides, stats, services, institutions, events } = Route.useLoaderData();
 
-  const [query, setQuery] = useState("");
-
   // Always the institution's own event listing, even when it has a single
   // event: the listing is where the institution's name, filters and event card
   // live, so landing straight inside a gallery skipped the context.
   const onInstitution = (id: string) => navigate({ to: "/events", search: { institution: id } });
-
-  const onSearch = (e: FormEvent) => {
-    e.preventDefault();
-    const q = query.trim();
-    navigate({ to: "/events", search: q ? { q } : {} });
-  };
 
   return (
     <div className="grain relative overflow-x-clip">
@@ -94,29 +86,19 @@ function Home() {
 
       {/* SEARCH + INSTITUTIONS */}
       <section className="relative mx-auto max-w-5xl px-6 py-14 sm:py-20">
-        <form
-          role="search"
-          onSubmit={onSearch}
+        {/* Styled like the old search bar, but it is step one of the funnel:
+            it opens the institutions page where the icons are filtered and chosen. */}
+        <Link
+          to="/institutions"
           className="spectrum-border glass mx-auto flex max-w-xl items-center gap-2 rounded-full p-1.5"
         >
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={copy.searchPlaceholder}
-            aria-label={copy.searchPlaceholder}
-            autoComplete="off"
-            enterKeyHint="search"
-            className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none [&::-webkit-search-cancel-button]:hidden"
-          />
-          <button
-            type="submit"
-            aria-label="Search"
-            className="spectrum-fill grid h-10 w-10 shrink-0 place-items-center rounded-full"
-          >
+          <span className="min-w-0 flex-1 truncate px-4 py-2.5 text-sm text-muted-foreground">
+            {copy.searchPlaceholder}
+          </span>
+          <span className="spectrum-fill grid h-10 w-10 shrink-0 place-items-center rounded-full">
             <Search className="h-4 w-4" />
-          </button>
-        </form>
+          </span>
+        </Link>
 
         <h2 className="mt-12 text-center font-display text-xs font-semibold uppercase tracking-[0.28em] text-foreground/80 sm:mt-16">
           {copy.institutionsHeading}

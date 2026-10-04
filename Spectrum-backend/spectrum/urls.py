@@ -33,7 +33,6 @@ api = [
     path("orders/<uuid:order_id>/verify/", orders.verify_order),
     path("webhooks/razorpay/", orders.razorpay_webhook),
     path("webhooks/twilio/", orders.twilio_webhook),
-    path("downloads/<str:token>/", orders.download),
     path("downloads/<str:token>/photos/<int:item_id>/", orders.download_photo),
     path("downloads/<str:token>/zip/", orders.download_zip),
 ]

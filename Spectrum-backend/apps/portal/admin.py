@@ -6,14 +6,14 @@ from django.db import models
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
-from apps.core.admin_tools import BulkUploadMixin, ImagePreviewMixin, thumb_html
+from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, thumb_html
 from apps.core.models import ImageStatus
 
 from .models import CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student
 
 
 @admin.register(SchoolClass)
-class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
+class SchoolClassAdmin(AppendOrderMixin, BulkUploadMixin, admin.ModelAdmin):
     bulk_upload_targets = ("portal.student",)
     list_display = ("name", "institution", "group", "student_count", "named_count", "sort_order")
     list_editable = ("group", "sort_order")
@@ -38,7 +38,7 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
 
 
 @admin.register(Student)
-class StudentAdmin(ImagePreviewMixin, admin.ModelAdmin):
+class StudentAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
     list_display = ("thumbnail", "name", "school_class", "image_status", "sort_order")
     list_editable = ("name", "sort_order")
     list_filter = ("school_class__institution", "school_class")

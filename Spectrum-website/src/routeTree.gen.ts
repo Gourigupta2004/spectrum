@@ -13,8 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as InstitutionsRouteImport } from './routes/institutions'
 import { Route as PortalRouteImport } from './routes/portal'
-import { Route as DownloadsTokenRouteImport } from './routes/downloads/$token'
 import { Route as EventsIndexRouteImport } from './routes/events/index'
 import { Route as EventsSlugRouteImport } from './routes/events/$slug'
 import { Route as PortalIndexRouteImport } from './routes/portal.index'
@@ -43,14 +43,14 @@ const HowItWorksRoute = HowItWorksRouteImport.update({
   path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstitutionsRoute = InstitutionsRouteImport.update({
+  id: '/institutions',
+  path: '/institutions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
   path: '/portal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DownloadsTokenRoute = DownloadsTokenRouteImport.update({
-  id: '/downloads/$token',
-  path: '/downloads/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsIndexRoute = EventsIndexRouteImport.update({
@@ -96,8 +96,8 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/institutions': typeof InstitutionsRoute
   '/portal': typeof PortalRouteWithChildren
-  '/downloads/$token': typeof DownloadsTokenRoute
   '/events/$slug': typeof EventsSlugRoute
   '/events/': typeof EventsIndexRoute
   '/portal/': typeof PortalIndexRoute
@@ -111,7 +111,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
-  '/downloads/$token': typeof DownloadsTokenRoute
+  '/institutions': typeof InstitutionsRoute
   '/events/$slug': typeof EventsSlugRoute
   '/events': typeof EventsIndexRoute
   '/portal': typeof PortalIndexRoute
@@ -126,8 +126,8 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/institutions': typeof InstitutionsRoute
   '/portal': typeof PortalRouteWithChildren
-  '/downloads/$token': typeof DownloadsTokenRoute
   '/events/$slug': typeof EventsSlugRoute
   '/events/': typeof EventsIndexRoute
   '/portal/': typeof PortalIndexRoute
@@ -143,8 +143,8 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/how-it-works'
+    | '/institutions'
     | '/portal'
-    | '/downloads/$token'
     | '/events/$slug'
     | '/events/'
     | '/portal/'
@@ -158,7 +158,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/how-it-works'
-    | '/downloads/$token'
+    | '/institutions'
     | '/events/$slug'
     | '/events'
     | '/portal'
@@ -172,8 +172,8 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/how-it-works'
+    | '/institutions'
     | '/portal'
-    | '/downloads/$token'
     | '/events/$slug'
     | '/events/'
     | '/portal/'
@@ -188,8 +188,8 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
   HowItWorksRoute: typeof HowItWorksRoute
+  InstitutionsRoute: typeof InstitutionsRoute
   PortalRoute: typeof PortalRouteWithChildren
-  DownloadsTokenRoute: typeof DownloadsTokenRoute
   EventsSlugRoute: typeof EventsSlugRoute
   EventsIndexRoute: typeof EventsIndexRoute
 }
@@ -224,18 +224,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HowItWorksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/institutions': {
+      id: '/institutions'
+      path: '/institutions'
+      fullPath: '/institutions'
+      preLoaderRoute: typeof InstitutionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal': {
       id: '/portal'
       path: '/portal'
       fullPath: '/portal'
       preLoaderRoute: typeof PortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/downloads/$token': {
-      id: '/downloads/$token'
-      path: '/downloads/$token'
-      fullPath: '/downloads/$token'
-      preLoaderRoute: typeof DownloadsTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/': {
@@ -314,8 +314,8 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
   HowItWorksRoute: HowItWorksRoute,
+  InstitutionsRoute: InstitutionsRoute,
   PortalRoute: PortalRouteWithChildren,
-  DownloadsTokenRoute: DownloadsTokenRoute,
   EventsSlugRoute: EventsSlugRoute,
   EventsIndexRoute: EventsIndexRoute,
 }

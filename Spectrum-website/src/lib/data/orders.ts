@@ -25,16 +25,8 @@ export type Order = {
   mock: boolean;
   razorpay: { keyId: string; orderId: string } | null;
   prefill: { name: string; email: string; contact: string };
-  downloadUrl: string | null;
-  downloadToken: string | null;
-};
-
-export type Download = {
-  publicId: string;
-  event: { name: string; institution: string };
-  items: { id: number; title: string; thumb: string; kind?: "photo" | "video"; url: string }[];
-  zipUrl: string | null;
-  preparing: boolean;
+  /** True once the payment is confirmed; the files arrive by WhatsApp/email. */
+  paid: boolean;
 };
 
 export const createOrder = (input: OrderInput) =>
@@ -42,11 +34,6 @@ export const createOrder = (input: OrderInput) =>
 
 export const verifyOrder = (id: string, body: Record<string, unknown>) =>
   apiFetch<Order>(`/api/orders/${id}/verify/`, { method: "POST", json: body });
-
-export const getDownload = (token: string) => {
-  if (!hasApi) return Promise.reject(new Error("Downloads need the backend"));
-  return apiFetch<Download>(`/api/downloads/${encodeURIComponent(token)}/`);
-};
 
 type RazorpayResponse = {
   razorpay_order_id: string;

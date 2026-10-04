@@ -19,6 +19,7 @@ def event_queryset():
         published_events()
         .select_related("institution__kind")
         .only(*EVENT_FIELDS)
+        .order_by("sort_order", "-date", "pk")
         .annotate(photo_count=Count("photos", filter=Q(photos__image_status=ImageStatus.READY), distinct=True),
                   video_count=Count("videos", filter=~Q(videos__video=""), distinct=True))
     )
@@ -55,6 +56,7 @@ def institution_list() -> list[dict]:
         Institution.objects.filter(is_published=True)
         .select_related("kind")
         .only("slug", "name", "short", "city", "web", "kind__slug")
+        .order_by("sort_order", "name")
         .annotate(
             event_count=Count("events", filter=Q(events__is_published=True)),
             first_event_slug=Subquery(first_event.values("slug")[:1]),

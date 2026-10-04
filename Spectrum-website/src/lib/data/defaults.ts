@@ -21,7 +21,7 @@ export const homeCopy = {
   heroTitle: "Every Moment, [Yours] Forever",
   heroSubtitle:
     "Spectrum captures the moments for institutions. Browse, choose, and own your memories.",
-  searchPlaceholder: "Find your school, college, or event…",
+  searchPlaceholder: "Click here to browse institutions…",
   institutionsHeading: "Browse by Institution",
   servicesHeading: "Our Services",
   servicesSubtitle: "We provide professional coverage.",
@@ -34,6 +34,16 @@ export const aboutCopy = {
   leadLine: "Established in 1980 — Nearly [Five Decades] of Experience, Precision, and Trust.",
   pullQuote:
     "[Technology] has changed. [Photography] has evolved. Our [commitment] to quality remains constant.",
+  tickerHeading: "Our [Story]",
+  tickerText: [
+    "In 1980, a single camera and a belief: every institution's moments deserve to be kept beautifully.",
+    "We began in the darkrooms of Delhi, printing school annual days frame by frame.",
+    "Film gave way to digital; our standards never did.",
+    "Four decades on, the same families recognise us at the school gate.",
+    "Every event we cover is edited, curated and delivered entirely in-house.",
+    "Because a photograph is not a file — it is the day itself, kept safe.",
+    "Spectrum — imagination that works, since 1980.",
+  ].join("\n"),
   tieupsHeading: "Our Tie-Ups",
   tieupsSubtitle: "Decades-long relationships with the institutions we're proud to call partners.",
   tieupYearsTemplate: "Tied up for {years} years",
@@ -63,6 +73,9 @@ export const contactCopy = {
 export const eventsCopy = {
   backLabel: "Home",
   title: "All Events",
+  browseTitle: "Choose Your [Institution]",
+  browseSubtitle: "Pick your school or college to see every event we've covered there.",
+  browseEventsTemplate: "{count} events",
   filterAll: "All",
   filterRecent: "Recent",
   filterPopular: "Popular",
@@ -85,6 +98,8 @@ export const galleryCopy = {
   selectionMany: "{count} photos selected · ₹{price}",
   selectionMixed: "{photos} photos + {videos} videos · ₹{price}",
   videosHeading: "Event Videos",
+  filterPhotos: "Photos",
+  filterVideos: "Videos",
   bundleSelected: "Full album selected · {photos} photos · ₹{price}",
   bundleButton: "Full Album Bundle — Save {savings}% · ₹{price} for all {photos} photos",
   bundleButtonNoSaving: "Full Album Bundle — ₹{price} for all {photos} photos",
@@ -104,13 +119,7 @@ export const galleryCopy = {
   successBodyEmail:
     "We're sending your full-resolution photos to your email right now. Check your inbox in a while.",
   successNote: "Didn't receive? Contact us at support@spectrum.in",
-  successDownload: "Open your photos now",
   successBack: "Back to Events",
-  downloadTitle: "Your photos",
-  downloadSubtitle: "{event} · {institution}",
-  downloadAll: "Download all (zip)",
-  downloadOne: "Download",
-  downloadMissing: "This download link is not valid. Contact support@spectrum.in.",
 };
 
 export const portalCopy = {

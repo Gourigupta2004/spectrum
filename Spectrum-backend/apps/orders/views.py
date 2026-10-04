@@ -8,13 +8,14 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.http import FileResponse, HttpResponse, HttpResponseRedirect
+from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.catalog.models import Event, EventPhoto, EventVideo
 from apps.core.http import ApiError, api, rate_limit, text
-from apps.core.models import ImageStatus, storage_url
+from apps.core.models import ImageStatus
 from spectrum.storages import private_storage
 
 from .models import Delivery, Order, OrderItem, WebhookEvent
@@ -27,8 +28,18 @@ log = logging.getLogger(__name__)
 PAID_STATES = (Order.PAID, Order.DELIVERED)
 
 
-def download_page_url(order: Order) -> str:
-    return f"{settings.SITE_URL}/downloads/{order.download_token}"
+def downloads_base(order: Order) -> str:
+    return f"{settings.API_URL}/api/downloads/{order.download_token}"
+
+
+def zip_url(order: Order) -> str:
+    return f"{downloads_base(order)}/zip/"
+
+
+def video_links(order) -> list[tuple[str, str]]:
+    """(title, one-time url) for every purchased video."""
+    items = order.items.filter(video__isnull=False).select_related("video").order_by("video__sort_order", "pk")
+    return [(item.video.title or "Event video", f"{downloads_base(order)}/photos/{item.pk}/") for item in items]
 
 
 def order_payload(order: Order) -> dict:
@@ -45,8 +56,7 @@ def order_payload(order: Order) -> dict:
         "razorpay": {"keyId": settings.RAZORPAY_KEY_ID, "orderId": order.razorpay_order_id}
         if order.razorpay_order_id else None,
         "prefill": {"name": order.name, "email": order.email, "contact": order.phone},
-        "downloadUrl": download_page_url(order) if paid else None,
-        "downloadToken": order.download_token if paid else None,
+        "paid": paid,
     }
 
 
@@ -235,25 +245,6 @@ def _paid_order(token: str) -> Order:
     return order
 
 
-@api()
-def download(request, token):
-    order = _paid_order(token)
-    base = f"{settings.API_URL}/api/downloads/{token}"
-    rows = order.items.order_by("photo__sort_order", "video__sort_order", "pk").values_list(
-        "pk", "photo__title", "photo__thumb", "video__title", "video__thumb", "video_id")
-    items = [{"id": pk, "title": video_title if video_id else title,
-              "thumb": storage_url(video_thumb if video_id else thumb),
-              "kind": "video" if video_id else "photo", "url": f"{base}/photos/{pk}/"}
-             for pk, title, thumb, video_title, video_thumb, video_id in rows]
-    return {
-        "publicId": order.public_id,
-        "event": {"name": order.event.name, "institution": order.event.institution.name},
-        "items": items,
-        "zipUrl": f"{base}/zip/" if order.zip_file else None,
-        "preparing": not items,
-    }
-
-
 def _serve_private(name: str, filename: str):
     storage = private_storage()
     if hasattr(storage, "bucket_name"):
@@ -276,11 +267,19 @@ def download_photo(request, token, item_id):
     except ApiError:
         return HttpResponse("This download link is not valid.", status=404)
     item = (order.items.select_related("photo", "video")
-            .only("pk", "photo__title", "photo__original", "video__title", "video__video")
+            .only("pk", "video_used_at", "photo__title", "photo__original", "video__title", "video__video")
             .filter(pk=item_id).first())
     if item is None:
         return HttpResponse("Not found", status=404)
     if item.video_id:
+        # Video links are one-time: claim the link atomically before serving, so
+        # a second visit (or a shared link) gets a clear message instead of the file.
+        if request.method != "HEAD":
+            claimed = order.items.filter(pk=item.pk, video_used_at__isnull=True).update(
+                video_used_at=timezone.now())
+            if not claimed:
+                return HttpResponse("This video link has already been used. Contact support@spectrum.in.",
+                                    status=410)
         source, fallback = item.video.video, "video"
     else:
         source, fallback = item.photo.original, "photo"

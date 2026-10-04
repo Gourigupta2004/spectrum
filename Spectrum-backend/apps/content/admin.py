@@ -87,6 +87,9 @@ class AboutPageAdmin(BulkUploadMixin, SingletonAdmin):
     fieldsets = (
         ("Copy", {"fields": ("back_label", "lead_line", "pull_quote", "tieups_heading", "tieups_subtitle",
                              "tieup_years_template", "faqs_heading")}),
+        ("Our story ticker", {"description": "The slim band above the tie-ups where the story text rises and "
+                                             "fades away. One line per sentence.",
+                              "fields": ("ticker_heading", "ticker_text")}),
         SEO,
     )
 
@@ -114,6 +117,7 @@ class ContactPageAdmin(SingletonAdmin):
 class EventsPageAdmin(SingletonAdmin):
     fieldsets = (
         (None, {"fields": ("back_label", "title", "empty_state", "photos_label", "price_prefix")}),
+        ("Browse institutions step", {"fields": ("browse_title", "browse_subtitle", "browse_events_template")}),
         ("Search", {"fields": ("search_placeholder", "search_empty")}),
         ("Filters", {"description": "The type chips (Schools, Colleges, …) are edited under "
                                     "Catalog → Institution types.",
@@ -128,14 +132,13 @@ class GalleryPageAdmin(SingletonAdmin):
         ("Gallery", {"fields": ("seo_title_template", "seo_description_template", "back_label", "watermark_text",
                                 "select_label", "selected_label")}),
         ("Selection bar", {"fields": ("selection_one", "selection_many", "selection_mixed", "videos_heading",
-                                      "bundle_selected", "bundle_button", "bundle_button_no_saving", "pay_cta")}),
+                                      "filter_photos", "filter_videos", "bundle_selected", "bundle_button",
+                                      "bundle_button_no_saving", "pay_cta")}),
         ("Checkout", {"fields": ("summary_heading", "bundle_line", "total_label", "name_placeholder",
                                  "whatsapp_placeholder", "email_placeholder", "deliver_via", "pay_button",
                                  "checkout_error")}),
         ("After payment", {"fields": ("success_title", "success_body_whatsapp", "success_body_email",
-                                      "success_note", "success_download", "success_back")}),
-        ("Download page", {"fields": ("download_title", "download_subtitle", "download_all", "download_one",
-                                      "download_missing")}),
+                                      "success_note", "success_back")}),
     )
 
 

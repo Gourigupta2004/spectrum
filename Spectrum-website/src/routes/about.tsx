@@ -116,7 +116,21 @@ function AboutPage() {
           </motion.p>
         </section>
 
-        {/* 3 — Our Tie-Ups */}
+        {/* 3 — Our Story ticker: a slim band where the story rises line by
+            line and melts away at the top. Copy lives in the admin. */}
+        {copy.tickerText.trim() && (
+          <section className="mt-28">
+            <motion.h2
+              {...reveal}
+              className="text-center font-display text-3xl font-semibold text-foreground md:text-4xl"
+            >
+              <Highlight text={copy.tickerHeading} />
+            </motion.h2>
+            <StoryTicker text={copy.tickerText} />
+          </section>
+        )}
+
+        {/* 4 — Our Tie-Ups */}
         <section className="mt-28">
           <motion.h2
             {...reveal}
@@ -171,6 +185,36 @@ function AboutPage() {
  * card at a time and a live "1–3 of 13" counter. An edge fade was rejected
  * because it would dim the third card's badge, which sits right at the edge.
  */
+function StoryTicker({ text }: { text: string }) {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  // Two stacked copies scroll up by exactly one copy's height, so the loop is
+  // seamless; the CSS mask melts lines in at the bottom and away at the top.
+  return (
+    <div className="story-ticker relative mx-auto mt-8 h-52 max-w-3xl overflow-hidden md:h-60">
+      <div
+        className="story-ticker-track"
+        style={{ animationDuration: `${Math.max(18, lines.length * 4)}s` }}
+      >
+        {[0, 1].map((pass) => (
+          <div key={pass} aria-hidden={pass === 1} className="flex flex-col gap-7 pb-7 text-center">
+            {lines.map((line, i) => (
+              <p
+                key={i}
+                className="font-display text-xl leading-snug text-foreground/90 md:text-2xl"
+              >
+                <Highlight text={line} />
+              </p>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TieUpRow({ tieUps, yearsTemplate }: { tieUps: TieUp[]; yearsTemplate: string }) {
   const ref = useRef<HTMLUListElement>(null);
   const [first, setFirst] = useState(0);
