@@ -11,12 +11,12 @@ export const Route = createFileRoute("/portal/workspace/")({
       {
         name: "description",
         content:
-          "Choose between reviewing event photo captions and naming students in class photos.",
+          "Choose between reviewing photo titles for class photographs and naming students in individual photographs.",
       },
       { property: "og:title", content: "Institution Workspace — Spectrum" },
       {
         property: "og:description",
-        content: "Review event captions or build a labelled class roster.",
+        content: "Review photo titles or build a labelled class roster.",
       },
     ],
   }),
@@ -33,8 +33,9 @@ function WorkspaceBranch() {
       <h1 className="font-display text-4xl text-foreground md:text-5xl">{copy.workspaceTitle}</h1>
       <p className="mt-2 text-sm font-medium text-muted-foreground">{copy.workspaceSubtitle}</p>
 
-      {/* Two to a row at every width: Events and Students are the pair a teacher
-          chooses between, and ID Cards waits below rather than joining them. */}
+      {/* Two to a row at every width: Class Photographs and Individual
+          Photographs are the pair a teacher chooses between, and ID Cards
+          waits below rather than joining them. */}
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <BranchCard
           to="/portal/workspace/events"

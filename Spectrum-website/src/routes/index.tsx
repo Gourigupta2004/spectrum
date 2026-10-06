@@ -138,8 +138,11 @@ function Home() {
             where no scroll can reach them. On phones the row is bled to the
             screen edges with matching scroll padding, so a half-visible circle
             reads as "there is more this way"; from sm up the chevrons live in
-            reserved side gutters and an edge fade melts cropped icons away
-            beneath them instead of letting the buttons cover them. */}
+            reserved side gutters with clear air between them and the icons:
+            the edge fade stays fully transparent under the whole button plus a
+            buffer, so a scrolling icon has melted away completely before it
+            could slide beneath a marker, and the resting row starts a gap
+            beyond it. */}
         <div className="relative mt-8">
           {instHint.left && (
             <button
@@ -161,7 +164,7 @@ function Home() {
           )}
           <div
             ref={instRow}
-            className="no-scrollbar -mx-6 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:mx-0 sm:px-14 sm:[scroll-padding-left:3.5rem] sm:[mask-image:linear-gradient(to_right,transparent,#000_3.25rem,#000_calc(100%-3.25rem),transparent)]"
+            className="no-scrollbar -mx-6 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:mx-0 sm:px-[4.75rem] sm:[scroll-padding-left:4.75rem] sm:[mask-image:linear-gradient(to_right,transparent_3rem,#000_4.75rem,#000_calc(100%-4.75rem),transparent_calc(100%-3rem))]"
           >
             <div className="mx-auto flex w-max gap-6 sm:gap-8">
               {institutions.map((inst) => (

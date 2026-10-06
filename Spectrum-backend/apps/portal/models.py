@@ -1,8 +1,15 @@
+import re
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
 from apps.core.models import ProcessedImage
+
+
+def natural_key(value: str) -> list:
+    """Sort key for file-name-like titles: alphabetical with numbers in numeric order ("IMG_2" < "IMG_10")."""
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value or "")]
 
 
 class Member(models.Model):
@@ -107,6 +114,8 @@ class CaptionItem(ProcessedImage):
     status = models.CharField(max_length=20, choices=CaptionStatus.choices, default=CaptionStatus.NEEDS_APPROVAL,
                               db_index=True)
     action_by = models.CharField(max_length=120, blank=True)
+    action_by_phone = models.CharField("action by (phone)", max_length=20, blank=True,
+                                       help_text="Mobile number given alongside the name when the action was taken.")
     updated_at = models.DateTimeField(default=timezone.now)
     sort_order = models.PositiveIntegerField("order", default=0)
 

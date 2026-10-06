@@ -38,15 +38,15 @@ import { usePortalCopy } from "@/lib/use-portal-copy";
 export const Route = createFileRoute("/portal/workspace/events")({
   head: () => ({
     meta: [
-      { title: "Events — Spectrum Caption Workspace" },
+      { title: "Class Photographs — Spectrum Title Workspace" },
       {
         name: "description",
-        content: "Review, approve and correct captions for Spectrum event photos.",
+        content: "Review, approve and correct titles for Spectrum event photos.",
       },
-      { property: "og:title", content: "Events — Spectrum Caption Workspace" },
+      { property: "og:title", content: "Class Photographs — Spectrum Title Workspace" },
       {
         property: "og:description",
-        content: "Review, approve and correct Spectrum event photo captions.",
+        content: "Review, approve and correct Spectrum event photo titles.",
       },
     ],
   }),
@@ -360,7 +360,7 @@ function Workspace() {
                     </p>
                   ) : (
                     <p className="mt-1 flex-1 text-xs font-medium italic text-muted-foreground/70">
-                      No caption yet
+                      No title yet
                     </p>
                   )}
                   <p className="mt-3 pt-1 text-[0.72rem] uppercase tracking-[0.14em] text-muted-foreground sm:text-[0.68rem]">
@@ -428,7 +428,13 @@ function CaptionEditor({
 }: {
   item: CaptionItem | null;
   onClose: () => void;
-  onResolve: (id: string, status: CaptionStatus, patch: Partial<CaptionItem>, by: string) => void;
+  onResolve: (
+    id: string,
+    status: CaptionStatus,
+    patch: Partial<CaptionItem>,
+    by: string,
+    phone: string,
+  ) => void;
   onReplaceImage: (id: string, file: File) => void;
   canManagePhotos: boolean;
   onOpenGuidelines: () => void;
@@ -460,7 +466,13 @@ function CaptionEditorInner({
 }: {
   item: CaptionItem;
   onClose: () => void;
-  onResolve: (id: string, status: CaptionStatus, patch: Partial<CaptionItem>, by: string) => void;
+  onResolve: (
+    id: string,
+    status: CaptionStatus,
+    patch: Partial<CaptionItem>,
+    by: string,
+    phone: string,
+  ) => void;
   onReplaceImage: (id: string, file: File) => void;
   canManagePhotos: boolean;
   onOpenGuidelines: () => void;
@@ -468,14 +480,17 @@ function CaptionEditorInner({
   const copy = usePortalCopy();
   const [text, setText] = useState("");
   const [by, setBy] = useState(item.actionBy ?? "");
+  const [phone, setPhone] = useState(item.actionByPhone ?? "");
   const photoRef = useRef<HTMLInputElement>(null);
   const hasText = text.trim().length > 0;
-  const canAct = by.trim().length > 1;
+  // Both the name and a usable mobile number are required before acting.
+  const phoneOk = phone.replace(/\D/g, "").length >= 7;
+  const canAct = by.trim().length > 1 && phoneOk;
   /*
    * One action per status, driven by the live status:
-   *   caption — nothing written yet; the institution writes it
+   *   caption — nothing written yet; the institution writes it (the "title")
    *   approve — sign off on the wording as-is; no correction is offered
-   *   correct — send a correction note; the caption itself is left untouched
+   *   correct — send a correction note; the title itself is left untouched
    *             (also how a corrected item is revised)
    */
   const mode =
@@ -485,21 +500,17 @@ function CaptionEditorInner({
         ? "approve"
         : "correct";
 
-  const fieldLabel = mode === "caption" ? "Caption" : "Correction";
+  const fieldLabel = mode === "caption" ? "Title" : "Correction";
   const byLabel =
-    mode === "caption" ? "Caption written by" : mode === "approve" ? "Approved by" : "Corrected by";
+    mode === "caption" ? "Title written by" : mode === "approve" ? "Approved by" : "Corrected by";
   const primaryLabel =
-    mode === "caption"
-      ? "Save Caption"
-      : mode === "approve"
-        ? "Approve Caption"
-        : "Save Correction";
+    mode === "caption" ? "Save Title" : mode === "approve" ? "Approve Title" : "Save Correction";
   const primaryDisabled = !canAct || (mode !== "approve" && !hasText);
   const submit = () => {
-    if (mode === "approve") onResolve(item.id, "approved", {}, by.trim());
+    if (mode === "approve") onResolve(item.id, "approved", {}, by.trim(), phone.trim());
     else if (mode === "caption")
-      onResolve(item.id, "corrected", { caption: text.trim() }, by.trim());
-    else onResolve(item.id, "corrected", { correction: text.trim() }, by.trim());
+      onResolve(item.id, "corrected", { caption: text.trim() }, by.trim(), phone.trim());
+    else onResolve(item.id, "corrected", { correction: text.trim() }, by.trim(), phone.trim());
     onClose();
   };
 
@@ -607,8 +618,8 @@ function CaptionEditorInner({
                 onChange={(e) => setText(e.target.value)}
                 placeholder={
                   mode === "caption"
-                    ? "Write the caption for this photo."
-                    : "Tell us what should change in the caption."
+                    ? "Write the title for this photo."
+                    : "Tell us what should change in the title."
                 }
                 className="mt-2 min-h-[12rem] w-full flex-1 resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-base font-medium leading-relaxed text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
               />
@@ -619,7 +630,7 @@ function CaptionEditorInner({
             /* Shown, not editable: they are signing off on this exact wording. */
             <div className="flex min-h-0 flex-1 flex-col">
               <span className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground">
-                Caption
+                Title
               </span>
               <div className="glass-scrollbar mt-2 min-h-[12rem] flex-1 overflow-y-auto rounded-xl border border-border bg-background/40 px-4 py-3 text-base font-medium leading-relaxed text-foreground">
                 {item.caption}
@@ -627,20 +638,40 @@ function CaptionEditorInner({
             </div>
           )}
 
-          <div>
-            <label
-              htmlFor="caption-by"
-              className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground"
-            >
-              {byLabel} <span className="text-[#ff9b6a]">*</span>
-            </label>
-            <input
-              id="caption-by"
-              value={by}
-              onChange={(e) => setBy(e.target.value)}
-              placeholder="Your full name"
-              className="mt-2 w-full rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
-            />
+          {/* Who acted, and how to reach them: name and mobile number together. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="caption-by"
+                className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground"
+              >
+                {byLabel} <span className="text-[#ff9b6a]">*</span>
+              </label>
+              <input
+                id="caption-by"
+                value={by}
+                onChange={(e) => setBy(e.target.value)}
+                placeholder="Your full name"
+                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="caption-by-phone"
+                className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground"
+              >
+                Mobile number <span className="text-[#ff9b6a]">*</span>
+              </label>
+              <input
+                id="caption-by-phone"
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Your mobile number"
+                className="mt-2 w-full rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+              />
+            </div>
           </div>
 
           <div>
@@ -657,7 +688,7 @@ function CaptionEditorInner({
             </button>
             {mode === "approve" && (
               <p className="mt-3 text-xs text-muted-foreground">
-                Approving locks this caption. It can't be edited afterwards.
+                Approving locks this title. It can't be edited afterwards.
               </p>
             )}
           </div>
@@ -766,7 +797,7 @@ function AddImageModal({
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               rows={3}
-              placeholder="Draft caption"
+              placeholder="Draft title"
               className="w-full resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet"
             />
 

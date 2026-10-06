@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hasApi } from "./api";
 import {
+  byMomentTitle,
   captionItems as seedItems,
   todayLabel,
   type CaptionItem,
@@ -56,15 +57,25 @@ export function useCaptionItems(): { items: CaptionItem[]; loading: boolean; err
       portalFetch<{ items: CaptionItem[] }>("/api/portal/captions/").then((r) => r.items),
     enabled: hasApi && signedIn(),
   });
-  if (!hasApi) return { items: demo, loading: false, error: "" };
+  // Always shown in file-name order (alphabetical + numerical), whatever order
+  // the rows arrived in — the same order the admin table uses.
+  const raw = hasApi ? (query.data ?? NO_ITEMS) : demo;
+  const items = useMemo(() => [...raw].sort(byMomentTitle), [raw]);
+  if (!hasApi) return { items, loading: false, error: "" };
   return {
-    items: query.data ?? NO_ITEMS,
+    items,
     loading: query.isPending,
     error: query.error instanceof Error ? query.error.message : "",
   };
 }
 
-type Resolve = (id: string, status: CaptionStatus, patch: Partial<CaptionItem>, by: string) => void;
+type Resolve = (
+  id: string,
+  status: CaptionStatus,
+  patch: Partial<CaptionItem>,
+  by: string,
+  phone: string,
+) => void;
 
 export function useResolveCaption(): { resolve: Resolve; error: string } {
   const client = useQueryClient();
@@ -75,6 +86,7 @@ export function useResolveCaption(): { resolve: Resolve; error: string } {
       status: CaptionStatus;
       patch: Partial<CaptionItem>;
       by: string;
+      phone: string;
     }) =>
       portalFetch<CaptionItem>(`/api/portal/captions/${v.id}/resolve/`, {
         method: "POST",
@@ -82,6 +94,7 @@ export function useResolveCaption(): { resolve: Resolve; error: string } {
           status: v.status,
           text: v.patch.caption ?? v.patch.correction ?? "",
           actionBy: v.by,
+          actionByPhone: v.phone,
         },
       }),
     onMutate: async (v) => {
@@ -91,7 +104,14 @@ export function useResolveCaption(): { resolve: Resolve; error: string } {
       client.setQueryData<CaptionItem[]>(keys.captions(), (items = []) =>
         items.map((i) =>
           i.id === v.id
-            ? { ...i, ...v.patch, status: v.status, actionBy: v.by, updatedAt: todayLabel() }
+            ? {
+                ...i,
+                ...v.patch,
+                status: v.status,
+                actionBy: v.by,
+                actionByPhone: v.phone,
+                updatedAt: todayLabel(),
+              }
             : i,
         ),
       );
@@ -110,16 +130,25 @@ export function useResolveCaption(): { resolve: Resolve; error: string } {
   });
 
   const resolve = useCallback<Resolve>(
-    (id, status, patch, by) => {
+    (id, status, patch, by, phone) => {
       if (!hasApi) {
         captionStore.set((prev) =>
           prev.map((i) =>
-            i.id === id ? { ...i, ...patch, status, actionBy: by, updatedAt: todayLabel() } : i,
+            i.id === id
+              ? {
+                  ...i,
+                  ...patch,
+                  status,
+                  actionBy: by,
+                  actionByPhone: phone,
+                  updatedAt: todayLabel(),
+                }
+              : i,
           ),
         );
         return;
       }
-      mutation.mutate({ id, status, patch, by });
+      mutation.mutate({ id, status, patch, by, phone });
     },
     [mutation],
   );

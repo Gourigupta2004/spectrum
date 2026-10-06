@@ -48,20 +48,20 @@ class PortalTests(SpectrumTestCase):
         theirs = self.caption(self.other_event, "needs-approval")
         ids = [i["id"] for i in self.api("get", "/api/portal/captions/").json()["items"]]
         self.assertEqual(ids, [str(mine.pk)])
-        response = self.api("post", f"/api/portal/captions/{theirs.pk}/resolve/", {"status": "approved", "actionBy": "A. K"})
+        response = self.api("post", f"/api/portal/captions/{theirs.pk}/resolve/", {"status": "approved", "actionBy": "A. K", "actionByPhone": "9876500000"})
         self.assertEqual(response.status_code, 404)
 
     def test_caption_state_machine(self):
         item = self.caption(self.event, "needs-caption")
         url = f"/api/portal/captions/{item.pk}/resolve/"
         self.assertEqual(self.api("post", url, {"text": "Hello"}).status_code, 400)  # name required
-        data = self.api("post", url, {"text": "Lamp lighting", "actionBy": "R. Menon"}).json()
+        data = self.api("post", url, {"text": "Lamp lighting", "actionBy": "R. Menon", "actionByPhone": "98765 43210"}).json()
         self.assertEqual((data["status"], data["caption"]), ("corrected", "Lamp lighting"))
 
         approval = self.caption(self.event, "needs-approval")
         url = f"/api/portal/captions/{approval.pk}/resolve/"
-        self.assertEqual(self.api("post", url, {"status": "approved", "actionBy": "A. Kapoor"}).json()["status"], "approved")
-        self.assertEqual(self.api("post", url, {"status": "approved", "actionBy": "A. Kapoor"}).status_code, 409)
+        self.assertEqual(self.api("post", url, {"status": "approved", "actionBy": "A. Kapoor", "actionByPhone": "9876543210"}).json()["status"], "approved")
+        self.assertEqual(self.api("post", url, {"status": "approved", "actionBy": "A. Kapoor", "actionByPhone": "9876543210"}).status_code, 409)
 
     def test_institution_cannot_add_photos(self):
         response = self.client.post("/api/portal/captions/", {"momentTitle": "x"}, HTTP_AUTHORIZATION=f"Bearer {self.token}")

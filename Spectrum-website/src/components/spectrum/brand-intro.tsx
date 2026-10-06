@@ -54,6 +54,7 @@ const REVEAL_AT = LOCKUP_END + HOLD; // s — the cloud reveal below begins here
 const HOLD_TONE = "#221A2B";
 const FADE = 4.8; // s — slow, fog-dissipating dissolve into the homepage
 const HARD_FALLBACK = 6500; // ms safety net if the video never reports progress
+const AUDIO_TAIL = 450; // ms — the sting's closing ramp, finishing exactly as the fade-out does
 
 /**
  * The overlay's own fade is keyframed below rather than eased, so that it dwells
@@ -159,6 +160,14 @@ export function BrandIntro() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const startedAtRef = useRef(0);
   const closedRef = useRef(false);
+  /**
+   * Autoplay with sound is blocked until the visitor's first gesture, so the
+   * sting may have to start late. It is welcome any time before this moment —
+   * the point where the closing ramp would already have begun — rather than
+   * only before the video cut, which left barely four seconds of a ten-second
+   * intro in which a tap could bring the sound in. null = no deadline yet.
+   */
+  const soundDeadlineRef = useRef<number | null>(null);
   const fadeRef = useRef(FADE);
   const timersRef = useRef<number[]>([]);
 
@@ -185,7 +194,9 @@ export function BrandIntro() {
    */
   const tryPlaySound = useCallback(() => {
     const a = audioRef.current;
-    if (!a || closedRef.current) return;
+    if (!a) return;
+    const deadline = soundDeadlineRef.current;
+    if (deadline !== null && performance.now() >= deadline) return; // the ramp-down has begun
     if (!a.paused) return;
     const elapsed = (performance.now() - startedAtRef.current) / 1000;
     if (Number.isFinite(a.duration) && elapsed > a.duration - 0.3) return; // too late to be worth it
@@ -225,13 +236,14 @@ export function BrandIntro() {
         }
       }
 
-      // The sting is cut to the intro's full arc, so the slow path lets it
-      // resolve on its own; only the skip cuts it short, gently.
-      if (quick) fadeOutAudio(350);
-      setSoundBlocked(false);
-
+      // The sting must be silent the moment the fade-out ends: the skip cuts it
+      // short at once, and the slow path ramps it down so the last of the sound
+      // leaves with the last of the frame — never playing on over the homepage.
       fadeRef.current = quick ? 0.4 : FADE;
       if (quick) {
+        fadeOutAudio(350);
+        soundDeadlineRef.current = performance.now(); // skipped: no late start either
+        setSoundBlocked(false);
         // Skip / reduced motion: one short dissolve, no beat.
         setContentHidden(false);
         setPhase("revealing");
@@ -240,6 +252,10 @@ export function BrandIntro() {
         );
         return;
       }
+      // On the slow path the sting stays welcome for the whole dissolve — a
+      // first tap during the fade still brings it in, seeked to the clock —
+      // right up until the closing ramp would start.
+      soundDeadlineRef.current = performance.now() + (REVEAL_AT + FADE) * 1000 - AUDIO_TAIL;
       // The lockup starts dissolving on the freeze frame, so nothing is ever idle.
       // The cloud reveal — untouched — simply begins after the beat.
       setPhase("fading");
@@ -248,6 +264,10 @@ export function BrandIntro() {
           setContentHidden(false); // homepage begins easing in underneath, on the same clock
           setPhase("revealing");
         }, REVEAL_AT * 1000),
+        window.setTimeout(
+          () => fadeOutAudio(AUDIO_TAIL),
+          Math.max(0, (REVEAL_AT + FADE) * 1000 - AUDIO_TAIL),
+        ),
         window.setTimeout(() => setPhase("done"), (REVEAL_AT + FADE) * 1000 + 80),
       );
     },
@@ -504,13 +524,16 @@ export function BrandIntro() {
       )}
 
       <AnimatePresence>
-        {audioUrl && soundBlocked && !ending && (
+        {/* Stays up through the dissolve: the sting can join late, so the
+            affordance should outlive the video. pointer-events-auto because
+            the fading overlay itself stops catching clicks. */}
+        {audioUrl && soundBlocked && (
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={tryPlaySound}
-            className="absolute bottom-6 left-6 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-white/55 transition-colors hover:text-white/90"
+            className="pointer-events-auto absolute bottom-6 left-6 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-white/55 transition-colors hover:text-white/90"
           >
             <Volume2 className="h-3.5 w-3.5" /> Sound
           </motion.button>

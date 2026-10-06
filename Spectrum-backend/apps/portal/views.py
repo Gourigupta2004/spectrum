@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
@@ -12,10 +14,12 @@ from apps.core.http import ApiError, api, rate_limit, text
 from apps.core.models import ImageStatus, storage_url
 
 from .auth import REFRESH_SALT, issue_tokens, member_from_token, read_token, require_member
-from .models import CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student
+from .models import (
+    CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student, natural_key,
+)
 
 CAPTION_FIELDS = ("pk", "moment_title", "caption", "correction", "requested", "status", "updated_at", "action_by",
-                  "web", "thumb", "width", "height", "event__name")
+                  "action_by_phone", "web", "thumb", "width", "height", "event__name")
 MAX_PHOTO_BYTES = 40 * 1024 * 1024
 
 
@@ -140,6 +144,7 @@ def caption_dict(row) -> dict:
         "status": row.status,
         "updatedAt": date_label(row.updated_at),
         "actionBy": row.action_by,
+        "actionByPhone": row.action_by_phone,
         "event": row.event.name if row.event_id else "",
     }
 
@@ -154,7 +159,10 @@ def captions(request):
     member = require_member(request)
     if request.method == "GET":
         items = scoped_captions(member, request).filter(image_status=ImageStatus.READY)
-        return {"items": [caption_dict(item) for item in items]}
+        # File-name order (the title is taken from the file name at upload),
+        # alphabetical and numerical — the same order the admin table shows.
+        ordered = sorted(items, key=lambda item: (natural_key(item.moment_title), item.pk))
+        return {"items": [caption_dict(item) for item in ordered]}
     return create_caption(request, member)
 
 
@@ -215,6 +223,9 @@ def caption_resolve(request, item_id):
     by = text(data, "actionBy", 120, required=True)
     if len(by) < 2:
         raise ApiError("Please add your full name.", field="actionBy")
+    phone = text(data, "actionByPhone", 20, required=True)
+    if len(re.sub(r"\D", "", phone)) < 7:
+        raise ApiError("Please add your mobile number.", field="actionByPhone")
     wanted = text(data, "status", 30)
     body = text(data, "text", 5000)
     with transaction.atomic():
@@ -222,17 +233,17 @@ def caption_resolve(request, item_id):
         if item is None:
             raise ApiError("Not found", status=404)
         if item.status == CaptionStatus.APPROVED:
-            raise ApiError("This caption is approved and can no longer be edited.", status=409)
-        fields = ["status", "action_by", "updated_at"]
+            raise ApiError("This title is approved and can no longer be edited.", status=409)
+        fields = ["status", "action_by", "action_by_phone", "updated_at"]
         if item.status == CaptionStatus.NEEDS_CAPTION:
             if not body:
-                raise ApiError("Write the caption first.", field="text")
+                raise ApiError("Write the title first.", field="text")
             item.caption = body
             item.status = CaptionStatus.CORRECTED
             fields.append("caption")
         elif item.status == CaptionStatus.NEEDS_APPROVAL:
             if wanted != CaptionStatus.APPROVED:
-                raise ApiError("This caption is waiting for approval.")
+                raise ApiError("This title is waiting for approval.")
             item.status = CaptionStatus.APPROVED
         else:  # needs-correction or corrected: send a correction note
             if not body:
@@ -241,6 +252,7 @@ def caption_resolve(request, item_id):
             item.status = CaptionStatus.CORRECTED
             fields.append("correction")
         item.action_by = by
+        item.action_by_phone = phone
         item.updated_at = timezone.now()
         item.save(update_fields=fields)
     return caption_dict(item)

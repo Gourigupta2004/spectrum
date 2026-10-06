@@ -9,7 +9,9 @@ from django.utils import timezone
 from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, thumb_html
 from apps.core.models import ImageStatus
 
-from .models import CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student
+from .models import (
+    CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student, natural_key,
+)
 
 
 @admin.register(SchoolClass)
@@ -95,6 +97,20 @@ class RetagActionsMixin:
         messages.success(request, f"{_retag(queryset, CaptionStatus.NEEDS_CORRECTION)} item(s) sent for correction.")
 
 
+class NaturalTitleFormSet(forms.models.BaseInlineFormSet):
+    """
+    Rows in file-name order: the title comes from the uploaded file's name, and
+    plain DB ordering would put "IMG_10" before "IMG_2". Sorting in Python keeps
+    numbers numeric — the same order the website's workspace shows.
+    """
+
+    def get_queryset(self):
+        if not hasattr(self, "_natural_order"):
+            self._natural_order = sorted(
+                super().get_queryset(), key=lambda item: (natural_key(item.moment_title), item.pk))
+        return self._natural_order
+
+
 class CaptionItemInline(admin.TabularInline):
     """
     Every photo in the workspace as a row: image, the caption Spectrum wrote,
@@ -104,10 +120,12 @@ class CaptionItemInline(admin.TabularInline):
 
     model = CaptionItem
     form = CaptionItemForm
+    formset = NaturalTitleFormSet
     fk_name = "workspace"
     extra = 0
-    fields = ("image", "moment_title", "caption", "correction", "requested", "status", "action_by", "updated_at")
-    readonly_fields = ("image", "correction", "status", "action_by", "updated_at")
+    fields = ("image", "moment_title", "caption", "correction", "requested", "status", "action_by",
+              "action_by_phone", "updated_at")
+    readonly_fields = ("image", "correction", "status", "action_by", "action_by_phone", "updated_at")
     ordering = ("sort_order", "pk")
     show_change_link = True
     formfield_overrides = {
@@ -172,15 +190,16 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
 @admin.register(CaptionItem)
 class CaptionItemAdmin(RetagActionsMixin, ImagePreviewMixin, admin.ModelAdmin):
     form = CaptionItemForm
-    list_display = ("thumbnail", "moment_title", "institution", "status", "action_by", "updated_at")
+    list_display = ("thumbnail", "moment_title", "institution", "status", "action_by", "action_by_phone",
+                    "updated_at")
     list_editable = ("moment_title",)
     list_filter = ("status", "institution", "event")
     list_select_related = ("institution", "event")
     list_per_page = 100
     search_fields = ("moment_title", "caption", "correction", "institution__name")
-    readonly_fields = ("institution", "correction", "status", "action_by", "updated_at")
+    readonly_fields = ("institution", "correction", "status", "action_by", "action_by_phone", "updated_at")
     fields = ("institution", "event", "original", "moment_title", "caption", "correction", "requested",
-              "status", "action_by", "updated_at", "sort_order")
+              "status", "action_by", "action_by_phone", "updated_at", "sort_order")
     autocomplete_fields = ("event",)
     actions = ["reprocess_images", "mark_needs_caption", "mark_needs_approval", "mark_needs_correction"]
 

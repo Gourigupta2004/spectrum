@@ -23,12 +23,12 @@ export const Route = createFileRoute("/portal")({
       {
         name: "description",
         content:
-          "Institution sign-in for the Spectrum workspace — review event photo captions and name students in class photos.",
+          "Institution sign-in for the Spectrum workspace — review event photo titles and name students in class photos.",
       },
       { property: "og:title", content: "Institution Portal — Spectrum" },
       {
         property: "og:description",
-        content: "Review Spectrum event captions and build labelled class rosters.",
+        content: "Review Spectrum event photo titles and build labelled class rosters.",
       },
       // Invitation-only: keep it out of search results.
       { name: "robots", content: "noindex" },

@@ -424,34 +424,34 @@ class PortalPage(SingletonModel):
 
     workspace_title = line("What would you like to work on?")
     workspace_subtitle = line("One institution account, everything in one place.")
-    events_card_title = line("Events", 60)
-    events_card_copy = line("Review and correct photo captions for event moments.")
-    students_card_title = line("Students", 60)
+    events_card_title = line("Class Photographs", 60)
+    events_card_copy = line("Review and correct photo titles for event moments.")
+    students_card_title = line("Individual Photographs", 60)
     students_card_copy = line("Identify students in class photos and export a labeled roster.")
     # Announced but not built yet: the card shows, and cannot be opened.
     idcards_card_title = line("ID Cards", 60)
     idcards_card_copy = line("Design, proof and order student ID cards from the class photos.")
     idcards_card_badge = line("Coming soon", 40)
 
-    captions_title = line("Caption Workspace")
+    captions_title = line("Title Workspace")
 
     # The guidelines popup: shown once per session when a teacher opens the
-    # caption workspace, and again from the link beside the status tag in the
-    # caption editor. Placeholder wording until the real guidelines are written.
-    guidelines_title = line("Caption Guidelines")
+    # title workspace, and again from the link beside the status tag in the
+    # title editor. Placeholder wording until the real guidelines are written.
+    guidelines_title = line("Title Guidelines")
     guidelines_intro = para(
-        "Captions travel with every photo we deliver, so a little care here saves a round of corrections "
-        "later. Please read these before you write or approve a caption."
+        "Titles travel with every photo we deliver, so a little care here saves a round of corrections "
+        "later. Please read these before you write or approve a title."
     )
     guidelines_points = para(
         "Write one clear sentence per photo: who is in it, what is happening, and where or when.\n"
         "Use full names and correct titles for staff and guests, exactly as the institution spells them.\n"
         "Check spellings of student names against the class register before approving.\n"
         "Keep to plain, present-tense language; avoid slang and abbreviations.\n"
-        "If a caption is wrong, describe what should change rather than rewriting it from scratch.",
+        "If a title is wrong, describe what should change rather than rewriting it from scratch.",
         help_text="One pointer per line.",
     )
-    guidelines_outro = para("Approved captions are locked, so take a moment before you approve.")
+    guidelines_outro = para("Approved titles are locked, so take a moment before you approve.")
     guidelines_prompt = line("Please follow the guidelines", 80, help_text="Shown beside the status tag in the editor.")
     guidelines_link = line("View guidelines", 60)
     guidelines_dismiss = line("Got it", 40)
@@ -459,7 +459,7 @@ class PortalPage(SingletonModel):
     captions_empty_pending = line("Nothing pending — all caught up.")
     captions_empty_approved = line("No approved images yet.")
     locked_title = line("Locked", 40)
-    locked_body = line("This caption is approved and can no longer be edited.")
+    locked_body = line("This title is approved and can no longer be edited.")
 
     classes_subtitle = line("{count} classes · tap a class to name its students.")
     roster_title = line("{class} — Name the Students")

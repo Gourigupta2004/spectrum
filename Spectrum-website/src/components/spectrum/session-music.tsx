@@ -15,8 +15,10 @@ import { useSite } from "@/lib/use-site";
 /** Background level: present enough to colour the room, never competing. */
 const BG_VOLUME = 0.35;
 const FADE_IN_MS = 2500;
-/** The asked-for breath between the page being there and the music arriving. */
+/** On a plain landing (no intro), a short breath before the music arrives. */
 const START_GAP_MS = 1000;
+/** __root.tsx delays the homepage's fade-in by 100ms; the music waits for it too. */
+const INTRO_SETTLE_MS = 100;
 const MUTED_KEY = "spectrum-music-muted";
 
 type MusicCtx = {
@@ -29,11 +31,11 @@ type MusicCtx = {
 const Ctx = createContext<MusicCtx>({ available: false, muted: false, toggle: () => {} });
 
 /**
- * The session soundtrack: one soft loop for the whole visit. It starts a beat
- * after the page is truly "there" — on an intro session, after the intro has
- * fully dissolved (so it never talks over the intro sting); elsewhere, a second
- * after landing. Browsers gate audible playback behind the first interaction,
- * so a blocked start quietly retries on the first tap, click or key.
+ * The session soundtrack: one soft loop for the whole visit. On an intro
+ * session it starts the moment the homepage is fully visible — exactly as the
+ * intro's fade-out (and its sting) end, with no extra gap; on a plain landing,
+ * a second after arriving. Browsers gate audible playback behind the first
+ * interaction, so a blocked start quietly retries on the first tap, click or key.
  */
 export function MusicProvider({ children }: { children: ReactNode }) {
   const site = useSite();
@@ -104,11 +106,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     };
   }, [site.sessionAudio, tryStart]);
 
-  // Arm the start: a second after the intro has fully dissolved, or a second
-  // after landing when there is no intro.
+  // Arm the start: the instant the intro has fully dissolved (the homepage is
+  // completely visible), or a second after landing when there is no intro.
   useEffect(() => {
     if (introSessionRef.current && contentHidden) return; // intro still playing
-    const wait = (introSessionRef.current ? INTRO_FADE_MS : 0) + START_GAP_MS;
+    const wait = introSessionRef.current ? INTRO_FADE_MS + INTRO_SETTLE_MS : START_GAP_MS;
     const timer = window.setTimeout(() => {
       armedRef.current = true;
       tryStart();

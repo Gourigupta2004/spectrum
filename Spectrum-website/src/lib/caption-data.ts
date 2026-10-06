@@ -28,10 +28,13 @@ export type CaptionItem = {
   status: CaptionStatus;
   updatedAt: string;
   actionBy?: string;
+  /** The mobile number given alongside the name when the action was taken. */
+  actionByPhone?: string;
 };
 
+/** On-screen wording says "title"; the status values underneath are unchanged. */
 export const captionStatusLabel: Record<CaptionStatus, string> = {
-  "needs-caption": "Needs Caption",
+  "needs-caption": "Needs Title",
   "needs-approval": "Needs Approval",
   "needs-correction": "Needs Correction",
   approved: "Approved",
@@ -53,6 +56,16 @@ export const awaitingInstitution: ReadonlySet<CaptionStatus> = new Set([
 ]);
 
 export const pluralImages = (n: number): string => `${n} ${n === 1 ? "image" : "images"}`;
+
+/**
+ * Workspace display order: by the photo's name (taken from its file name at
+ * upload), alphabetically and numerically — "IMG_2" sorts before "IMG_10".
+ * The backend lists items in the same order, so the admin table and the
+ * website always agree.
+ */
+export const byMomentTitle = (a: CaptionItem, b: CaptionItem): number =>
+  a.momentTitle.localeCompare(b.momentTitle, undefined, { numeric: true, sensitivity: "base" }) ||
+  a.id.localeCompare(b.id, undefined, { numeric: true });
 
 /** Demo institution for this build — Delhi Public School, New Delhi. */
 export const portalInstitution = {
