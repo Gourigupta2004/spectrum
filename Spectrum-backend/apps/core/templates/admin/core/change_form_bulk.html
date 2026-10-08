@@ -30,7 +30,7 @@
                 {% endfor %}
               </select>
             </label>
-            <span class="bulk-options-hint">Fresh uploads ask the institution for a caption. Pick another tag to send a batch for approval or correction instead.</span>
+            <span class="bulk-options-hint">Fresh uploads ask the institution for a title. Pick another tag to send a batch for approval or correction instead. Re-uploading a file with the same name replaces that photo and keeps its title and status.</span>
           {% endfor %}
         </div>
       {% endif %}
@@ -48,4 +48,14 @@
       <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url %}</div>
     </fieldset>
   {% endfor %}
+  {% if bulk_delete_all_url %}
+    {# Clears the whole workspace in one go, so an edited batch can be uploaded fresh. #}
+    <form method="post" action="{{ bulk_delete_all_url }}" class="bulk-delete-all" style="margin:12px 0"
+          onsubmit="return confirm('Delete all {{ bulk_delete_all_count }} photo(s) in this workspace? Their titles and statuses are deleted with them. This cannot be undone.');">
+      {% csrf_token %}
+      <button type="submit" class="button" style="background:#ba2121;color:#fff">
+        Delete all photos ({{ bulk_delete_all_count }})
+      </button>
+    </form>
+  {% endif %}
 {% endblock %}

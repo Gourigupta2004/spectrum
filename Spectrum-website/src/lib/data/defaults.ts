@@ -159,7 +159,7 @@ export const portalCopy = {
     "Use full names and correct titles for staff and guests, exactly as the institution spells them.",
     "Check spellings of student names against the class register before approving.",
     "Keep to plain, present-tense language; avoid slang and abbreviations.",
-    "If a title is wrong, describe what should change rather than rewriting it from scratch.",
+    "If a title is wrong, write the corrected title in its place.",
   ].join("\n"),
   guidelinesOutro: "Approved titles are locked, so take a moment before you approve.",
   guidelinesPrompt: "Please follow the guidelines",

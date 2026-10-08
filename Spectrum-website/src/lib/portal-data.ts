@@ -92,7 +92,7 @@ export function useResolveCaption(): { resolve: Resolve; error: string } {
         method: "POST",
         json: {
           status: v.status,
-          text: v.patch.caption ?? v.patch.correction ?? "",
+          text: v.patch.caption ?? "",
           actionBy: v.by,
           actionByPhone: v.phone,
         },

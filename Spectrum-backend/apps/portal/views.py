@@ -18,7 +18,7 @@ from .models import (
     CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student, natural_key,
 )
 
-CAPTION_FIELDS = ("pk", "moment_title", "caption", "correction", "requested", "status", "updated_at", "action_by",
+CAPTION_FIELDS = ("pk", "moment_title", "caption", "requested", "status", "updated_at", "action_by",
                   "action_by_phone", "web", "thumb", "width", "height", "event__name")
 MAX_PHOTO_BYTES = 40 * 1024 * 1024
 
@@ -139,7 +139,6 @@ def caption_dict(row) -> dict:
         "width": row.width,
         "height": row.height,
         "caption": row.caption,
-        "correction": row.correction,
         "requested": row.requested,
         "status": row.status,
         "updatedAt": date_label(row.updated_at),
@@ -186,17 +185,19 @@ def create_caption(request, member):
     requested = request.POST.get("requested", CaptionStatus.NEEDS_APPROVAL)
     if requested not in {CaptionStatus.NEEDS_APPROVAL, CaptionStatus.NEEDS_CORRECTION, CaptionStatus.NEEDS_CAPTION}:
         requested = CaptionStatus.NEEDS_APPROVAL
+    upload = _uploaded_image(request)
     item = CaptionItem(
         workspace=CaptionWorkspace.for_institution(institution.pk),
         event=event,
         institution=institution,
         moment_title=(request.POST.get("momentTitle") or "").strip()[:200],
+        source_name=(upload.name or "")[:200],
         caption=(request.POST.get("caption") or "").strip()[:5000],
         requested=requested,
         status=requested,
         sort_order=0,
     )
-    item.original = _uploaded_image(request)
+    item.original = upload
     item.save()
     item.refresh_from_db()
     return caption_dict(item)
@@ -245,12 +246,12 @@ def caption_resolve(request, item_id):
             if wanted != CaptionStatus.APPROVED:
                 raise ApiError("This title is waiting for approval.")
             item.status = CaptionStatus.APPROVED
-        else:  # needs-correction or corrected: send a correction note
+        else:  # needs-correction or corrected: the corrected title replaces the old one
             if not body:
-                raise ApiError("Tell us what should change.", field="text")
-            item.correction = body
+                raise ApiError("Write the corrected title first.", field="text")
+            item.caption = body
             item.status = CaptionStatus.CORRECTED
-            fields.append("correction")
+            fields.append("caption")
         item.action_by = by
         item.action_by_phone = phone
         item.updated_at = timezone.now()

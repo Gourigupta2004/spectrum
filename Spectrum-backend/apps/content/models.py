@@ -448,7 +448,7 @@ class PortalPage(SingletonModel):
         "Use full names and correct titles for staff and guests, exactly as the institution spells them.\n"
         "Check spellings of student names against the class register before approving.\n"
         "Keep to plain, present-tense language; avoid slang and abbreviations.\n"
-        "If a title is wrong, describe what should change rather than rewriting it from scratch.",
+        "If a title is wrong, write the corrected title in its place.",
         help_text="One pointer per line.",
     )
     guidelines_outro = para("Approved titles are locked, so take a moment before you approve.")

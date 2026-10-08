@@ -20,7 +20,7 @@ from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core import signing
 from django.db import transaction
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.urls import NoReverseMatch, path, reverse
@@ -46,6 +46,10 @@ class Target:
     choices: dict = field(default_factory=dict)
     # Fields that take the same value as a chosen option, as {option: field}.
     mirror: dict = field(default_factory=dict)
+    # The file name is the lookup key: a row whose `source_name` matches an
+    # incoming file gets its photo replaced in place — text and status kept —
+    # instead of a new row being created. Non-matching files create rows as usual.
+    upsert_by_name: bool = False
 
     @property
     def model_class(self):
@@ -73,12 +77,15 @@ def _request_tags() -> list[str]:
 
 TARGETS = {
     "catalog.eventphoto": Target("catalog.EventPhoto", "event", "title", "Gallery photos"),
-    # A fresh upload always starts by asking the institution for a caption; the
+    # A fresh upload always starts by asking the institution for a title; the
     # uploader's "Requested" tag can switch a batch to approval or correction.
+    # Re-uploading a file with a name the workspace has seen replaces that
+    # row's photo and keeps its title and status.
     "portal.captionitem": Target(
-        "portal.CaptionItem", "workspace", "moment_title", "Caption workspace photos",
+        "portal.CaptionItem", "workspace", "moment_title", "Title workspace photos",
         {"status": "needs-caption", "requested": "needs-caption"},
         choices={"requested": _request_tags}, mirror={"requested": "status"},
+        upsert_by_name=True,
     ),
     "portal.student": Target("portal.Student", "school_class", None, "Student photos"),
     "content.heroslide": Target("content.HeroSlide", "page", "caption", "Hero carousel slides"),
@@ -276,15 +283,37 @@ def commit(request, batch_id):
                 storage.delete(key)
                 skipped.append(client_id)
                 continue
-            obj = model(**{parent_attname: batch.parent_id}, **extra)
-            obj.sort_order = batch.base_sort_order + index
-            if target.name_field:
-                setattr(obj, target.name_field, humanize(name))
-            obj.original = key
-            obj.save()
+            obj = _matching_row(target, model, parent_attname, batch.parent_id, name)
+            if obj is not None:
+                # Same file name, same row: only the photo changes; the title,
+                # status and everything the institution did stay as they are.
+                obj.source_name = name[:200]
+                obj.original = key
+                obj.save()
+            else:
+                obj = model(**{parent_attname: batch.parent_id}, **extra)
+                obj.sort_order = batch.base_sort_order + index
+                if target.name_field:
+                    setattr(obj, target.name_field, humanize(name))
+                if target.upsert_by_name:
+                    obj.source_name = name[:200]
+                obj.original = key
+                obj.save()
             UploadBatchFile.objects.create(batch=batch, client_id=client_id, object_id=obj.pk)
             created.append(client_id)
     return JsonResponse({"created": created, "skipped": skipped})
+
+
+def _matching_row(target: Target, model, parent_attname: str, parent_id, name: str):
+    """The row a re-upload lands in: same parent, same file name. Rows from
+    before file names were stored fall back to matching on the humanised title."""
+    if not target.upsert_by_name or not name.strip():
+        return None
+    lookup = Q(source_name__iexact=name[:200])
+    title = humanize(name)
+    if title:
+        lookup |= Q(source_name="", **{f"{target.name_field}__iexact": title})
+    return model.objects.filter(**{parent_attname: parent_id}).filter(lookup).order_by("pk").first()
 
 
 def _target_key(batch) -> str:

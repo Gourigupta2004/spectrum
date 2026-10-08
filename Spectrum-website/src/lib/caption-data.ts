@@ -16,13 +16,12 @@ export type CaptionItem = {
   /** Pixel size of the uploaded photo; the card takes its proportions from it. */
   width?: number | null;
   height?: number | null;
-  /** Empty for `needs-caption` items — the institution has yet to write one. */
-  caption: string;
   /**
-   * The institution's correction note. Kept apart from `caption` so the
-   * original wording is never overwritten; Spectrum applies it on their side.
+   * The photo's title text. Empty for `needs-caption` items — the institution
+   * has yet to write one. A correction rewrites this in place, so it is
+   * always the current wording.
    */
-  correction?: string;
+  caption: string;
   /** What Spectrum originally asked the institution to do. */
   requested: CaptionRequest;
   status: CaptionStatus;
@@ -34,9 +33,9 @@ export type CaptionItem = {
 
 /** On-screen wording says "title"; the status values underneath are unchanged. */
 export const captionStatusLabel: Record<CaptionStatus, string> = {
-  "needs-caption": "Needs Title",
-  "needs-approval": "Needs Approval",
-  "needs-correction": "Needs Correction",
+  "needs-caption": "For Title",
+  "needs-approval": "For Approval",
+  "needs-correction": "For Correction",
   approved: "Approved",
   corrected: "Corrected",
 };

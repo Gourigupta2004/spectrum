@@ -109,6 +109,59 @@ class BulkUploadTests(SpectrumTestCase):
         response = self.post("/admin/uploads/prepare/", {"target": "catalog.eventphoto", "parentId": self.event.pk})
         self.assertIn(response.status_code, (302, 403))
 
+    def upload_to_workspace(self, workspace, filename, requested="needs-caption"):
+        prepared = self.post("/admin/uploads/prepare/", {
+            "target": "portal.captionitem", "parentId": workspace.pk,
+            "files": [{"clientId": "c0", "name": filename, "size": 1000, "type": "image/jpeg"}],
+        }).json()
+        entry = prepared["files"][0]
+        self.client.post("/admin/uploads/direct/", {
+            "token": entry["token"],
+            "file": SimpleUploadedFile(filename, jpeg_bytes(), content_type="image/jpeg"),
+        })
+        with self.captureOnCommitCallbacks(execute=True):
+            result = self.post(f"/admin/uploads/{prepared['batchId']}/commit/", {
+                "files": [{"token": entry["token"], "index": 0, "name": filename}],
+                "options": {"requested": requested},
+            }).json()
+        self.assertEqual(len(result["created"]), 1)
+
+    def test_reupload_same_filename_replaces_photo_and_keeps_title(self):
+        from apps.portal.models import CaptionItem, CaptionWorkspace
+
+        workspace = CaptionWorkspace.objects.create(institution=self.institution)
+        self.upload_to_workspace(workspace, "6A KRM 2683 M.jpg")
+        item = CaptionItem.objects.get(workspace=workspace)
+        self.assertEqual(item.source_name, "6A KRM 2683 M.jpg")
+
+        # The teacher titles it; the edited photo then comes back under the same name.
+        CaptionItem.objects.filter(pk=item.pk).update(caption="Class 6A with Mrs. Mehta", status="corrected")
+        before = item.original.name
+        self.upload_to_workspace(workspace, "6A KRM 2683 M.jpg")
+
+        items = list(CaptionItem.objects.filter(workspace=workspace))
+        self.assertEqual(len(items), 1, "same file name must land in the same row")
+        self.assertNotEqual(items[0].original.name, before, "the photo itself must be replaced")
+        self.assertEqual(items[0].caption, "Class 6A with Mrs. Mehta")
+        self.assertEqual(items[0].status, "corrected")
+
+        # A new name is a new photo.
+        self.upload_to_workspace(workspace, "6B KRM 2697 M.jpg")
+        self.assertEqual(CaptionItem.objects.filter(workspace=workspace).count(), 2)
+
+    def test_delete_all_photos_clears_the_workspace(self):
+        from apps.portal.models import CaptionItem, CaptionWorkspace
+
+        workspace = CaptionWorkspace.objects.create(institution=self.institution)
+        self.upload_to_workspace(workspace, "6A KRM 2683 M.jpg")
+        self.upload_to_workspace(workspace, "6B KRM 2697 M.jpg")
+        url = f"/admin/portal/captionworkspace/{workspace.pk}/delete-photos/"
+        self.assertEqual(self.client.get(url).status_code, 405)  # POST only
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(CaptionItem.objects.filter(workspace=workspace).count(), 0)
+
     def test_uploaders_live_on_event_and_workspace_pages(self):
         from apps.portal.models import CaptionWorkspace
 

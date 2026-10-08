@@ -75,9 +75,9 @@ class PortalAccessEmail(models.Model):
 
 class CaptionWorkspace(models.Model):
     """
-    One per institution: the batch of photos that institution captions, approves
-    and corrects. Photos are bulk-uploaded onto this entry in the admin and every
-    row appears beneath it with its caption and the institution's correction.
+    One per institution: the batch of photos that institution titles, approves
+    and corrects. Photos are bulk-uploaded onto this entry in the admin and
+    every row appears beneath it with its title and state.
     """
 
     institution = models.OneToOneField("catalog.Institution", on_delete=models.CASCADE,
@@ -87,7 +87,7 @@ class CaptionWorkspace(models.Model):
 
     class Meta:
         ordering = ["institution__name"]
-        verbose_name = "caption workspace"
+        verbose_name = "title workspace"
 
     def __str__(self):
         return str(self.institution)
@@ -98,9 +98,12 @@ class CaptionWorkspace(models.Model):
 
 
 class CaptionStatus(models.TextChoices):
-    NEEDS_CAPTION = "needs-caption", "Needs Caption"
-    NEEDS_APPROVAL = "needs-approval", "Needs Approval"
-    NEEDS_CORRECTION = "needs-correction", "Needs Correction"
+    """Stored values keep their historic names; the labels say "title". The
+    definition order is the order admin dropdowns offer the request tags."""
+
+    NEEDS_CAPTION = "needs-caption", "For Title"
+    NEEDS_CORRECTION = "needs-correction", "For Correction"
+    NEEDS_APPROVAL = "needs-approval", "For Approval"
     APPROVED = "approved", "Approved"
     CORRECTED = "corrected", "Corrected"
 
@@ -109,7 +112,12 @@ REQUEST_CHOICES = [c for c in CaptionStatus.choices if c[0].startswith("needs-")
 
 
 class CaptionItem(ProcessedImage):
-    """A photo the institution captions, approves or corrects. Separate from the public gallery."""
+    """
+    A photo the institution titles, approves or corrects. Separate from the
+    public gallery. A correction is the teacher rewriting the title, so it is
+    saved straight into `caption`; re-uploading a file with the same name
+    replaces this row's photo (see `source_name`) and keeps its text and state.
+    """
 
     VARIANTS = {"web": 1600, "thumb": 400}
 
@@ -120,8 +128,10 @@ class CaptionItem(ProcessedImage):
     institution = models.ForeignKey("catalog.Institution", on_delete=models.CASCADE, related_name="caption_items",
                                     editable=False)
     moment_title = models.CharField(max_length=200, blank=True)
-    caption = models.TextField(blank=True)
-    correction = models.TextField(blank=True, help_text="The institution's correction note.")
+    # The uploaded file's name, the lookup key for re-uploads: a file arriving
+    # with the same name lands in this row (new photo, same title and status).
+    source_name = models.CharField("file name", max_length=200, blank=True, editable=False)
+    caption = models.TextField("title", blank=True)
     requested = models.CharField(max_length=20, choices=REQUEST_CHOICES, default=CaptionStatus.NEEDS_APPROVAL)
     status = models.CharField(max_length=20, choices=CaptionStatus.choices, default=CaptionStatus.NEEDS_APPROVAL,
                               db_index=True)
@@ -134,10 +144,10 @@ class CaptionItem(ProcessedImage):
     class Meta:
         ordering = ["sort_order", "pk"]
         indexes = [models.Index(fields=["institution", "image_status", "sort_order"])]
-        verbose_name = "caption item"
+        verbose_name = "title item"
 
     def __str__(self):
-        return self.moment_title or f"Caption item {self.pk}"
+        return self.moment_title or f"Title item {self.pk}"
 
     def save(self, *args, **kwargs):
         # The institution and its workspace follow from whichever was given:

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.db.models import Count, F, Q
 from django.utils import timezone
@@ -58,8 +59,8 @@ class StudentAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
 class CaptionItemForm(forms.ModelForm):
     """
     Re-tagging an item sends it back to the institution in that state: change
-    "Requested" from Needs Caption to Needs Approval once the caption is written
-    and the teacher sees it under Pending again. Approved items stay approved.
+    "Requested" from For Title to For Approval once the title is written and
+    the teacher sees it under Pending again. Approved items stay approved.
     """
 
     class Meta:
@@ -84,9 +85,9 @@ def _retag(queryset, tag: str) -> int:
 class RetagActionsMixin:
     """Actions for the tags the institution sees on the workspace cards."""
 
-    @admin.action(description="Ask the institution to write a caption")
+    @admin.action(description="Ask the institution to write a title")
     def mark_needs_caption(self, request, queryset):
-        messages.success(request, f"{_retag(queryset, CaptionStatus.NEEDS_CAPTION)} item(s) now need a caption.")
+        messages.success(request, f"{_retag(queryset, CaptionStatus.NEEDS_CAPTION)} item(s) now need a title.")
 
     @admin.action(description="Ask the institution to approve")
     def mark_needs_approval(self, request, queryset):
@@ -113,9 +114,9 @@ class NaturalTitleFormSet(forms.models.BaseInlineFormSet):
 
 class CaptionItemInline(admin.TabularInline):
     """
-    Every photo in the workspace as a row: image, the caption Spectrum wrote,
-    and — once the teacher has sent one — their correction beside it. The
-    caption is never overwritten by a correction; Spectrum applies it here.
+    Every photo in the workspace as a row: image, the title Spectrum wrote and
+    — once the teacher has acted — who did it. A teacher's correction rewrites
+    the title in place, so there is one text per photo, always current.
     """
 
     model = CaptionItem
@@ -123,9 +124,9 @@ class CaptionItemInline(admin.TabularInline):
     formset = NaturalTitleFormSet
     fk_name = "workspace"
     extra = 0
-    fields = ("image", "moment_title", "caption", "correction", "requested", "status", "action_by",
+    fields = ("image", "moment_title", "caption", "requested", "status", "action_by",
               "action_by_phone", "updated_at")
-    readonly_fields = ("image", "correction", "status", "action_by", "action_by_phone", "updated_at")
+    readonly_fields = ("image", "status", "action_by", "action_by_phone", "updated_at")
     ordering = ("sort_order", "pk")
     show_change_link = True
     formfield_overrides = {
@@ -152,6 +153,42 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
     autocomplete_fields = ("institution",)
     fields = ("institution", "notes")
 
+    # ---- Delete all photos: one button that clears the workspace so a fresh
+    # ---- batch (say, the edited versions of all 100 files) can be uploaded.
+
+    def get_urls(self):
+        from django.urls import path
+
+        return [
+            path("<path:object_id>/delete-photos/", self.admin_site.admin_view(self.delete_photos),
+                 name="portal_captionworkspace_delete_photos"),
+            *super().get_urls(),
+        ]
+
+    def delete_photos(self, request, object_id):
+        from django.http import HttpResponseNotAllowed
+        from django.shortcuts import get_object_or_404, redirect
+
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        if not request.user.has_perm("portal.delete_captionitem"):
+            raise PermissionDenied
+        workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
+        count, _ = workspace.items.all().delete()  # signals queue the S3 cleanup
+        messages.success(request, f"Deleted {count} photo(s) from {workspace}.")
+        return redirect("admin:portal_captionworkspace_change", workspace.pk)
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        from django.urls import reverse
+
+        if obj is not None and obj.pk and request.user.has_perm("portal.delete_captionitem"):
+            count = obj.items.count()
+            if count:
+                context["bulk_delete_all_url"] = reverse("admin:portal_captionworkspace_delete_photos",
+                                                         args=[obj.pk])
+                context["bulk_delete_all_count"] = count
+        return super().render_change_form(request, context, add, change, form_url, obj)
+
     def get_queryset(self, request):
         ready = Q(items__image_status=ImageStatus.READY)
         return super().get_queryset(request).annotate(
@@ -170,7 +207,7 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
     def photo_count(self, obj):
         return obj.photos
 
-    @admin.display(description="Needs caption", ordering="n_caption")
+    @admin.display(description="For title", ordering="n_caption")
     def needs_caption(self, obj):
         return obj.n_caption
 
@@ -196,9 +233,9 @@ class CaptionItemAdmin(RetagActionsMixin, ImagePreviewMixin, admin.ModelAdmin):
     list_filter = ("status", "institution", "event")
     list_select_related = ("institution", "event")
     list_per_page = 100
-    search_fields = ("moment_title", "caption", "correction", "institution__name")
-    readonly_fields = ("institution", "correction", "status", "action_by", "action_by_phone", "updated_at")
-    fields = ("institution", "event", "original", "moment_title", "caption", "correction", "requested",
+    search_fields = ("moment_title", "caption", "institution__name")
+    readonly_fields = ("institution", "status", "action_by", "action_by_phone", "updated_at")
+    fields = ("institution", "event", "original", "moment_title", "caption", "requested",
               "status", "action_by", "action_by_phone", "updated_at", "sort_order")
     autocomplete_fields = ("event",)
     actions = ["reprocess_images", "mark_needs_caption", "mark_needs_approval", "mark_needs_correction"]

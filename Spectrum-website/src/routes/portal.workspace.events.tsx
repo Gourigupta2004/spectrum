@@ -478,19 +478,12 @@ function CaptionEditorInner({
   onOpenGuidelines: () => void;
 }) {
   const copy = usePortalCopy();
-  const [text, setText] = useState("");
-  const [by, setBy] = useState(item.actionBy ?? "");
-  const [phone, setPhone] = useState(item.actionByPhone ?? "");
-  const photoRef = useRef<HTMLInputElement>(null);
-  const hasText = text.trim().length > 0;
-  // Both the name and a usable mobile number are required before acting.
-  const phoneOk = phone.replace(/\D/g, "").length >= 7;
-  const canAct = by.trim().length > 1 && phoneOk;
   /*
    * One action per status, driven by the live status:
-   *   caption — nothing written yet; the institution writes it (the "title")
+   *   caption — nothing written yet; the institution writes the title
    *   approve — sign off on the wording as-is; no correction is offered
-   *   correct — send a correction note; the title itself is left untouched
+   *   correct — rewrite the title in place: the box opens on the current
+   *             wording and what is saved replaces it
    *             (also how a corrected item is revised)
    */
   const mode =
@@ -499,6 +492,14 @@ function CaptionEditorInner({
       : item.status === "needs-approval"
         ? "approve"
         : "correct";
+  const [text, setText] = useState(mode === "correct" ? item.caption : "");
+  const [by, setBy] = useState(item.actionBy ?? "");
+  const [phone, setPhone] = useState(item.actionByPhone ?? "");
+  const photoRef = useRef<HTMLInputElement>(null);
+  const hasText = text.trim().length > 0;
+  // Both the name and a usable mobile number are required before acting.
+  const phoneOk = phone.replace(/\D/g, "").length >= 7;
+  const canAct = by.trim().length > 1 && phoneOk;
 
   const fieldLabel = mode === "caption" ? "Title" : "Correction";
   const byLabel =
@@ -508,9 +509,7 @@ function CaptionEditorInner({
   const primaryDisabled = !canAct || (mode !== "approve" && !hasText);
   const submit = () => {
     if (mode === "approve") onResolve(item.id, "approved", {}, by.trim(), phone.trim());
-    else if (mode === "caption")
-      onResolve(item.id, "corrected", { caption: text.trim() }, by.trim(), phone.trim());
-    else onResolve(item.id, "corrected", { correction: text.trim() }, by.trim(), phone.trim());
+    else onResolve(item.id, "corrected", { caption: text.trim() }, by.trim(), phone.trim());
     onClose();
   };
 
@@ -619,7 +618,7 @@ function CaptionEditorInner({
                 placeholder={
                   mode === "caption"
                     ? "Write the title for this photo."
-                    : "Tell us what should change in the title."
+                    : "Write the corrected title; it replaces the current one."
                 }
                 className="mt-2 min-h-[12rem] w-full flex-1 resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-base font-medium leading-relaxed text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
               />

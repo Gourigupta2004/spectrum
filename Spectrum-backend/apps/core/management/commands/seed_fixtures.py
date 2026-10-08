@@ -267,7 +267,7 @@ class Command(BaseCommand):
                         continue
                     obj = CaptionItem(
                         event=event, institution=institution, moment_title=item["momentTitle"],
-                        caption=item["caption"], correction=item["correction"], requested=item["requested"],
+                        caption=item["caption"], requested=item["requested"],
                         status=item["status"], action_by=item["actionBy"],
                         updated_at=parse_datetime(item["updatedAt"]), sort_order=item["sortOrder"],
                     )
