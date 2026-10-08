@@ -44,6 +44,10 @@ function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   );
 }
 
+// Space kept on each side of the institutions window for a chevron (2.5rem)
+// plus the air between it and the first icon (2rem), in px.
+const INST_GUTTER = 72;
+
 function Home() {
   const navigate = useNavigate();
   const { copy, heroSlides, stats, services, institutions, events } = Route.useLoaderData();
@@ -78,8 +82,43 @@ function Home() {
       ro.disconnect();
     };
   }, [institutions.length]);
-  const nudgeInstitutions = (dir: 1 | -1) =>
-    instRow.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  // From sm up the visible window is sized to a whole number of icons, so
+  // with start-snapping every resting position shows only complete circles —
+  // no half-cut icon under a fade. The chevrons sit outside the window with a
+  // fixed gap (INST_GUTTER = 2.5rem button + 2rem air).
+  const instFrame = useRef<HTMLDivElement>(null);
+  const [instFit, setInstFit] = useState<number | null>(null);
+  useEffect(() => {
+    const frame = instFrame.current;
+    const track = instRow.current?.firstElementChild as HTMLElement | null;
+    if (!frame || !track) return;
+    const sm = window.matchMedia("(min-width: 640px)");
+    const fit = () => {
+      const tile = track.firstElementChild as HTMLElement | null;
+      if (!sm.matches || !tile) return setInstFit(null);
+      const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+      const pitch = tile.offsetWidth + gap;
+      const room = frame.clientWidth - 2 * INST_GUTTER;
+      const n = Math.max(1, Math.min(institutions.length, Math.floor((room + gap) / pitch)));
+      setInstFit(n * pitch - gap);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(frame);
+    sm.addEventListener("change", fit);
+    return () => {
+      ro.disconnect();
+      sm.removeEventListener("change", fit);
+    };
+  }, [institutions.length]);
+  // A chevron click turns a whole page of icons.
+  const nudgeInstitutions = (dir: 1 | -1) => {
+    const el = instRow.current;
+    const track = el?.firstElementChild as HTMLElement | null;
+    if (!el || !track) return;
+    const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+    el.scrollBy({ left: dir * (el.clientWidth + gap), behavior: "smooth" });
+  };
 
   return (
     <div className="grain relative overflow-x-clip">
@@ -137,61 +176,61 @@ function Home() {
             the scroller itself would push the leftmost circles past the edge
             where no scroll can reach them. On phones the row is bled to the
             screen edges with matching scroll padding, so a half-visible circle
-            reads as "there is more this way"; from sm up the chevrons live in
-            reserved side gutters with clear air between them and the icons:
-            the edge fade stays fully transparent under the whole button plus a
-            buffer, so a scrolling icon has melted away completely before it
-            could slide beneath a marker, and the resting row starts a gap
-            beyond it. */}
-        <div className="relative mt-8">
-          {instHint.left && (
-            <button
-              onClick={() => nudgeInstitutions(-1)}
-              aria-label="Scroll institutions left"
-              className="spectrum-border glass absolute left-0 top-7 z-10 hidden h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:grid"
+            reads as "there is more this way". From sm up the scroller is a
+            window exactly N icons wide (instFit) with no edge fade, so only
+            whole circles ever rest in view, and the chevrons hang outside it
+            with 2rem of clear air before the first icon. */}
+        <div ref={instFrame} className="mt-8">
+          <div className="relative mx-auto" style={instFit ? { width: instFit } : undefined}>
+            {instHint.left && (
+              <button
+                onClick={() => nudgeInstitutions(-1)}
+                aria-label="Scroll institutions left"
+                className="spectrum-border glass absolute -left-[4.5rem] top-7 z-10 hidden h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:grid"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
+            {instHint.right && (
+              <button
+                onClick={() => nudgeInstitutions(1)}
+                aria-label="Scroll institutions right"
+                className="spectrum-border glass absolute -right-[4.5rem] top-7 z-10 hidden h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:grid"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
+            <div
+              ref={instRow}
+              className="no-scrollbar -mx-6 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:mx-0 sm:px-0 sm:[scroll-padding-left:0]"
             >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          )}
-          {instHint.right && (
-            <button
-              onClick={() => nudgeInstitutions(1)}
-              aria-label="Scroll institutions right"
-              className="spectrum-border glass absolute right-0 top-7 z-10 hidden h-10 w-10 place-items-center rounded-full text-foreground transition-all hover:-translate-y-0.5 sm:grid"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          )}
-          <div
-            ref={instRow}
-            className="no-scrollbar -mx-6 snap-x snap-mandatory overflow-x-auto px-6 pb-2 [scroll-padding-left:1.5rem] sm:mx-0 sm:px-[4.75rem] sm:[scroll-padding-left:4.75rem] sm:[mask-image:linear-gradient(to_right,transparent_3rem,#000_4.75rem,#000_calc(100%-4.75rem),transparent_calc(100%-3rem))]"
-          >
-            <div className="mx-auto flex w-max gap-6 sm:gap-8">
-              {institutions.map((inst) => (
-                <button
-                  key={inst.id}
-                  onClick={() => onInstitution(inst.id)}
-                  className="group flex w-24 shrink-0 snap-start flex-col items-center gap-3 sm:w-28 sm:snap-center"
-                >
-                  <span className="spectrum-border spectrum-border-thick relative block h-20 w-20 rounded-full p-[3px] transition-all duration-400 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_-14px_rgba(139,92,246,0.7)] sm:h-24 sm:w-24">
-                    {inst.image ? (
-                      <img
-                        src={inst.image}
-                        alt={inst.name}
-                        loading="lazy"
-                        className="h-full w-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="block h-full w-full rounded-full bg-surface" />
-                    )}
-                  </span>
-                  {/* Two lines reserved either way, so names of different lengths
+              <div className="mx-auto flex w-max gap-6 sm:gap-8">
+                {institutions.map((inst) => (
+                  <button
+                    key={inst.id}
+                    onClick={() => onInstitution(inst.id)}
+                    className="group flex w-24 shrink-0 snap-start flex-col items-center gap-3 sm:w-28"
+                  >
+                    <span className="spectrum-border spectrum-border-thick relative block h-20 w-20 rounded-full p-[3px] transition-all duration-400 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_-14px_rgba(139,92,246,0.7)] sm:h-24 sm:w-24">
+                      {inst.image ? (
+                        <img
+                          src={inst.image}
+                          alt={inst.name}
+                          loading="lazy"
+                          className="h-full w-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="block h-full w-full rounded-full bg-surface" />
+                      )}
+                    </span>
+                    {/* Two lines reserved either way, so names of different lengths
                   keep the circles on one baseline instead of stepping. */}
-                  <span className="line-clamp-2 min-h-[2.1rem] font-display text-[0.7rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground sm:min-h-0 sm:text-[0.65rem] sm:tracking-[0.14em]">
-                    {inst.short}
-                  </span>
-                </button>
-              ))}
+                    <span className="line-clamp-2 min-h-[2.1rem] font-display text-[0.7rem] uppercase leading-[1.25] tracking-[0.1em] text-foreground sm:min-h-0 sm:text-[0.65rem] sm:tracking-[0.14em]">
+                      {inst.short}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -466,4 +466,5 @@ class PortalPage(SingletonModel):
     student_placeholder = line("Add student's name…", 60)
 
     class Meta:
-        verbose_name = "institution portal copy"
+        verbose_name = "institution portal page"
+        verbose_name_plural = "institution portal pages"
