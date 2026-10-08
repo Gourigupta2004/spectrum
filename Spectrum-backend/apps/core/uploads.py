@@ -50,6 +50,15 @@ class Target:
     # incoming file gets its photo replaced in place — text and status kept —
     # instead of a new row being created. Non-matching files create rows as usual.
     upsert_by_name: bool = False
+    # A routed target: the uploader page lives on `page_parent` (app.Model) and
+    # each file's real `parent` FK value is derived from its file name by
+    # `route(page_parent_id, filename)`, which may create the parent on the fly
+    # and returns None when the name carries no destination.
+    page_parent: str | None = None
+    route: object = None
+    # Lookup path from the model to the page's parent, for the thumbnail grid
+    # under a routed uploader. Defaults to `parent`.
+    grid_parent: str | None = None
 
     @property
     def model_class(self):
@@ -75,6 +84,35 @@ def _request_tags() -> list[str]:
     return [value for value, _ in REQUEST_CHOICES]
 
 
+# The class token at the front of a student file name: one or two digits (the
+# class) followed by up to three letters (the section), then a separator —
+# "6C_amity_1" -> 6C, "12AB_front row.jpg" -> 12AB.
+CLASS_TOKEN = re.compile(r"^\s*(\d{1,2})\s*([A-Za-z]{1,3})(?![A-Za-z0-9])")
+
+
+def class_for_file(institution_id, filename):
+    """
+    The class a student photo belongs in, read from its file name and created
+    on first sight — so the operations team uploads one massive batch onto the
+    institution and the classes assemble themselves. None when the name does
+    not start with a class token.
+    """
+    from django.utils.text import slugify
+
+    from apps.portal.models import SchoolClass
+
+    stem = os.path.splitext(os.path.basename(filename))[0]
+    match = CLASS_TOKEN.match(stem)
+    if not match:
+        return None
+    number, section = int(match.group(1)), match.group(2).upper()
+    name = f"{number}{section}"
+    group = "Primary" if number <= 5 else "Middle" if number <= 8 else "Senior"
+    cls, _ = SchoolClass.objects.get_or_create(
+        institution_id=institution_id, slug=slugify(name), defaults={"name": name, "group": group})
+    return cls.pk
+
+
 TARGETS = {
     "catalog.eventphoto": Target("catalog.EventPhoto", "event", "title", "Gallery photos"),
     # A fresh upload always starts by asking the institution for a title; the
@@ -88,6 +126,12 @@ TARGETS = {
         upsert_by_name=True,
     ),
     "portal.student": Target("portal.Student", "school_class", None, "Student photos"),
+    # The institution-wide drop: thousands of files land on the institution and
+    # each one is filed into its class (created as needed) from its file name.
+    "portal.studentbatch": Target(
+        "portal.Student", "school_class", None, "Student photos — filed into classes by file name",
+        page_parent="catalog.Institution", route=class_for_file, grid_parent="school_class__institution",
+    ),
     "content.heroslide": Target("content.HeroSlide", "page", "caption", "Hero carousel slides"),
     "content.tieup": Target("content.TieUp", "page", "name", "Tie-up photos"),
 }
@@ -145,14 +189,16 @@ def _presign_put(storage, key: str, content_type: str) -> str:
 @require_POST
 def prepare(request):
     data = _body(request)
-    target = _target(str(data.get("target", "")), request.user)
+    target_key = str(data.get("target", ""))
+    target = _target(target_key, request.user)
     model = target.model_class
     parent_field = model._meta.get_field(target.parent)
+    page_model = apps.get_model(target.page_parent) if target.page_parent else parent_field.related_model
     try:
         parent_id = int(data.get("parentId"))
     except (TypeError, ValueError):
         return _error("Missing parent")
-    if not parent_field.related_model.objects.filter(pk=parent_id).exists():
+    if not page_model.objects.filter(pk=parent_id).exists():
         return _error("Parent not found", 404)
 
     batch = None
@@ -161,11 +207,19 @@ def prepare(request):
     except ValueError:
         batch_id = None
     if batch_id:
-        batch = UploadBatch.objects.filter(pk=batch_id, target=target.model.lower(), parent_id=parent_id).first()
+        # Batches used to record the model label; they now record the TARGETS
+        # key, so two targets over one model stay apart. Accept both spellings.
+        batch = UploadBatch.objects.filter(
+            pk=batch_id, target__in=(target_key, target.model.lower()), parent_id=parent_id).first()
     if batch is None:
-        top = model.objects.filter(**{parent_field.attname: parent_id}).aggregate(top=Max("sort_order"))["top"]
+        if target.route:
+            # Rows are routed to parents derived per file; there is no single
+            # parent whose top sort_order could seed the batch.
+            top = None
+        else:
+            top = model.objects.filter(**{parent_field.attname: parent_id}).aggregate(top=Max("sort_order"))["top"]
         batch = UploadBatch.objects.create(
-            target=target.model.lower(),
+            target=target_key,
             parent_id=parent_id,
             base_sort_order=0 if top is None else top + 1,
             created_by=request.user,
@@ -270,7 +324,7 @@ def commit(request, batch_id):
         UploadBatchFile.objects.filter(batch=batch, client_id__in=[p[0] for p in parsed]).values_list("client_id", flat=True)
     )
     storage = private_storage()
-    created, skipped = [], []
+    created, skipped, errors = [], [], {}
     with transaction.atomic():
         for client_id, key, index, name in parsed:
             if client_id in done:
@@ -283,7 +337,15 @@ def commit(request, batch_id):
                 storage.delete(key)
                 skipped.append(client_id)
                 continue
-            obj = _matching_row(target, model, parent_attname, batch.parent_id, name)
+            parent_value = batch.parent_id
+            if target.route:
+                parent_value = target.route(batch.parent_id, name)
+                if parent_value is None:
+                    storage.delete(key)
+                    skipped.append(client_id)
+                    errors[client_id] = 'no class at the front of the file name (expected e.g. "6C_...")'
+                    continue
+            obj = _matching_row(target, model, parent_attname, parent_value, name)
             if obj is not None:
                 # Same file name, same row: only the photo changes; the title,
                 # status and everything the institution did stay as they are.
@@ -291,7 +353,7 @@ def commit(request, batch_id):
                 obj.original = key
                 obj.save()
             else:
-                obj = model(**{parent_attname: batch.parent_id}, **extra)
+                obj = model(**{parent_attname: parent_value}, **extra)
                 obj.sort_order = batch.base_sort_order + index
                 if target.name_field:
                     setattr(obj, target.name_field, humanize(name))
@@ -301,7 +363,7 @@ def commit(request, batch_id):
                 obj.save()
             UploadBatchFile.objects.create(batch=batch, client_id=client_id, object_id=obj.pk)
             created.append(client_id)
-    return JsonResponse({"created": created, "skipped": skipped})
+    return JsonResponse({"created": created, "skipped": skipped, "errors": errors})
 
 
 def _matching_row(target: Target, model, parent_attname: str, parent_id, name: str):
@@ -317,6 +379,9 @@ def _matching_row(target: Target, model, parent_attname: str, parent_id, name: s
 
 
 def _target_key(batch) -> str:
+    if batch.target in TARGETS:
+        return batch.target
+    # Batches from before targets were stored by key carry the model label.
     for key, target in TARGETS.items():
         if target.model.lower() == batch.target:
             return key
@@ -366,8 +431,8 @@ def grid_context(target_key: str, parent_id) -> dict:
     target = TARGETS[target_key]
     model = target.model_class
     meta = model._meta
-    parent_attname = meta.get_field(target.parent).attname
-    queryset = model.objects.filter(**{parent_attname: parent_id})
+    lookup = target.grid_parent or meta.get_field(target.parent).attname
+    queryset = model.objects.filter(**{lookup: parent_id})
     fields = ["pk", "thumb", "image_status", "sort_order"] + ([target.name_field] if target.name_field else [])
     if meta.model_name == "student":
         fields.append("name")
@@ -393,7 +458,8 @@ def grid_context(target_key: str, parent_id) -> dict:
         "items": items,
         "total": total,
         "hidden": max(0, total - GRID_LIMIT),
-        "changelist_url": f"{changelist}?{target.parent}__id__exact={parent_id}" if changelist else "",
+        "changelist_url": (
+            f"{changelist}?{target.grid_parent or target.parent}__id__exact={parent_id}" if changelist else ""),
     }
 
 

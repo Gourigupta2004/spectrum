@@ -306,7 +306,10 @@
       self.stats.committed += data.created.length;
       var skipped = {};
       data.skipped.forEach(function (id) { skipped[id] = true; });
-      batch.forEach(function (item) { if (skipped[item.clientId]) self.fail(item, "not found after upload"); });
+      var reasons = data.errors || {};
+      batch.forEach(function (item) {
+        if (skipped[item.clientId]) self.fail(item, reasons[item.clientId] || "not found after upload");
+      });
       self.render();
     }).catch(function (error) {
       if (tries < 2) return sleep(2000).then(function () { return self.commit(batch, tries + 1); });

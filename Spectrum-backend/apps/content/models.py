@@ -464,9 +464,6 @@ class PortalPage(SingletonModel):
     classes_subtitle = line("{count} classes · tap a class to name its students.")
     roster_title = line("{class} — Name the Students")
     student_placeholder = line("Add student's name…", 60)
-    download_photos = line("Download Class Photos →", 60)
-    download_note = line("Only named students are included — {count} still unnamed.")
-    download_toast = line("{count} photos downloaded", 60)
 
     class Meta:
         verbose_name = "institution portal copy"

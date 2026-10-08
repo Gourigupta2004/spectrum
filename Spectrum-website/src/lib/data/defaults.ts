@@ -173,9 +173,6 @@ export const portalCopy = {
   classesSubtitle: "{count} classes · tap a class to name its students.",
   rosterTitle: "{class} — Name the Students",
   studentPlaceholder: "Add student's name…",
-  downloadPhotos: "Download Class Photos →",
-  downloadNote: "Only named students are included — {count} still unnamed.",
-  downloadToast: "{count} photos downloaded",
 };
 
 export type SiteCopy = typeof siteCopy;

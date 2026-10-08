@@ -15,6 +15,19 @@ from .models import (
 )
 
 
+def _institution_code(name: str) -> str:
+    """Initials, as the website's download used: Delhi Public School -> DPS."""
+    return "".join(word[0] for word in str(name).split()).upper()
+
+
+def _safe_file_name(name: str) -> str:
+    """A file name every OS accepts: no path separators or reserved characters."""
+    import re as _re
+
+    cleaned = _re.sub(r"\s+", " ", _re.sub(r'[\\/:*?"<>|]+', " ", name.strip())).lstrip(".")[:100].strip()
+    return cleaned or "Student"
+
+
 @admin.register(SchoolClass)
 class SchoolClassAdmin(AppendOrderMixin, BulkUploadMixin, admin.ModelAdmin):
     bulk_upload_targets = ("portal.student",)
@@ -26,10 +39,61 @@ class SchoolClassAdmin(AppendOrderMixin, BulkUploadMixin, admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
     fields = ("institution", "name", "slug", "group", "sort_order")
     autocomplete_fields = ("institution",)
+    actions = ["download_photos"]
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
             size=Count("students"), named=Count("students", filter=~Q(students__name="")))
+
+    @admin.action(description="Download photos — folder of originals, named after the students")
+    def download_photos(self, request, queryset):
+        """
+        The class folder the website used to build, now admin-only: one folder
+        per class ({CODE}-{CLASS}-Photos), one file per *named* student called
+        after them — but from the uploaded originals, at full size, instead of
+        the website's re-encoded web copies.
+        """
+        import os
+        import tempfile
+        import zipfile
+
+        from django.http import FileResponse
+
+        if not request.user.has_perm("portal.view_student"):
+            raise PermissionDenied
+        classes = list(queryset.select_related("institution"))
+        buffer = tempfile.TemporaryFile()  # spooled to disk, so huge classes never sit in RAM
+        included = unnamed = 0
+        folders = []
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:  # photos are already compressed
+            for cls in classes:
+                folder = f"{_institution_code(cls.institution.name)}-{cls.name.upper()}-Photos"
+                folders.append(folder)
+                used: dict[str, int] = {}
+                for student in cls.students.order_by("sort_order", "pk"):
+                    if not student.name.strip():
+                        unnamed += 1  # nothing to file them under, same rule as the website had
+                        continue
+                    if not student.original:
+                        continue
+                    base = _safe_file_name(student.name)
+                    n = used.get(base.lower(), 0) + 1
+                    used[base.lower()] = n
+                    ext = os.path.splitext(student.original.name)[1].lower() or ".jpg"
+                    filename = f"{base}{'' if n == 1 else f' ({n})'}{ext}"
+                    with student.original.open("rb") as handle:
+                        archive.writestr(f"{folder}/{filename}", handle.read())
+                    included += 1
+        if not included:
+            buffer.close()
+            messages.warning(request, "Nothing to download: no named students with photos in the selection.")
+            return None
+        if unnamed:
+            messages.warning(request, f"{unnamed} unnamed student(s) were left out — they have no name to be filed under.")
+        buffer.seek(0)
+        zip_name = f"{folders[0]}.zip" if len(folders) == 1 else (
+            f"{_institution_code(classes[0].institution.name)}-Class-Photos.zip")
+        return FileResponse(buffer, as_attachment=True, filename=zip_name, content_type="application/zip")
 
     @admin.display(description="Students", ordering="size")
     def student_count(self, obj):
@@ -153,8 +217,8 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
     autocomplete_fields = ("institution",)
     fields = ("institution", "notes")
 
-    # ---- Delete all photos: one button that clears the workspace so a fresh
-    # ---- batch (say, the edited versions of all 100 files) can be uploaded.
+    # ---- Workspace tools: export every title item to Excel, and one button
+    # ---- that clears the workspace so a fresh batch can be uploaded.
 
     def get_urls(self):
         from django.urls import path
@@ -162,8 +226,41 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
         return [
             path("<path:object_id>/delete-photos/", self.admin_site.admin_view(self.delete_photos),
                  name="portal_captionworkspace_delete_photos"),
+            path("<path:object_id>/export-titles/", self.admin_site.admin_view(self.export_titles),
+                 name="portal_captionworkspace_export_titles"),
             *super().get_urls(),
         ]
+
+    def export_titles(self, request, object_id):
+        """Every photo's S3 link with its title beside it, as an .xlsx download."""
+        from django.http import HttpResponse
+        from django.shortcuts import get_object_or_404
+        from django.utils.text import slugify
+
+        from apps.core.models import storage_url
+        from apps.core.xlsx import workbook_bytes
+
+        if not request.user.has_perm("portal.view_captionitem"):
+            raise PermissionDenied
+        workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
+        items = sorted(workspace.items.all(), key=lambda i: (natural_key(i.moment_title), i.pk))
+        rows = [("File name", "Image (S3 link)", "Title", "Status", "Action by", "Mobile number", "Updated")]
+        for item in items:
+            rows.append((
+                item.source_name or item.moment_title,
+                storage_url(item.web.name if item.web else ""),
+                item.caption,
+                item.get_status_display(),
+                item.action_by,
+                item.action_by_phone,
+                timezone.localtime(item.updated_at).strftime("%d %b %Y, %H:%M"),
+            ))
+        content = workbook_bytes(rows, widths=(30, 85, 60, 14, 22, 16, 18), sheet_name="Titles")
+        filename = f"{slugify(str(workspace.institution)) or 'workspace'}-titles.xlsx"
+        response = HttpResponse(
+            content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
 
     def delete_photos(self, request, object_id):
         from django.http import HttpResponseNotAllowed
@@ -181,9 +278,12 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
     def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
         from django.urls import reverse
 
-        if obj is not None and obj.pk and request.user.has_perm("portal.delete_captionitem"):
+        if obj is not None and obj.pk:
             count = obj.items.count()
-            if count:
+            if count and request.user.has_perm("portal.view_captionitem"):
+                context["bulk_export_url"] = reverse("admin:portal_captionworkspace_export_titles",
+                                                     args=[obj.pk])
+            if count and request.user.has_perm("portal.delete_captionitem"):
                 context["bulk_delete_all_url"] = reverse("admin:portal_captionworkspace_delete_photos",
                                                          args=[obj.pk])
                 context["bulk_delete_all_count"] = count

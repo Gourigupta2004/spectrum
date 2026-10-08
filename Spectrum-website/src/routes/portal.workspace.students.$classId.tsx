@@ -1,11 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, FolderDown } from "lucide-react";
+import { Check } from "lucide-react";
 import { classLabel, type Student } from "@/lib/student-data";
-import { exportRosterFolder } from "@/lib/roster-zip";
 import { useRoster, useStudentNames } from "@/lib/portal-data";
-import { usePortalMember } from "@/lib/portal-session";
 import { usePortalCopy } from "@/lib/use-portal-copy";
 import { fill } from "@/lib/text";
 
@@ -15,37 +13,23 @@ export const Route = createFileRoute("/portal/workspace/students/$classId")({
       { title: "Name the Students — Spectrum Student Roster" },
       {
         name: "description",
-        content:
-          "Identify each student in the class photos, then download the photos as a folder named after them.",
+        content: "Identify each student in the class photos, name by name.",
       },
       { property: "og:title", content: "Name the Students — Spectrum Student Roster" },
       {
         property: "og:description",
-        content: "Name students in their class photos and download them as a folder.",
+        content: "Name students in their class photos.",
       },
     ],
   }),
   component: ClassRoster,
 });
 
-const TOAST_MS = 3600;
-
 function ClassRoster() {
   const { classId } = Route.useParams();
   const copy = usePortalCopy();
-  const { institution } = usePortalMember();
   const { cls, students, loading } = useRoster(classId);
-  const { names, commit, current } = useStudentNames(classId, students);
-  const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const toastTimer = useRef<number | null>(null);
-  useEffect(
-    () => () => {
-      if (toastTimer.current) window.clearTimeout(toastTimer.current);
-    },
-    [],
-  );
+  const { names, commit } = useStudentNames(classId, students);
 
   if (!cls) {
     if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -53,36 +37,10 @@ function ClassRoster() {
   }
 
   const namedCount = students.filter((s) => (names[s.id] ?? "").trim().length > 0).length;
-  const remaining = students.length - namedCount;
   const countLine = `${namedCount} of ${students.length} students named.`;
 
-  const handleExport = async () => {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      // Read the store directly rather than the render-time snapshot: clicking
-      // this button blurs whichever input had focus, and that blur commits a
-      // name synchronously — so the store is already ahead of `names` here.
-      const result = await exportRosterFolder(cls, students, current(), institution.name);
-      if (result.included === 0) {
-        setError("None of the named students' photos could be read.");
-        return;
-      }
-      setToast(fill(copy.downloadToast, { count: result.included }));
-      if (result.failed > 0)
-        setError(`${result.failed} photo(s) could not be read and were left out.`);
-      if (toastTimer.current) window.clearTimeout(toastTimer.current);
-      toastTimer.current = window.setTimeout(() => setToast(null), TOAST_MS);
-    } catch {
-      setError("Could not build the folder. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <div className="pb-14 md:pb-0">
+    <div>
       <Link
         to="/portal/workspace/students"
         className="-my-2 inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-teal"
@@ -95,12 +53,12 @@ function ClassRoster() {
       </h1>
       <p className="mt-2 text-sm font-medium text-muted-foreground">{countLine}</p>
 
-      {/* Five across on desktop (spec allows 4–6): six left each input too narrow for
-          the full placeholder copy at this container width. */}
-      {/* A grid, so every card lines up: this is a form to work down, and ragged
-          rows make it hard to keep your place. The photo inside each frame is
-          shown whole rather than cropped — see the card below. */}
-      <div className="mt-8 grid grid-cols-2 items-stretch gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      {/* Six across on desktop — compact frames, the photos only rendered
+          smaller (the stored images are untouched; full-size downloads live in
+          the admin now, not here). A grid, so every card lines up: this is a
+          form to work down, and ragged rows make it hard to keep your place.
+          The photo inside each frame is shown whole rather than cropped. */}
+      <div className="mt-8 grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {students.map((s, i) => (
           <StudentCard
             key={s.id}
@@ -111,60 +69,6 @@ function ClassRoster() {
             placeholder={copy.studentPlaceholder}
           />
         ))}
-      </div>
-
-      {/* Sticky bar — same construction as the gallery's: dark base, gradient hairline, count left, action right. */}
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-surface/95 backdrop-blur-xl">
-        <div className="spectrum-hairline w-full" />
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-4 text-center md:flex-row md:justify-between md:text-left">
-          <div>
-            <p className="text-sm text-foreground">{countLine}</p>
-            {error && (
-              <p role="alert" className="mt-1 text-xs font-medium text-[#ff9b6a]">
-                {error}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col items-center gap-3 md:flex-row md:gap-4">
-            {remaining > 0 && (
-              <span className="text-xs font-medium text-muted-foreground">
-                {fill(copy.downloadNote, { count: remaining })}
-              </span>
-            )}
-            <button
-              onClick={handleExport}
-              disabled={busy || namedCount === 0}
-              aria-busy={busy}
-              title={namedCount === 0 ? "Name at least one student first" : undefined}
-              className="spectrum-fill inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <FolderDown className="h-4 w-4" />
-              {busy ? "Preparing…" : copy.downloadPhotos}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Toast sits in a fixed, non-animated wrapper: motion writes `transform`
-          inline, which would clobber a Tailwind translate used for centring. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-28 z-50 flex justify-center px-4">
-        <AnimatePresence>
-          {toast && (
-            <motion.div
-              role="status"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ type: "spring", stiffness: 300, damping: 26 }}
-              className="spectrum-border glass pointer-events-auto flex items-center gap-3 rounded-2xl px-5 py-3 text-sm font-medium text-foreground shadow-2xl"
-            >
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-teal">
-                <Check className="h-3.5 w-3.5 text-[#14231d]" />
-              </span>
-              {toast}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );

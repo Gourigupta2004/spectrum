@@ -281,9 +281,7 @@ function Workspace() {
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 onClick={() => openItem(item)}
-                aria-label={
-                  isLocked(item) ? `${item.momentTitle}, locked` : item.momentTitle
-                }
+                aria-label={isLocked(item) ? `${item.momentTitle}, locked` : item.momentTitle}
                 className={`spectrum-border group flex h-full w-full flex-col overflow-hidden rounded-2xl bg-surface p-0 text-left align-top transition-transform ${
                   isLocked(item) ? "cursor-not-allowed" : "hover:-translate-y-1"
                 }`}
@@ -740,8 +738,9 @@ function CaptionEditorInner({
               >
                 <h3 className="font-display text-xl text-foreground">Review the title</h3>
                 <p className="mt-1 text-xs font-medium text-muted-foreground">
-                  Read it against the photo. Names, spellings, the moment itself — this wording is
-                  what gets {mode === "approve" ? "approved" : "saved"} and locked.
+                  Read it against the photo — names, spellings, the moment itself. Fix anything
+                  right here: this wording is what gets {mode === "approve" ? "approved" : "saved"}{" "}
+                  and locked.
                 </p>
                 <div className="relative mt-4 aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#14131a]">
                   {item.image && (
@@ -753,9 +752,18 @@ function CaptionEditorInner({
                     />
                   )}
                 </div>
-                <p className="glass-scrollbar mt-4 max-h-28 overflow-y-auto rounded-xl border border-border bg-background/40 px-4 py-3 text-base font-medium leading-relaxed text-foreground">
-                  {text.trim()}
-                </p>
+                {/* Editable in place: a typo spotted during review is fixed here,
+                    and "Looks right" confirms exactly what is in this box. */}
+                <textarea
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setReviewed(false); // changed wording needs this very review to confirm it
+                  }}
+                  rows={3}
+                  aria-label="Title, editable"
+                  className="glass-scrollbar mt-4 w-full resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-base font-medium leading-relaxed text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+                />
                 <div className="mt-5 flex gap-3">
                   <button
                     onClick={() => setReviewing(false)}
@@ -764,11 +772,12 @@ function CaptionEditorInner({
                     Keep editing
                   </button>
                   <button
+                    disabled={!hasText}
                     onClick={() => {
                       setReviewed(true);
                       setReviewing(false);
                     }}
-                    className="spectrum-fill flex-1 rounded-xl py-3 text-sm font-semibold"
+                    className="spectrum-fill flex-1 rounded-xl py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Looks right
                   </button>

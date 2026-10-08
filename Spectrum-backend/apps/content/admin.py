@@ -158,8 +158,7 @@ class PortalPageAdmin(SingletonAdmin):
         ("Caption guidelines popup", {"fields": ("guidelines_title", "guidelines_intro", "guidelines_points",
                                                  "guidelines_outro", "guidelines_prompt", "guidelines_link",
                                                  "guidelines_dismiss")}),
-        ("Students", {"fields": ("classes_subtitle", "roster_title", "student_placeholder", "download_photos",
-                                 "download_note", "download_toast")}),
+        ("Students", {"fields": ("classes_subtitle", "roster_title", "student_placeholder")}),
     )
 
 

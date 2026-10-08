@@ -33,7 +33,10 @@ class PortalAccessEmailInline(admin.TabularInline):
 
 
 @admin.register(Institution)
-class InstitutionAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
+class InstitutionAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
+    # One drop for a whole school's student photos: each file is filed into its
+    # class — created on first sight — from the class token in its file name.
+    bulk_upload_targets = ("portal.studentbatch",)
     inlines = (PortalAccessEmailInline,)
     list_display = ("thumbnail", "name", "short", "city", "kind", "event_count", "is_published", "sort_order")
     list_display_links = ("thumbnail", "name")

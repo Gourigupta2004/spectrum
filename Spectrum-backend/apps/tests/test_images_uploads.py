@@ -109,22 +109,81 @@ class BulkUploadTests(SpectrumTestCase):
         response = self.post("/admin/uploads/prepare/", {"target": "catalog.eventphoto", "parentId": self.event.pk})
         self.assertIn(response.status_code, (302, 403))
 
-    def upload_to_workspace(self, workspace, filename, requested="needs-caption"):
+    def upload_batch(self, target, parent_id, filenames, options=None):
+        files = [{"clientId": f"c{i}", "name": name, "size": 1000, "type": "image/jpeg"}
+                 for i, name in enumerate(filenames)]
         prepared = self.post("/admin/uploads/prepare/", {
-            "target": "portal.captionitem", "parentId": workspace.pk,
-            "files": [{"clientId": "c0", "name": filename, "size": 1000, "type": "image/jpeg"}],
+            "target": target, "parentId": parent_id, "files": files,
         }).json()
-        entry = prepared["files"][0]
-        self.client.post("/admin/uploads/direct/", {
-            "token": entry["token"],
-            "file": SimpleUploadedFile(filename, jpeg_bytes(), content_type="image/jpeg"),
-        })
+        entries = {e["clientId"]: e for e in prepared["files"]}
+        for i, name in enumerate(filenames):
+            self.client.post("/admin/uploads/direct/", {
+                "token": entries[f"c{i}"]["token"],
+                "file": SimpleUploadedFile(name, jpeg_bytes(), content_type="image/jpeg"),
+            })
         with self.captureOnCommitCallbacks(execute=True):
-            result = self.post(f"/admin/uploads/{prepared['batchId']}/commit/", {
-                "files": [{"token": entry["token"], "index": 0, "name": filename}],
-                "options": {"requested": requested},
+            return self.post(f"/admin/uploads/{prepared['batchId']}/commit/", {
+                "files": [{"token": entries[f"c{i}"]["token"], "index": i, "name": name}
+                          for i, name in enumerate(filenames)],
+                "options": options or {},
             }).json()
+
+    def upload_to_workspace(self, workspace, filename, requested="needs-caption"):
+        result = self.upload_batch("portal.captionitem", workspace.pk, [filename],
+                                   {"requested": requested})
         self.assertEqual(len(result["created"]), 1)
+
+    def test_institution_batch_files_students_into_classes_from_file_names(self):
+        from apps.portal.models import SchoolClass, Student
+
+        result = self.upload_batch("portal.studentbatch", self.institution.pk, [
+            "6C_amity_1.jpg", "6C_amity_2.jpg", "12AB_x_42.jpg", "2bb_front.jpg", "notes.jpg",
+        ])
+        self.assertEqual(len(result["created"]), 4)
+        self.assertEqual(len(result["skipped"]), 1)
+        self.assertIn("no class at the front of the file name", result["errors"]["c4"])
+
+        classes = {c.name: c for c in SchoolClass.objects.filter(institution=self.institution)}
+        self.assertEqual(set(classes), {"6C", "12AB", "2BB"})
+        self.assertEqual(classes["2BB"].group, "Primary")
+        self.assertEqual(classes["6C"].group, "Middle")
+        self.assertEqual(classes["12AB"].group, "Senior")
+        self.assertEqual(Student.objects.filter(school_class=classes["6C"]).count(), 2)
+        self.assertEqual(Student.objects.filter(school_class=classes["12AB"]).count(), 1)
+        # A second batch reuses the classes instead of duplicating them.
+        self.upload_batch("portal.studentbatch", self.institution.pk, ["6C_amity_3.jpg"])
+        self.assertEqual(SchoolClass.objects.filter(institution=self.institution).count(), 3)
+        self.assertEqual(Student.objects.filter(school_class=classes["6C"]).count(), 3)
+
+    def test_class_photos_download_zips_originals_named_after_students(self):
+        import zipfile
+        from io import BytesIO
+
+        from apps.portal.models import SchoolClass, Student
+
+        self.upload_batch("portal.studentbatch", self.institution.pk, ["6C_amity_1.jpg", "6C_amity_2.jpg"])
+        cls = SchoolClass.objects.get(institution=self.institution, name="6C")
+        students = list(Student.objects.filter(school_class=cls).order_by("pk"))
+        Student.objects.filter(pk=students[0].pk).update(name="Aarav Sharma")  # the other stays unnamed
+
+        response = self.client.post("/admin/portal/schoolclass/", {
+            "action": "download_photos", "_selected_action": [cls.pk],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/zip")
+        with zipfile.ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
+            names = archive.namelist()
+        folder = names[0].split("/")[0]
+        self.assertTrue(folder.endswith("-6C-Photos"), folder)
+        self.assertEqual(len(names), 1, "unnamed students are left out")
+        self.assertIn("Aarav Sharma.jpg", names[0])
+        students[0].refresh_from_db()
+        with zipfile.ZipFile(BytesIO(b"".join(self.client.post("/admin/portal/schoolclass/", {
+            "action": "download_photos", "_selected_action": [cls.pk],
+        }).streaming_content))) as archive:
+            data = archive.read(names[0])
+        with students[0].original.open("rb") as handle:
+            self.assertEqual(data, handle.read(), "the zip must carry the uploaded original, byte for byte")
 
     def test_reupload_same_filename_replaces_photo_and_keeps_title(self):
         from apps.portal.models import CaptionItem, CaptionWorkspace
@@ -151,6 +210,32 @@ class BulkUploadTests(SpectrumTestCase):
         self.upload_to_workspace(workspace, "6B KRM 2697 M.jpg")
         self.assertEqual(CaptionItem.objects.filter(workspace=workspace).count(), 2)
 
+    def test_export_titles_as_excel(self):
+        import zipfile
+        from io import BytesIO
+
+        from apps.portal.models import CaptionItem, CaptionWorkspace
+
+        workspace = CaptionWorkspace.objects.create(institution=self.institution)
+        self.upload_to_workspace(workspace, "6A KRM 2683 M.jpg")
+        item = CaptionItem.objects.get(workspace=workspace)
+        CaptionItem.objects.filter(pk=item.pk).update(caption="Class 6A with Mrs. Mehta", status="approved",
+                                                      action_by="R. Menon", action_by_phone="9876543210")
+
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        self.assertIn("Export titles (Excel)", html)
+        response = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/export-titles/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("spreadsheetml.sheet", response["Content-Type"])
+        self.assertIn(".xlsx", response["Content-Disposition"])
+        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+            sheet = archive.read("xl/worksheets/sheet1.xml").decode()
+        item.refresh_from_db()
+        self.assertIn("6A KRM 2683 M.jpg", sheet)
+        self.assertIn("Class 6A with Mrs. Mehta", sheet)
+        self.assertIn(item.web.name, sheet, "the photo's S3 link must sit beside its title")
+        self.assertIn("R. Menon", sheet)
+
     def test_delete_all_photos_clears_the_workspace(self):
         from apps.portal.models import CaptionItem, CaptionWorkspace
 
@@ -159,6 +244,7 @@ class BulkUploadTests(SpectrumTestCase):
         self.upload_to_workspace(workspace, "6B KRM 2697 M.jpg")
         html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
         self.assertIn('id="bulk-delete-all"', html)
+        self.assertIn("Tick every row for deletion", html)  # the Delete? header's select-all
         self.assertNotIn("<form", html.split('id="bulk-delete-all"')[1][:400],
                          "the delete button must not render a nested form — browsers drop it")
         url = f"/admin/portal/captionworkspace/{workspace.pk}/delete-photos/"

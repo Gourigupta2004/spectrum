@@ -48,17 +48,55 @@
       <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url %}</div>
     </fieldset>
   {% endfor %}
-  {% if bulk_delete_all_url %}
-    {# Clears the whole workspace in one go, so an edited batch can be uploaded
-       fresh. This block sits inside the admin's own <form>, where a nested
-       <form> would be dropped by the browser — so the POST is sent from a
-       detached form built on click instead. #}
-    <div class="bulk-delete-all" style="margin:12px 0">
-      <button type="button" class="button" id="bulk-delete-all" style="background:#ba2121;color:#fff"
-              data-url="{{ bulk_delete_all_url }}" data-count="{{ bulk_delete_all_count }}">
-        Delete all photos ({{ bulk_delete_all_count }})
-      </button>
+  <script>
+    /* A master checkbox beside each inline's "Delete?" header: ticking it
+       marks every row for deletion (Save then deletes them); it follows the
+       rows, going indeterminate when only some are ticked. */
+    (function () {
+      document.querySelectorAll(".inline-group table").forEach(function (table) {
+        if (!table.querySelector('input[name$="-DELETE"]')) return;
+        var header = Array.prototype.find.call(table.querySelectorAll("thead th"), function (th) {
+          return th.textContent.indexOf("Delete") !== -1;
+        });
+        if (!header || header.querySelector("input")) return;
+        var all = document.createElement("input");
+        all.type = "checkbox";
+        all.title = "Tick every row for deletion — pressing Save then deletes them all";
+        all.style.marginLeft = "6px";
+        all.style.verticalAlign = "middle";
+        all.addEventListener("change", function () {
+          table.querySelectorAll('input[name$="-DELETE"]').forEach(function (box) {
+            box.checked = all.checked;
+          });
+        });
+        table.addEventListener("change", function (event) {
+          if (!event.target.name || event.target.name.slice(-7) !== "-DELETE") return;
+          var boxes = table.querySelectorAll('input[name$="-DELETE"]');
+          var ticked = table.querySelectorAll('input[name$="-DELETE"]:checked');
+          all.checked = boxes.length === ticked.length;
+          all.indeterminate = ticked.length > 0 && ticked.length < boxes.length;
+        });
+        header.appendChild(all);
+      });
+    })();
+  </script>
+  {% if bulk_export_url or bulk_delete_all_url %}
+    {# Workspace tools. This block sits inside the admin's own <form>, where a
+       nested <form> would be dropped by the browser — so the delete POST is
+       sent from a detached form built on click; the export is a plain link. #}
+    <div class="bulk-tools" style="margin:12px 0;display:flex;gap:10px;flex-wrap:wrap">
+      {% if bulk_export_url %}
+        <a href="{{ bulk_export_url }}" class="button">Export titles (Excel)</a>
+      {% endif %}
+      {% if bulk_delete_all_url %}
+        <button type="button" class="button" id="bulk-delete-all" style="background:#ba2121;color:#fff"
+                data-url="{{ bulk_delete_all_url }}" data-count="{{ bulk_delete_all_count }}">
+          Delete all photos ({{ bulk_delete_all_count }})
+        </button>
+      {% endif %}
     </div>
+  {% endif %}
+  {% if bulk_delete_all_url %}
     <script>
       document.getElementById("bulk-delete-all").addEventListener("click", function () {
         var count = this.dataset.count;
