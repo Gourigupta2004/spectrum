@@ -49,13 +49,31 @@
     </fieldset>
   {% endfor %}
   {% if bulk_delete_all_url %}
-    {# Clears the whole workspace in one go, so an edited batch can be uploaded fresh. #}
-    <form method="post" action="{{ bulk_delete_all_url }}" class="bulk-delete-all" style="margin:12px 0"
-          onsubmit="return confirm('Delete all {{ bulk_delete_all_count }} photo(s) in this workspace? Their titles and statuses are deleted with them. This cannot be undone.');">
-      {% csrf_token %}
-      <button type="submit" class="button" style="background:#ba2121;color:#fff">
+    {# Clears the whole workspace in one go, so an edited batch can be uploaded
+       fresh. This block sits inside the admin's own <form>, where a nested
+       <form> would be dropped by the browser — so the POST is sent from a
+       detached form built on click instead. #}
+    <div class="bulk-delete-all" style="margin:12px 0">
+      <button type="button" class="button" id="bulk-delete-all" style="background:#ba2121;color:#fff"
+              data-url="{{ bulk_delete_all_url }}" data-count="{{ bulk_delete_all_count }}">
         Delete all photos ({{ bulk_delete_all_count }})
       </button>
-    </form>
+    </div>
+    <script>
+      document.getElementById("bulk-delete-all").addEventListener("click", function () {
+        var count = this.dataset.count;
+        if (!confirm("Delete all " + count + " photo(s) in this workspace? Their titles and statuses are deleted with them. This cannot be undone.")) return;
+        var form = document.createElement("form");
+        form.method = "post";
+        form.action = this.dataset.url;
+        var token = document.createElement("input");
+        token.type = "hidden";
+        token.name = "csrfmiddlewaretoken";
+        token.value = document.querySelector("input[name=csrfmiddlewaretoken]").value;
+        form.appendChild(token);
+        document.body.appendChild(form);
+        form.submit();
+      });
+    </script>
   {% endif %}
 {% endblock %}

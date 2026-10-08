@@ -155,6 +155,10 @@ class BulkUploadTests(SpectrumTestCase):
         workspace = CaptionWorkspace.objects.create(institution=self.institution)
         self.upload_to_workspace(workspace, "6A KRM 2683 M.jpg")
         self.upload_to_workspace(workspace, "6B KRM 2697 M.jpg")
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        self.assertIn('id="bulk-delete-all"', html)
+        self.assertNotIn("<form", html.split('id="bulk-delete-all"')[1][:400],
+                         "the delete button must not render a nested form — browsers drop it")
         url = f"/admin/portal/captionworkspace/{workspace.pk}/delete-photos/"
         self.assertEqual(self.client.get(url).status_code, 405)  # POST only
         with self.captureOnCommitCallbacks(execute=True):
