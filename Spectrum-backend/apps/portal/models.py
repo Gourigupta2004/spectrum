@@ -7,9 +7,21 @@ from django.utils import timezone
 from apps.core.models import ProcessedImage
 
 
-def natural_key(value: str) -> list:
-    """Sort key for file-name-like titles: alphabetical with numbers in numeric order ("IMG_2" < "IMG_10")."""
-    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value or "")]
+def natural_key(value: str) -> tuple:
+    """
+    Sort key for file-name-like titles: numeric first, then alphabetical. The
+    first number in the name is the primary key, whatever text surrounds it
+    ("2.jpg" < "DSC_10" < "IMG_11"); names sharing that number — and names with
+    no number at all, which sort after every numbered one — fall back to a
+    natural alphabetical order ("IMG_2" < "IMG_10").
+    """
+    value = (value or "").lower()
+    match = re.search(r"\d+", value)
+    return (
+        0 if match else 1,
+        int(match.group()) if match else 0,
+        [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", value)],
+    )
 
 
 class Member(models.Model):

@@ -59,13 +59,26 @@ export const pluralImages = (n: number): string => `${n} ${n === 1 ? "image" : "
 
 /**
  * Workspace display order: by the photo's name (taken from its file name at
- * upload), alphabetically and numerically — "IMG_2" sorts before "IMG_10".
- * The backend lists items in the same order, so the admin table and the
- * website always agree.
+ * upload), numerically first and alphabetically second. The first number in
+ * the name is the primary key, whatever text surrounds it ("2.jpg" < "DSC_10"
+ * < "IMG_11"); names sharing that number — and names with no number at all,
+ * which sort after every numbered one — fall back to a natural alphabetical
+ * order ("IMG_2" < "IMG_10"). The backend lists items the same way, so the
+ * admin table and the website always agree.
  */
-export const byMomentTitle = (a: CaptionItem, b: CaptionItem): number =>
-  a.momentTitle.localeCompare(b.momentTitle, undefined, { numeric: true, sensitivity: "base" }) ||
-  a.id.localeCompare(b.id, undefined, { numeric: true });
+const firstNumber = (s: string): number => {
+  const match = /\d+/.exec(s);
+  return match ? parseInt(match[0], 10) : Infinity;
+};
+export const byMomentTitle = (a: CaptionItem, b: CaptionItem): number => {
+  const na = firstNumber(a.momentTitle);
+  const nb = firstNumber(b.momentTitle);
+  if (na !== nb) return na < nb ? -1 : 1;
+  return (
+    a.momentTitle.localeCompare(b.momentTitle, undefined, { numeric: true, sensitivity: "base" }) ||
+    a.id.localeCompare(b.id, undefined, { numeric: true })
+  );
+};
 
 /** Demo institution for this build — Delhi Public School, New Delhi. */
 export const portalInstitution = {
