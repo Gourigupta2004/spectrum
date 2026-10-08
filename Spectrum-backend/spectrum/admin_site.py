@@ -5,10 +5,12 @@ GROUPS = [
         "content.sitesettings", "content.homepage", "content.aboutpage", "content.contactpage",
         "content.eventspage", "content.gallerypage", "content.portalpage",
     ]),
-    ("Events & galleries", ["catalog.institution", "catalog.event", "catalog.eventphoto"]),
+    ("Events & galleries", ["catalog.event", "catalog.eventphoto"]),
+    # Institutions live in the catalog app (their table is unchanged); they are
+    # only listed here, beside the portal they sign in to.
     ("Institution portal", [
-        "portal.captionworkspace", "portal.captionitem", "portal.schoolclass", "portal.student",
-        "portal.portalaccessemail", "portal.member",
+        "catalog.institution", "portal.captionworkspace", "portal.captionitem", "portal.schoolclass",
+        "portal.student", "portal.portalaccessemail", "portal.member",
     ]),
     ("Inbox", ["content.enquiry", "orders.order", "orders.delivery"]),
     ("System", ["core.task", "auth.user"]),

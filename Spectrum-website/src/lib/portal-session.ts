@@ -28,8 +28,6 @@ type Session = { access: string; refresh: string; member: PortalMember };
 
 const KEY = "spectrum.portal";
 const ACCESS_KEY = "spectrum.portal.access";
-/** Per tab, not per browser: the guidelines greet a teacher once each session. */
-const GUIDELINES_KEY = "spectrum.portal.guidelines";
 
 function readJson<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -52,22 +50,6 @@ function writeJson(key: string, value: unknown) {
 
 export const authStore = createStore<Session | null>(readJson<Session>(KEY));
 export const accessStore = createStore<PortalAccess | null>(readJson<PortalAccess>(ACCESS_KEY));
-
-export function guidelinesSeenThisSession(): boolean {
-  try {
-    return window.sessionStorage.getItem(GUIDELINES_KEY) === "1";
-  } catch {
-    return true; // storage unavailable: better silent than shown on every visit
-  }
-}
-
-export function markGuidelinesSeen() {
-  try {
-    window.sessionStorage.setItem(GUIDELINES_KEY, "1");
-  } catch {
-    /* storage unavailable: the popup simply greets them again next time */
-  }
-}
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

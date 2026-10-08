@@ -29,11 +29,7 @@ import {
   useResolveCaption,
   type NewCaption,
 } from "@/lib/portal-data";
-import {
-  guidelinesSeenThisSession,
-  markGuidelinesSeen,
-  usePortalMember,
-} from "@/lib/portal-session";
+import { usePortalMember } from "@/lib/portal-session";
 import { usePortalCopy } from "@/lib/use-portal-copy";
 
 export const Route = createFileRoute("/portal/workspace/events")({
@@ -144,14 +140,11 @@ function Workspace() {
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  // The guidelines open themselves the first time this workspace is visited in
-  // a session, and afterwards only from the link in the caption editor.
+  // The guidelines greet every visit to this workspace, and can be reopened
+  // from the link in the caption editor. Opened after mount, not in the
+  // initial state, so the server render never paints the modal.
   const [guidelines, setGuidelines] = useState(false);
-  useEffect(() => {
-    if (guidelinesSeenThisSession()) return;
-    markGuidelinesSeen();
-    setGuidelines(true);
-  }, []);
+  useEffect(() => setGuidelines(true), []);
   // Card that was tapped while locked; shows the warning for a moment.
   const [lockedId, setLockedId] = useState<string | null>(null);
   const lockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

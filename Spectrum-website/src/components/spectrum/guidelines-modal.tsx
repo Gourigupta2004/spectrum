@@ -78,28 +78,28 @@ export function GuidelinesModal({
                 {copy.guidelinesTitle}
               </h2>
               {copy.guidelinesIntro && (
-                <p className="mt-4 max-w-3xl text-base font-medium leading-relaxed text-muted-foreground">
+                <p className="mt-4 text-base font-medium leading-relaxed text-muted-foreground">
                   {copy.guidelinesIntro}
                 </p>
               )}
 
               {points.length > 0 && (
-                <ol className="mt-8 max-w-3xl space-y-4">
+                <ul className="mt-8 space-y-4">
                   {points.map((point, i) => (
                     <li key={i} className="flex gap-4">
-                      <span className="spectrum-border glass grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-sm font-semibold text-foreground">
-                        {i + 1}
-                      </span>
-                      <span className="pt-1 text-base leading-relaxed text-foreground">
-                        {point}
-                      </span>
+                      {/* Centred on the first line (leading-relaxed: 1.625rem). */}
+                      <span
+                        aria-hidden
+                        className="spectrum-fill mt-[0.5625rem] h-2 w-2 shrink-0 rounded-full"
+                      />
+                      <span className="text-base leading-relaxed text-foreground">{point}</span>
                     </li>
                   ))}
-                </ol>
+                </ul>
               )}
 
               {copy.guidelinesOutro && (
-                <p className="mt-8 max-w-3xl border-l-2 border-teal pl-4 text-sm font-medium leading-relaxed text-muted-foreground">
+                <p className="mt-8 border-l-2 border-teal pl-4 text-2xl font-medium leading-snug text-muted-foreground">
                   {copy.guidelinesOutro}
                 </p>
               )}
