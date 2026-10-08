@@ -47,6 +47,12 @@ def relabel_untouched_copy(apps, schema_editor):
     PortalPage = apps.get_model("content", "PortalPage")
     for field, (old, new) in RELABELS.items():
         PortalPage.objects.filter(**{field: old}).update(**{field: new})
+    # .update() skips the post_save signal that versions the public API cache,
+    # and that cache is file-based with a day-long TTL — without a bump the old
+    # wording would keep being served long after this migration ran.
+    from apps.core.cache import bump
+
+    bump()
 
 
 class Migration(migrations.Migration):
