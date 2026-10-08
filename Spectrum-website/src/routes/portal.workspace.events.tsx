@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
+  Eye,
   ImagePlus,
   LayoutGrid,
   Lock,
@@ -55,13 +56,14 @@ export const Route = createFileRoute("/portal/workspace/events")({
 
 /**
  * Teachers only need two buckets. Everything that still needs a hand from the
- * institution — captions to write, approvals, corrections — is
- * "pending"; once approved an item is locked and lives under "approved".
- * The fine-grained status stays on the card's pill, which the backend will own.
+ * institution — titles to write, approvals, corrections — is "pending"; once
+ * a teacher has saved or approved, the item is locked (one action per photo,
+ * later changes come from the Spectrum team) and lives under "approved".
+ * The fine-grained status stays on the card's pill, which the backend owns.
  */
 type Filter = "all" | "pending" | "approved";
 
-const isApproved = (i: CaptionItem) => i.status === "approved";
+const isLocked = (i: CaptionItem) => i.status === "approved" || i.status === "corrected";
 
 type FilterDef = {
   key: Filter;
@@ -158,10 +160,10 @@ function Workspace() {
     () =>
       filter === "all"
         ? items
-        : items.filter((i) => (filter === "approved" ? isApproved(i) : !isApproved(i))),
+        : items.filter((i) => (filter === "approved" ? isLocked(i) : !isLocked(i))),
     [items, filter],
   );
-  const pendingCount = items.filter((i) => !isApproved(i)).length;
+  const pendingCount = items.filter((i) => !isLocked(i)).length;
   const approvedCount = items.length - pendingCount;
   const counts: Record<Filter, number> = {
     all: items.length,
@@ -178,7 +180,7 @@ function Workspace() {
   useEffect(() => () => void (lockTimer.current && clearTimeout(lockTimer.current)), []);
 
   const openItem = (item: CaptionItem) => {
-    if (!isApproved(item)) {
+    if (!isLocked(item)) {
       setOpenId(item.id);
       return;
     }
@@ -280,10 +282,10 @@ function Workspace() {
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 onClick={() => openItem(item)}
                 aria-label={
-                  isApproved(item) ? `${item.momentTitle}, approved and locked` : item.momentTitle
+                  isLocked(item) ? `${item.momentTitle}, locked` : item.momentTitle
                 }
                 className={`spectrum-border group flex h-full w-full flex-col overflow-hidden rounded-2xl bg-surface p-0 text-left align-top transition-transform ${
-                  isApproved(item) ? "cursor-not-allowed" : "hover:-translate-y-1"
+                  isLocked(item) ? "cursor-not-allowed" : "hover:-translate-y-1"
                 }`}
               >
                 {/*
@@ -309,7 +311,7 @@ function Workspace() {
                         loading="lazy"
                         draggable={false}
                         className={`absolute inset-0 h-full w-full object-contain transition-transform duration-700 ${
-                          isApproved(item) ? "" : "group-hover:scale-[1.03]"
+                          isLocked(item) ? "" : "group-hover:scale-[1.03]"
                         }`}
                       />
                     </>
@@ -481,10 +483,12 @@ function CaptionEditorInner({
   /*
    * One action per status, driven by the live status:
    *   caption — nothing written yet; the institution writes the title
-   *   approve — sign off on the wording as-is; no correction is offered
+   *   approve — the final chance: the wording is still editable here, and
+   *             approving locks whatever is in the box
    *   correct — rewrite the title in place: the box opens on the current
    *             wording and what is saved replaces it
-   *             (also how a corrected item is revised)
+   * Saving or approving locks the item for every teacher; from then on only
+   * the Spectrum team can change it.
    */
   const mode =
     item.status === "needs-caption"
@@ -492,23 +496,29 @@ function CaptionEditorInner({
       : item.status === "needs-approval"
         ? "approve"
         : "correct";
-  const [text, setText] = useState(mode === "correct" ? item.caption : "");
+  const [text, setText] = useState(mode === "caption" ? "" : item.caption);
   const [by, setBy] = useState(item.actionBy ?? "");
   const [phone, setPhone] = useState(item.actionByPhone ?? "");
+  // The review gate: the title must be checked against the photo, in the
+  // review window, before the save/approve button unlocks. Editing the text
+  // afterwards reopens the gate, so what was reviewed is what is saved.
+  const [reviewed, setReviewed] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const hasText = text.trim().length > 0;
   // Both the name and a usable mobile number are required before acting.
   const phoneOk = phone.replace(/\D/g, "").length >= 7;
   const canAct = by.trim().length > 1 && phoneOk;
 
-  const fieldLabel = mode === "caption" ? "Title" : "Correction";
+  const fieldLabel = mode === "correct" ? "Correction" : "Title";
   const byLabel =
     mode === "caption" ? "Title written by" : mode === "approve" ? "Approved by" : "Corrected by";
   const primaryLabel =
     mode === "caption" ? "Save Title" : mode === "approve" ? "Approve Title" : "Save Correction";
-  const primaryDisabled = !canAct || (mode !== "approve" && !hasText);
+  const primaryDisabled = !canAct || !hasText || !reviewed;
   const submit = () => {
-    if (mode === "approve") onResolve(item.id, "approved", {}, by.trim(), phone.trim());
+    if (mode === "approve")
+      onResolve(item.id, "approved", { caption: text.trim() }, by.trim(), phone.trim());
     else onResolve(item.id, "corrected", { caption: text.trim() }, by.trim(), phone.trim());
     onClose();
   };
@@ -602,40 +612,40 @@ function CaptionEditorInner({
             </h2>
           </div>
 
-          {mode !== "approve" && (
-            /* Takes every spare pixel of the column so there is room to write. */
-            <div className="flex min-h-0 flex-1 flex-col">
-              <label
-                htmlFor="caption-text"
-                className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground"
-              >
-                {fieldLabel}
-              </label>
-              <textarea
-                id="caption-text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={
-                  mode === "caption"
-                    ? "Write the title for this photo."
+          {/* Takes every spare pixel of the column so there is room to write.
+              In approve mode the box stays editable: this is the one remaining
+              moment the wording can change, and the disclaimer says so. */}
+          <div className="flex min-h-0 flex-1 flex-col">
+            <label
+              htmlFor="caption-text"
+              className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              {fieldLabel}
+            </label>
+            {mode === "approve" && (
+              <p className="mt-2 rounded-xl border border-[#e8503a]/50 bg-[#e8503a]/10 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-[#ff9b6a]">
+                A final look before it's locked: you can still refine the title below. Once you
+                approve, it can't be changed from here — only the Spectrum team can edit it after
+                this point.
+              </p>
+            )}
+            <textarea
+              id="caption-text"
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setReviewed(false); // the changed wording hasn't been reviewed
+              }}
+              placeholder={
+                mode === "caption"
+                  ? "Write the title for this photo."
+                  : mode === "approve"
+                    ? "The title you are approving."
                     : "Write the corrected title; it replaces the current one."
-                }
-                className="mt-2 min-h-[12rem] w-full flex-1 resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-base font-medium leading-relaxed text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
-              />
-            </div>
-          )}
-
-          {mode === "approve" && (
-            /* Shown, not editable: they are signing off on this exact wording. */
-            <div className="flex min-h-0 flex-1 flex-col">
-              <span className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground">
-                Title
-              </span>
-              <div className="glass-scrollbar mt-2 min-h-[12rem] flex-1 overflow-y-auto rounded-xl border border-border bg-background/40 px-4 py-3 text-base font-medium leading-relaxed text-foreground">
-                {item.caption}
-              </div>
-            </div>
-          )}
+              }
+              className="mt-2 min-h-[10rem] w-full flex-1 resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-base font-medium leading-relaxed text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+            />
+          </div>
 
           {/* Who acted, and how to reach them: name and mobile number together. */}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -674,24 +684,99 @@ function CaptionEditorInner({
           </div>
 
           <div>
-            <button
-              disabled={primaryDisabled}
-              onClick={submit}
-              className={`w-full rounded-xl py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
-                mode === "correct"
-                  ? "border border-teal text-teal transition-colors hover:bg-teal hover:text-[#10281f]"
-                  : "spectrum-fill"
-              }`}
-            >
-              {primaryLabel}
-            </button>
-            {mode === "approve" && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Approving locks this title. It can't be edited afterwards.
-              </p>
-            )}
+            {/* Review first, then act: the primary button stays locked until
+                the title has been checked against the photo in the review
+                window, and unchecks itself if the wording changes again. */}
+            <div className="flex gap-3">
+              <button
+                disabled={!hasText}
+                onClick={() => setReviewing(true)}
+                className="flex-1 rounded-xl border border-violet py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Eye className="h-4 w-4" /> Review
+                </span>
+              </button>
+              <button
+                disabled={primaryDisabled}
+                onClick={submit}
+                className={`flex-1 rounded-xl py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
+                  mode === "correct"
+                    ? "border border-teal text-teal transition-colors hover:bg-teal hover:text-[#10281f]"
+                    : "spectrum-fill"
+                }`}
+              >
+                {primaryLabel}
+              </button>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {!reviewed
+                ? `Tap Review to check the title against the photo — ${primaryLabel.toLowerCase()} unlocks after that.`
+                : mode === "approve"
+                  ? "Approving locks this title for every teacher; the Spectrum team makes any later change."
+                  : "Saving locks this title for every teacher; the Spectrum team makes any later change."}
+            </p>
           </div>
         </div>
+
+        {/* The review window: the photo and the exact wording side by side,
+            one last read before the save/approve button unlocks. */}
+        <AnimatePresence>
+          {reviewing && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setReviewing(false)}
+              className="fixed inset-0 z-[90] grid place-items-center bg-black/75 p-4 backdrop-blur-md"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.96, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 280, damping: 26 }}
+                onClick={(e) => e.stopPropagation()}
+                className="spectrum-border glass w-full max-w-xl rounded-3xl bg-surface p-6"
+              >
+                <h3 className="font-display text-xl text-foreground">Review the title</h3>
+                <p className="mt-1 text-xs font-medium text-muted-foreground">
+                  Read it against the photo. Names, spellings, the moment itself — this wording is
+                  what gets {mode === "approve" ? "approved" : "saved"} and locked.
+                </p>
+                <div className="relative mt-4 aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#14131a]">
+                  {item.image && (
+                    <img
+                      src={item.image}
+                      alt={item.momentTitle}
+                      draggable={false}
+                      className="absolute inset-0 h-full w-full object-contain"
+                    />
+                  )}
+                </div>
+                <p className="glass-scrollbar mt-4 max-h-28 overflow-y-auto rounded-xl border border-border bg-background/40 px-4 py-3 text-base font-medium leading-relaxed text-foreground">
+                  {text.trim()}
+                </p>
+                <div className="mt-5 flex gap-3">
+                  <button
+                    onClick={() => setReviewing(false)}
+                    className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Keep editing
+                  </button>
+                  <button
+                    onClick={() => {
+                      setReviewed(true);
+                      setReviewing(false);
+                    }}
+                    className="spectrum-fill flex-1 rounded-xl py-3 text-sm font-semibold"
+                  >
+                    Looks right
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

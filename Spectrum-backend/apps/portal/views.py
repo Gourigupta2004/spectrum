@@ -233,8 +233,11 @@ def caption_resolve(request, item_id):
         item = scoped_captions(member, request).select_for_update(of=("self",)).filter(pk=item_id).first()
         if item is None:
             raise ApiError("Not found", status=404)
-        if item.status == CaptionStatus.APPROVED:
-            raise ApiError("This title is approved and can no longer be edited.", status=409)
+        # Saving or approving locks the item: one teacher acts on each photo
+        # and any later change is made by the Spectrum team in the admin
+        # (re-tagging it there sends it back to the institution).
+        if item.status in (CaptionStatus.APPROVED, CaptionStatus.CORRECTED):
+            raise ApiError("This title is locked and can no longer be edited.", status=409)
         fields = ["status", "action_by", "action_by_phone", "updated_at"]
         if item.status == CaptionStatus.NEEDS_CAPTION:
             if not body:
@@ -245,8 +248,13 @@ def caption_resolve(request, item_id):
         elif item.status == CaptionStatus.NEEDS_APPROVAL:
             if wanted != CaptionStatus.APPROVED:
                 raise ApiError("This title is waiting for approval.")
+            # The approval screen is the last chance to adjust the wording, so
+            # an approval may carry the final text with it.
+            if body:
+                item.caption = body
+                fields.append("caption")
             item.status = CaptionStatus.APPROVED
-        else:  # needs-correction or corrected: the corrected title replaces the old one
+        else:  # needs-correction: the corrected title replaces the old one
             if not body:
                 raise ApiError("Write the corrected title first.", field="text")
             item.caption = body

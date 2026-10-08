@@ -169,7 +169,7 @@ export const portalCopy = {
   captionsEmptyPending: "Nothing pending — all caught up.",
   captionsEmptyApproved: "No approved images yet.",
   lockedTitle: "Locked",
-  lockedBody: "This title is approved and can no longer be edited.",
+  lockedBody: "This title has been submitted and locked. Only the Spectrum team can change it now.",
   classesSubtitle: "{count} classes · tap a class to name its students.",
   rosterTitle: "{class} — Name the Students",
   studentPlaceholder: "Add student's name…",

@@ -459,7 +459,7 @@ class PortalPage(SingletonModel):
     captions_empty_pending = line("Nothing pending — all caught up.")
     captions_empty_approved = line("No approved images yet.")
     locked_title = line("Locked", 40)
-    locked_body = line("This title is approved and can no longer be edited.")
+    locked_body = line("This title has been submitted and locked. Only the Spectrum team can change it now.")
 
     classes_subtitle = line("{count} classes · tap a class to name its students.")
     roster_title = line("{class} — Name the Students")

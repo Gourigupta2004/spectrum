@@ -57,10 +57,14 @@ class PortalTests(SpectrumTestCase):
         self.assertEqual(self.api("post", url, {"text": "Hello"}).status_code, 400)  # name required
         data = self.api("post", url, {"text": "Lamp lighting", "actionBy": "R. Menon", "actionByPhone": "98765 43210"}).json()
         self.assertEqual((data["status"], data["caption"]), ("corrected", "Lamp lighting"))
+        # Saving locks the item: no teacher can act on it again.
+        self.assertEqual(self.api("post", url, {"text": "Again", "actionBy": "S. Rao", "actionByPhone": "9876500000"}).status_code, 409)
 
         approval = self.caption(self.event, "needs-approval")
         url = f"/api/portal/captions/{approval.pk}/resolve/"
-        self.assertEqual(self.api("post", url, {"status": "approved", "actionBy": "A. Kapoor", "actionByPhone": "9876543210"}).json()["status"], "approved")
+        # The approval screen is the last chance to adjust the wording.
+        data = self.api("post", url, {"status": "approved", "text": "Final wording", "actionBy": "A. Kapoor", "actionByPhone": "9876543210"}).json()
+        self.assertEqual((data["status"], data["caption"]), ("approved", "Final wording"))
         self.assertEqual(self.api("post", url, {"status": "approved", "actionBy": "A. Kapoor", "actionByPhone": "9876543210"}).status_code, 409)
 
     def test_institution_cannot_add_photos(self):
