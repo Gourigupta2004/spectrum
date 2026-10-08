@@ -136,12 +136,14 @@ class BulkUploadTests(SpectrumTestCase):
 
         # The teacher titles it; the edited photo then comes back under the same name.
         CaptionItem.objects.filter(pk=item.pk).update(caption="Class 6A with Mrs. Mehta", status="corrected")
-        before = item.original.name
+        before_original, before_web = item.original.name, item.web.name
         self.upload_to_workspace(workspace, "6A KRM 2683 M.jpg")
 
         items = list(CaptionItem.objects.filter(workspace=workspace))
         self.assertEqual(len(items), 1, "same file name must land in the same row")
-        self.assertNotEqual(items[0].original.name, before, "the photo itself must be replaced")
+        self.assertNotEqual(items[0].original.name, before_original, "the photo itself must be replaced")
+        self.assertEqual(items[0].image_status, ImageStatus.READY, "the new photo must be processed")
+        self.assertNotEqual(items[0].web.name, before_web, "the public web copy must be regenerated")
         self.assertEqual(items[0].caption, "Class 6A with Mrs. Mehta")
         self.assertEqual(items[0].status, "corrected")
 
