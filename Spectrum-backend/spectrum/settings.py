@@ -125,6 +125,14 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "var" / "static"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR / "media")))
 TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+# Hashed static file names (bulk-uploader.<hash>.js), so nginx's month-long
+# /static/ cache can never serve a stale admin script after a deploy. Tests
+# render admin pages without running collectstatic, so they keep plain names;
+# with DEBUG on, Django bypasses the manifest by itself.
+STATICFILES_BACKEND = (
+    "django.contrib.staticfiles.storage.StaticFilesStorage" if TESTING
+    else "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+)
 if TESTING:
     import tempfile
 
@@ -159,7 +167,7 @@ if USE_S3:
             "OPTIONS": {**_s3, "location": "private", "default_acl": "private", "querystring_auth": True,
                         "querystring_expire": PRIVATE_URL_EXPIRE, "max_memory_size": 2 * 1024 * 1024},
         },
-        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
     }
 else:
     STORAGES = {
@@ -171,7 +179,7 @@ else:
             "BACKEND": "django.core.files.storage.FileSystemStorage",
             "OPTIONS": {"location": str(MEDIA_ROOT / "private"), "base_url": None},
         },
-        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
     }
 # Serve local public media from Django (dev, or a server without S3 behind nginx).
 SERVE_LOCAL_MEDIA = not USE_S3
