@@ -109,6 +109,7 @@ class EventPhoto(ProcessedImage):
         ordering = ["sort_order", "pk"]
         indexes = [models.Index(fields=["event", "image_status", "sort_order"])]
         verbose_name = "event photo"
+        verbose_name_plural = "all photos"
 
     def __str__(self):
         return self.title or f"Photo {self.pk}"

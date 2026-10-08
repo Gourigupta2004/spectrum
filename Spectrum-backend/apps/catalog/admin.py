@@ -34,9 +34,9 @@ class PortalAccessEmailInline(admin.TabularInline):
 
 @admin.register(Institution)
 class InstitutionAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
-    # One drop for a whole school's student photos: each file is filed into its
-    # class — created on first sight — from the class token in its file name.
-    bulk_upload_targets = ("portal.studentbatch",)
+    # No uploader here: student photos are dropped on the institution's title
+    # workspace ("Individual Photographs Upload"). The mixin stays for its page
+    # template, which gives the access-email rows a tick-all-for-deletion box.
     inlines = (PortalAccessEmailInline,)
     list_display = ("thumbnail", "name", "short", "city", "kind", "event_count", "is_published", "sort_order")
     list_display_links = ("thumbnail", "name")
@@ -90,6 +90,9 @@ class EventAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.Mod
         ("Cover & pricing", {"fields": ("original", "price_per_photo", "price_per_video", "bundle_price")}),
         ("Listing", {"fields": ("is_recent", "is_popular", "is_published", "sort_order")}),
     )
+
+    def changelist_view(self, request, extra_context=None):
+        return super().changelist_view(request, {"title": "Select event to edit", **(extra_context or {})})
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(

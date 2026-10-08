@@ -144,7 +144,8 @@ class CaptionItem(ProcessedImage):
     class Meta:
         ordering = ["sort_order", "pk"]
         indexes = [models.Index(fields=["institution", "image_status", "sort_order"])]
-        verbose_name = "title item"
+        verbose_name = "class photograph item"
+        verbose_name_plural = "class photograph items"
 
     def __str__(self):
         return self.moment_title or f"Title item {self.pk}"

@@ -45,7 +45,26 @@
         <ul class="bulk-errors"></ul>
         <button type="button" class="bulk-retry button" hidden>Retry failed</button>
       </div>
-      <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url %}</div>
+      <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url selectable=upload.grid.selectable delete_url=upload.grid.delete_url %}</div>
+      {% if upload.target == bulk_tools_target %}{% if bulk_export_url or bulk_delete_all_url %}
+        {% comment %}
+          Workspace tools, inside the section they act on. This block sits in
+          the admin's own <form>, where a nested <form> would be dropped by the
+          browser — so the delete POST is sent from a detached form built on
+          click; the export is a plain link.
+        {% endcomment %}
+        <div class="bulk-tools" style="margin:12px;display:flex;gap:10px;flex-wrap:wrap">
+          {% if bulk_export_url %}
+            <a href="{{ bulk_export_url }}" class="button">Export titles (Excel)</a>
+          {% endif %}
+          {% if bulk_delete_all_url %}
+            <button type="button" class="button" id="bulk-delete-all" style="background:#ba2121;color:#fff"
+                    data-url="{{ bulk_delete_all_url }}" data-count="{{ bulk_delete_all_count }}">
+              Delete all class photographs ({{ bulk_delete_all_count }})
+            </button>
+          {% endif %}
+        </div>
+      {% endif %}{% endif %}
     </fieldset>
   {% endfor %}
   <script>
@@ -80,27 +99,11 @@
       });
     })();
   </script>
-  {% if bulk_export_url or bulk_delete_all_url %}
-    {# Workspace tools. This block sits inside the admin's own <form>, where a
-       nested <form> would be dropped by the browser — so the delete POST is
-       sent from a detached form built on click; the export is a plain link. #}
-    <div class="bulk-tools" style="margin:12px 0;display:flex;gap:10px;flex-wrap:wrap">
-      {% if bulk_export_url %}
-        <a href="{{ bulk_export_url }}" class="button">Export titles (Excel)</a>
-      {% endif %}
-      {% if bulk_delete_all_url %}
-        <button type="button" class="button" id="bulk-delete-all" style="background:#ba2121;color:#fff"
-                data-url="{{ bulk_delete_all_url }}" data-count="{{ bulk_delete_all_count }}">
-          Delete all photos ({{ bulk_delete_all_count }})
-        </button>
-      {% endif %}
-    </div>
-  {% endif %}
   {% if bulk_delete_all_url %}
     <script>
       document.getElementById("bulk-delete-all").addEventListener("click", function () {
         var count = this.dataset.count;
-        if (!confirm("Delete all " + count + " photo(s) in this workspace? Their titles and statuses are deleted with them. This cannot be undone.")) return;
+        if (!confirm("Delete all " + count + " class photograph(s) in this workspace? Their titles and statuses are deleted with them. Individual photographs are not affected. This cannot be undone.")) return;
         var form = document.createElement("form");
         form.method = "post";
         form.action = this.dataset.url;

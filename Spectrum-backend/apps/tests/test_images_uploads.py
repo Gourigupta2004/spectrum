@@ -133,10 +133,16 @@ class BulkUploadTests(SpectrumTestCase):
                                    {"requested": requested})
         self.assertEqual(len(result["created"]), 1)
 
-    def test_institution_batch_files_students_into_classes_from_file_names(self):
+    def workspace_students(self, filenames, institution=None):
+        from apps.portal.models import CaptionWorkspace
+
+        workspace = CaptionWorkspace.for_institution((institution or self.institution).pk)
+        return self.upload_batch("portal.workspacestudent", workspace.pk, filenames)
+
+    def test_workspace_batch_files_students_into_classes_from_file_names(self):
         from apps.portal.models import SchoolClass, Student
 
-        result = self.upload_batch("portal.studentbatch", self.institution.pk, [
+        result = self.workspace_students([
             "6C_amity_1.jpg", "6C_amity_2.jpg", "12AB_x_42.jpg", "2bb_front.jpg", "notes.jpg",
         ])
         self.assertEqual(len(result["created"]), 4)
@@ -151,7 +157,7 @@ class BulkUploadTests(SpectrumTestCase):
         self.assertEqual(Student.objects.filter(school_class=classes["6C"]).count(), 2)
         self.assertEqual(Student.objects.filter(school_class=classes["12AB"]).count(), 1)
         # A second batch reuses the classes instead of duplicating them.
-        self.upload_batch("portal.studentbatch", self.institution.pk, ["6C_amity_3.jpg"])
+        self.workspace_students(["6C_amity_3.jpg"])
         self.assertEqual(SchoolClass.objects.filter(institution=self.institution).count(), 3)
         self.assertEqual(Student.objects.filter(school_class=classes["6C"]).count(), 3)
 
@@ -161,7 +167,7 @@ class BulkUploadTests(SpectrumTestCase):
 
         from apps.portal.models import SchoolClass, Student
 
-        self.upload_batch("portal.studentbatch", self.institution.pk, ["6C_amity_1.jpg", "6C_amity_2.jpg"])
+        self.workspace_students(["6C_amity_1.jpg", "6C_amity_2.jpg"])
         cls = SchoolClass.objects.get(institution=self.institution, name="6C")
         students = list(Student.objects.filter(school_class=cls).order_by("pk"))
         Student.objects.filter(pk=students[0].pk).update(name="Aarav Sharma")  # the other stays unnamed
@@ -254,6 +260,52 @@ class BulkUploadTests(SpectrumTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(CaptionItem.objects.filter(workspace=workspace).count(), 0)
 
+    def test_delete_selected_event_photos_from_the_grid(self):
+        from apps.portal.models import CaptionWorkspace
+
+        keep = self.photo(self.event, title="Keep")
+        drop = self.photo(self.event, title="Drop")
+        elsewhere = self.photo(self.other_event, title="Elsewhere")
+        html = self.client.get(f"/admin/catalog/event/{self.event.pk}/change/").content.decode()
+        self.assertIn(f'class="bulk-select" value="{drop.pk}"', html)
+        self.assertIn("Delete selected images", html)
+        workspace = CaptionWorkspace.objects.create(institution=self.institution)
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        self.assertNotIn("bulk-selectbar", html)  # only event photos get tick boxes
+
+        file_name = drop.original.name
+        with self.captureOnCommitCallbacks(execute=True):
+            # A photo of another event among the ids is ignored: only this event's rows go.
+            response = self.post("/admin/uploads/delete/", {
+                "target": "catalog.eventphoto", "parent": self.event.pk, "ids": [drop.pk, elsewhere.pk]})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Deleted 1 photo.", response.content.decode())
+        self.assertFalse(EventPhoto.objects.filter(pk=drop.pk).exists())
+        self.assertEqual(EventPhoto.objects.filter(pk__in=[keep.pk, elsewhere.pk]).count(), 2)
+        self.assertFalse(storages["private"].exists(file_name))
+
+        # Other targets don't take deletes from the grid.
+        response = self.post("/admin/uploads/delete/", {
+            "target": "portal.captionitem", "parent": workspace.pk, "ids": [1]})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self.client.get("/admin/uploads/delete/").status_code, 405)
+
+    def test_delete_selected_needs_delete_permission(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Permission
+
+        photo = self.photo(self.event)
+        clerk = get_user_model().objects.create_user("clerk", password="pass", is_staff=True)
+        clerk.user_permissions.add(*Permission.objects.filter(
+            codename__in=["view_event", "change_event", "view_eventphoto", "add_eventphoto"]))
+        self.client.force_login(clerk)
+        html = self.client.get(f"/admin/catalog/event/{self.event.pk}/change/").content.decode()
+        self.assertNotIn("bulk-selectbar", html)
+        response = self.post("/admin/uploads/delete/", {
+            "target": "catalog.eventphoto", "parent": self.event.pk, "ids": [photo.pk]})
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(EventPhoto.objects.filter(pk=photo.pk).exists())
+
     def test_uploaders_live_on_event_and_workspace_pages(self):
         from apps.portal.models import CaptionWorkspace
 
@@ -265,6 +317,33 @@ class BulkUploadTests(SpectrumTestCase):
         self.assertIn('data-target="portal.captionitem"', html)
         self.assertIn('class="bulk-option" data-key="requested"', html)
         self.assertIn('<option value="needs-caption" selected>', html)
+        # Both drops live on the workspace, class photographs first, with the
+        # workspace tools inside that section rather than under the students.
+        self.assertIn('data-target="portal.workspacestudent"', html)
+        self.assertIn("Class Photographs", html)
+        self.assertIn("Individual Photographs Upload", html)
+        self.assertLess(html.index('data-target="portal.captionitem"'),
+                        html.index('data-target="portal.workspacestudent"'))
+        html = self.client.get(f"/admin/catalog/institution/{self.institution.pk}/change/").content.decode()
+        self.assertNotIn("data-target=", html)  # no uploader on the institution page
+        self.assertIn("Tick every row for deletion", html)  # access-email rows keep their select-all
+
+    def test_workspace_students_land_in_that_institutions_classes(self):
+        from apps.portal.models import SchoolClass, Student
+
+        self.workspace_students(["6C_a.jpg"], institution=self.other)
+        self.assertFalse(SchoolClass.objects.filter(institution=self.institution).exists())
+        self.assertEqual(Student.objects.filter(school_class__institution=self.other).count(), 1)
+        # The grid on the workspace page links to the institution's students.
+        workspace = self.other.caption_workspace
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        link = f"/admin/portal/student/?school_class__institution__id__exact={self.other.pk}"
+        self.assertIn(link, html)
+        self.assertEqual(self.client.get(link).status_code, 200)
+        # The old institution-page key is gone, so a leftover batch can't misfile.
+        response = self.post("/admin/uploads/prepare/", {
+            "target": "portal.studentbatch", "parentId": self.institution.pk, "files": []})
+        self.assertEqual(response.status_code, 404)
 
 
 class PhotoProportionTests(SpectrumTestCase):

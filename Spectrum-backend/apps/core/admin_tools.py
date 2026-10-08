@@ -108,7 +108,7 @@ class BulkUploadMixin:
                     "label": target.label,
                     "parent_id": obj.pk,
                     "choices": target.choice_fields(),
-                    "grid": grid_context(key, obj.pk),
+                    "grid": grid_context(key, obj.pk, request.user),
                 })
         context["bulk_uploads"] = uploads
         context["bulk_upload_after_save"] = bool(self.bulk_upload_targets) and obj is None

@@ -208,7 +208,9 @@ class CaptionItemInline(admin.TabularInline):
 
 @admin.register(CaptionWorkspace)
 class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
-    bulk_upload_targets = ("portal.captionitem",)
+    # Class photographs go to the institution for titles; individual (student)
+    # photographs are filed into the institution's classes by file name.
+    bulk_upload_targets = ("portal.captionitem", "portal.workspacestudent")
     inlines = (CaptionItemInline,)
     list_display = ("institution", "photo_count", "needs_caption", "awaiting", "corrected_count", "approved_count",
                     "created_at")
@@ -217,7 +219,7 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
     autocomplete_fields = ("institution",)
     fields = ("institution", "notes")
 
-    # ---- Workspace tools: export every title item to Excel, and one button
+    # ---- Workspace tools: export every class photograph to Excel, and one button
     # ---- that clears the workspace so a fresh batch can be uploaded.
 
     def get_urls(self):
@@ -272,12 +274,13 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
             raise PermissionDenied
         workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
         count, _ = workspace.items.all().delete()  # signals queue the S3 cleanup
-        messages.success(request, f"Deleted {count} photo(s) from {workspace}.")
+        messages.success(request, f"Deleted {count} class photograph(s) from {workspace}.")
         return redirect("admin:portal_captionworkspace_change", workspace.pk)
 
     def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
         from django.urls import reverse
 
+        context["bulk_tools_target"] = "portal.captionitem"
         if obj is not None and obj.pk:
             count = obj.items.count()
             if count and request.user.has_perm("portal.view_captionitem"):

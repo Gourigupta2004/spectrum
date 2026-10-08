@@ -59,6 +59,12 @@ class Target:
     # Lookup path from the model to the page's parent, for the thumbnail grid
     # under a routed uploader. Defaults to `parent`.
     grid_parent: str | None = None
+    # The grid's "manage these" link filter as `(page_parent_id) -> query`,
+    # for when `grid_parent` isn't a lookup the changelist accepts.
+    changelist_query: object = None
+    # The thumbnail grid gets a tick box per photo and a "Delete selected"
+    # button, for admins allowed to delete this model.
+    select_delete: bool = False
 
     @property
     def model_class(self):
@@ -113,24 +119,42 @@ def class_for_file(institution_id, filename):
     return cls.pk
 
 
+def _workspace_institution(workspace_id) -> int | None:
+    from apps.portal.models import CaptionWorkspace
+
+    return CaptionWorkspace.objects.filter(pk=workspace_id).values_list("institution_id", flat=True).first()
+
+
+def class_for_workspace_file(workspace_id, filename):
+    """`class_for_file` for the drop on a title workspace: files land in the
+    classes of the workspace's institution."""
+    institution_id = _workspace_institution(workspace_id)
+    return class_for_file(institution_id, filename) if institution_id else None
+
+
 TARGETS = {
-    "catalog.eventphoto": Target("catalog.EventPhoto", "event", "title", "Gallery photos"),
+    "catalog.eventphoto": Target("catalog.EventPhoto", "event", "title", "Gallery photos", select_delete=True),
     # A fresh upload always starts by asking the institution for a title; the
     # uploader's "Requested" tag can switch a batch to approval or correction.
     # Re-uploading a file with a name the workspace has seen replaces that
     # row's photo and keeps its title and status.
     "portal.captionitem": Target(
-        "portal.CaptionItem", "workspace", "moment_title", "Title workspace photos",
+        "portal.CaptionItem", "workspace", "moment_title", "Class Photographs",
         {"status": "needs-caption", "requested": "needs-caption"},
         choices={"requested": _request_tags}, mirror={"requested": "status"},
         upsert_by_name=True,
     ),
     "portal.student": Target("portal.Student", "school_class", None, "Student photos"),
-    # The institution-wide drop: thousands of files land on the institution and
-    # each one is filed into its class (created as needed) from its file name.
-    "portal.studentbatch": Target(
-        "portal.Student", "school_class", None, "Student photos — filed into classes by file name",
-        page_parent="catalog.Institution", route=class_for_file, grid_parent="school_class__institution",
+    # The institution-wide drop, on the title workspace: thousands of files land
+    # at once and each is filed into a class of the workspace's institution
+    # (created as needed) from its file name. Keyed apart from the old drop on
+    # the institution page, whose batches carried an institution id; a leftover
+    # one of those is refused rather than read as a workspace id.
+    "portal.workspacestudent": Target(
+        "portal.Student", "school_class", None, "Individual Photographs Upload",
+        page_parent="portal.CaptionWorkspace", route=class_for_workspace_file,
+        grid_parent="school_class__institution__caption_workspace",
+        changelist_query=lambda workspace_id: f"school_class__institution__id__exact={_workspace_institution(workspace_id)}",
     ),
     "content.heroslide": Target("content.HeroSlide", "page", "caption", "Hero carousel slides"),
     "content.tieup": Target("content.TieUp", "page", "name", "Tie-up photos"),
@@ -427,12 +451,17 @@ def retry_failed(request, batch_id):
 GRID_LIMIT = 300
 
 
-def grid_context(target_key: str, parent_id) -> dict:
+def _grid_queryset(target: Target, parent_id):
+    model = target.model_class
+    lookup = target.grid_parent or model._meta.get_field(target.parent).attname
+    return model.objects.filter(**{lookup: parent_id})
+
+
+def grid_context(target_key: str, parent_id, user=None) -> dict:
     target = TARGETS[target_key]
     model = target.model_class
     meta = model._meta
-    lookup = target.grid_parent or meta.get_field(target.parent).attname
-    queryset = model.objects.filter(**{lookup: parent_id})
+    queryset = _grid_queryset(target, parent_id)
     fields = ["pk", "thumb", "image_status", "sort_order"] + ([target.name_field] if target.name_field else [])
     if meta.model_name == "student":
         fields.append("name")
@@ -446,6 +475,7 @@ def grid_context(target_key: str, parent_id) -> dict:
     for obj in queryset.only(*fields).order_by("sort_order", "pk")[:GRID_LIMIT]:
         label = getattr(obj, target.name_field) if target.name_field else (getattr(obj, "name", "") or "Unnamed")
         items.append({
+            "pk": obj.pk,
             "thumb": obj.thumb_url,
             "label": label,
             "status": obj.image_status,
@@ -454,12 +484,18 @@ def grid_context(target_key: str, parent_id) -> dict:
         })
     total = queryset.count()
     changelist = admin_url("changelist")
+    selectable = bool(target.select_delete and user is not None
+                      and user.has_perm(f"{meta.app_label}.delete_{meta.model_name}"))
     return {
         "items": items,
         "total": total,
+        "selectable": selectable,
+        "delete_url": reverse("admin-upload-delete") if selectable else "",
         "hidden": max(0, total - GRID_LIMIT),
         "changelist_url": (
-            f"{changelist}?{target.grid_parent or target.parent}__id__exact={parent_id}" if changelist else ""),
+            f"{changelist}?" + (target.changelist_query(parent_id) if target.changelist_query
+                                else f"{target.grid_parent or target.parent}__id__exact={parent_id}")
+            if changelist else ""),
     }
 
 
@@ -471,13 +507,40 @@ def grid(request):
     parent = _int(request.GET.get("parent"), -1)
     if parent < 0:
         return _error("Missing parent")
-    return render(request, "admin/core/upload_grid.html", grid_context(key, parent))
+    return render(request, "admin/core/upload_grid.html", grid_context(key, parent, request.user))
+
+
+@staff_member_required
+@require_POST
+def delete_selected(request):
+    """Deletes the ticked photos of one parent and answers with the fresh grid.
+
+    Only rows under the given parent are touched, whatever ids are sent; the
+    delete signals queue the storage cleanup as for any other delete."""
+    data = _body(request)
+    key = str(data.get("target", ""))
+    target = _target(key, request.user, perm="delete")
+    if not target.select_delete:
+        raise Http404("Not allowed")
+    parent = _int(data.get("parent"), -1)
+    if parent < 0:
+        return _error("Missing parent")
+    ids = [pk for pk in (_int(value, -1) for value in data.get("ids") or []) if pk > 0]
+    count = 0
+    if ids:
+        with transaction.atomic():
+            count = _grid_queryset(target, parent).filter(pk__in=ids).delete()[1].get(
+                target.model_class._meta.label, 0)
+    context = grid_context(key, parent, request.user)
+    context["deleted"] = count
+    return render(request, "admin/core/upload_grid.html", context)
 
 
 urlpatterns = [
     path("prepare/", prepare, name="admin-upload-prepare"),
     path("direct/", direct, name="admin-upload-direct"),
     path("grid/", grid, name="admin-upload-grid"),
+    path("delete/", delete_selected, name="admin-upload-delete"),
     path("<uuid:batch_id>/commit/", commit, name="admin-upload-commit"),
     path("<uuid:batch_id>/status/", status, name="admin-upload-status"),
     path("<uuid:batch_id>/retry/", retry_failed, name="admin-upload-retry"),

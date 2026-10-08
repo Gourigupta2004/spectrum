@@ -143,6 +143,72 @@
       filesFromDrop(event.dataTransfer).then(function (files) { self.add(files); });
     });
     this.retryButton.addEventListener("click", function () { self.retryFailed(); });
+    this.bindSelection();
+  };
+
+  /* Tick boxes on the thumbnail grid (only rendered where the admin may
+     delete): shift-click ticks a range, "Select all" ticks every shown photo,
+     and "Delete selected" posts the ids and swaps in the grid it gets back.
+     Listeners sit on the grid container, so they survive its refreshes. */
+  Uploader.prototype.bindSelection = function () {
+    var self = this;
+    var lastBox = null;
+    var boxes = function () { return Array.prototype.slice.call(self.grid.querySelectorAll(".bulk-select")); };
+    this.grid.addEventListener("click", function (event) {
+      var box = event.target;
+      if (!box.classList || !box.classList.contains("bulk-select")) return;
+      if (event.shiftKey && lastBox && lastBox !== box && self.grid.contains(lastBox)) {
+        var all = boxes();
+        var from = all.indexOf(lastBox), to = all.indexOf(box);
+        all.slice(Math.min(from, to), Math.max(from, to) + 1).forEach(function (b) { b.checked = box.checked; });
+      }
+      lastBox = box;
+      self.syncSelection();
+    });
+    this.grid.addEventListener("change", function (event) {
+      if (!event.target.classList || !event.target.classList.contains("bulk-select-all")) return;
+      boxes().forEach(function (b) { b.checked = event.target.checked; });
+      self.syncSelection();
+    });
+    this.grid.addEventListener("click", function (event) {
+      var button = event.target.closest && event.target.closest(".bulk-delete-selected");
+      if (!button || button.disabled) return;
+      var ids = boxes().filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+      if (!ids.length) return;
+      if (!confirm("Delete " + ids.length + " selected photo(s)? This cannot be undone.")) return;
+      button.disabled = true;
+      button.textContent = "Deleting…";
+      fetch(button.closest(".bulk-selectbar").dataset.url, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+        body: JSON.stringify({ target: self.target, parent: self.parentId, ids: ids }),
+      })
+        .then(function (response) {
+          if (!response.ok) throw new Error(response.statusText || "Delete failed");
+          return response.text();
+        })
+        .then(function (html) { self.showGrid(html); })
+        .catch(function (error) {
+          alert("Could not delete the photos: " + error.message);
+          button.textContent = "Delete selected images";
+          self.syncSelection();
+        });
+    });
+  };
+
+  Uploader.prototype.syncSelection = function () {
+    var bar = this.grid.querySelector(".bulk-selectbar");
+    if (!bar) return;
+    var all = this.grid.querySelectorAll(".bulk-select");
+    var ticked = this.grid.querySelectorAll(".bulk-select:checked").length;
+    var master = bar.querySelector(".bulk-select-all");
+    master.checked = all.length > 0 && ticked === all.length;
+    master.indeterminate = ticked > 0 && ticked < all.length;
+    bar.querySelector(".bulk-selected-count").textContent = ticked ? ticked + " selected" : "None selected";
+    var button = bar.querySelector(".bulk-delete-selected");
+    button.disabled = !ticked;
+    button.textContent = ticked ? "Delete selected images (" + ticked + ")" : "Delete selected images";
   };
 
   Uploader.prototype.add = function (files) {
@@ -345,16 +411,31 @@
     var url = this.gridUrl + "?target=" + encodeURIComponent(this.target) + "&parent=" + encodeURIComponent(this.parentId);
     return fetch(url, { credentials: "same-origin" })
       .then(function (response) { return response.text(); })
-      .then(function (html) {
-        self.grid.innerHTML = html;
-        var link = self.grid.querySelector(".bulk-manage a");
-        var plain = self.grid.querySelector(".bulk-manage [data-total]");
-        if (self.count && plain) self.count.textContent = plain.dataset.total;
-        if (self.count && link) {
-          var match = link.textContent.match(/\((\d+)\)/);
-          if (match) self.count.textContent = match[1];
-        }
-      });
+      .then(function (html) { self.showGrid(html, true); });
+  };
+
+  /* Swaps in fresh grid HTML; `keepTicks` re-ticks photos still present, so a
+     refresh while uploads finish processing doesn't drop a selection. */
+  Uploader.prototype.showGrid = function (html, keepTicks) {
+    var self = this;
+    var ticked = keepTicks
+      ? Array.prototype.map.call(this.grid.querySelectorAll(".bulk-select:checked"), function (b) { return b.value; })
+      : [];
+    this.grid.innerHTML = html;
+    ticked.forEach(function (id) {
+      var box = self.grid.querySelector('.bulk-select[value="' + id + '"]');
+      if (box) box.checked = true;
+    });
+    this.syncSelection();
+    var link = this.grid.querySelector(".bulk-manage a");
+    var plain = this.grid.querySelector(".bulk-manage [data-total]");
+    var empty = !link && !plain;
+    if (this.count && plain) this.count.textContent = plain.dataset.total;
+    if (this.count && link) {
+      var match = link.textContent.match(/\((\d+)\)/);
+      if (match) this.count.textContent = match[1];
+    }
+    if (this.count && empty) this.count.textContent = "0";
   };
 
   Uploader.prototype.fail = function (item, reason) {

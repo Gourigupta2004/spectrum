@@ -1,7 +1,10 @@
+{% if deleted %}<p class="bulk-deleted">Deleted {{ deleted }} photo{{ deleted|pluralize }}.</p>{% endif %}
 {% if items %}
-  <ul class="bulk-thumbs">
+  <ul class="bulk-thumbs{% if selectable %} is-selectable{% endif %}">
     {% for item in items %}
       <li class="is-{{ item.status }}">
+        {# No name attribute: these sit inside the admin's own form and must not ride along with Save. #}
+        {% if selectable %}<label class="bulk-pick" title="Select"><input type="checkbox" class="bulk-select" value="{{ item.pk }}" aria-label="Select {{ item.label|default:'photo' }}"></label>{% endif %}
         {% if item.url %}<a href="{{ item.url }}" title="{{ item.label }}">{% else %}<span title="{{ item.label }}">{% endif %}
           {% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy">{% else %}<span class="bulk-status">{{ item.status_label }}</span>{% endif %}
           <em>{{ item.label|default:"—" }}</em>
@@ -9,6 +12,13 @@
       </li>
     {% endfor %}
   </ul>
+{% endif %}
+{% if selectable and items %}
+  <div class="bulk-selectbar" data-url="{{ delete_url }}">
+    <label><input type="checkbox" class="bulk-select-all"> Select all{% if hidden %} shown{% endif %}</label>
+    <span class="bulk-selected-count">None selected</span>
+    <button type="button" class="button bulk-delete-selected" disabled>Delete selected images</button>
+  </div>
 {% endif %}
 <p class="bulk-manage">
   {% if hidden %}Showing the first {{ items|length }} of {{ total }}. {% endif %}
