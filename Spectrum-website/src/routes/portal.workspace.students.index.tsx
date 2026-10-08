@@ -119,7 +119,8 @@ function ClassList() {
                   {complete && <Check className="h-3 w-3" />}
                   {done}/{c.size}
                 </span>
-                <span className="font-display text-xl font-bold uppercase text-foreground">
+                {/* Centred even when a long name wraps to several lines. */}
+                <span className="break-words px-3 text-center font-display text-xl font-bold uppercase leading-tight text-foreground">
                   {c.name}
                 </span>
               </Link>
