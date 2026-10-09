@@ -34,3 +34,14 @@
 .bulk-delete-selected:not([disabled]) { background: #ba2121; color: #fff; }
 .bulk-delete-selected[disabled] { opacity: .5; cursor: not-allowed; }
 .bulk-deleted { margin: 0 12px 10px; padding: 8px 12px; border-left: 4px solid #2fbf8f; background: rgba(47, 191, 143, .1); }
+.bulk-section-hint { margin: 12px 12px 0; color: var(--body-quiet-color, #666); }
+.bulk-browse-folder { background: none; border: 0; color: var(--link-fg, #447e9b); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+.bulk-group { margin: 14px 0 0; }
+.bulk-group-title { margin: 0 12px 8px; padding: 0 0 4px; display: flex; align-items: center; gap: 8px; font-size: 14px;
+  border-bottom: 1px solid var(--hairline-color, #e8e8e8); background: none; color: var(--body-fg, #333); text-transform: none; }
+.bulk-group-title a { margin-left: auto; font-weight: normal; font-size: 12px; }
+.bulk-group-count { background: var(--body-quiet-color, #666); color: #fff; border-radius: 10px; padding: 0 8px; font-size: 11px; }
+.bulk-group-more { margin: 6px 12px 0; color: var(--body-quiet-color, #666); font-size: 12px; }
+.bulk-downloadbar { margin: 16px 12px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.bulk-downloadbar label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.bulk-download-hint { color: var(--body-quiet-color, #666); font-size: 12px; }

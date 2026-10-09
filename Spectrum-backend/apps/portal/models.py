@@ -1,6 +1,5 @@
 import re
 
-from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -24,36 +23,33 @@ def natural_key(value: str) -> tuple:
     )
 
 
-class Member(models.Model):
-    INSTITUTION, SPECTRUM = "institution", "spectrum"
+def padded(value: str) -> str:
+    """Lower-cased, every number zero-padded, so plain text order is natural
+    order ("img_2" < "img_10") and the database can sort by it."""
+    return re.sub(r"\d+", lambda m: m.group().zfill(10), (value or "").strip().lower())[:200]
 
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="member")
-    institution = models.ForeignKey(
-        "catalog.Institution", null=True, blank=True, on_delete=models.CASCADE, related_name="members",
-        help_text="Leave blank for Spectrum team logins, which can see every institution.",
-    )
-    role = models.CharField(max_length=12, choices=[(INSTITUTION, "Institution"), (SPECTRUM, "Spectrum team")],
-                            default=INSTITUTION)
-    display_name = models.CharField(max_length=120, blank=True)
-    token_version = models.PositiveIntegerField(default=1, editable=False)
 
-    class Meta:
-        verbose_name = "portal login"
+# Pre-primary classes come first, in school order, then numbered classes, then
+# anything else alphabetically.
+PRE_PRIMARY = ("play group", "playgroup", "pre-nursery", "pre nursery", "nursery", "lkg", "ukg", "kg")
+CLASS_PREFIX = re.compile(r"^(class|grade|std\.?|standard)\s*", re.I)
 
-    def __str__(self):
-        return self.user.get_username()
 
-    @property
-    def is_spectrum(self) -> bool:
-        return self.role == self.SPECTRUM
+def class_sort_key(name: str) -> str:
+    value = CLASS_PREFIX.sub("", (name or "").strip().lower())
+    for rank, word in enumerate(PRE_PRIMARY):
+        if value.startswith(word):
+            # "kg" sits with "lkg"/"ukg": after nursery, before class 1.
+            return f"0{min(rank, 6):02d}{padded(value)}"
+    return f"{1 if value[:1].isdigit() else 2}{padded(value)}"[:200]
 
 
 class PortalAccessEmail(models.Model):
     """
     An email address that unlocks the portal for one institution. Visitors enter
     their email on the website; only addresses listed here reveal the Portal
-    link and the institution's personalised sign-in, where the issued login
-    (Member) is still required.
+    link and the institution's personalised sign-in, where the institution's
+    portal username and password (on the Institution) are still required.
     """
 
     institution = models.ForeignKey("catalog.Institution", on_delete=models.CASCADE, related_name="portal_emails")
@@ -63,7 +59,8 @@ class PortalAccessEmail(models.Model):
 
     class Meta:
         ordering = ["institution__name", "email"]
-        verbose_name = "portal access email"
+        verbose_name = "institution credential"
+        verbose_name_plural = "institution credentials"
 
     def __str__(self):
         return self.email
@@ -71,6 +68,12 @@ class PortalAccessEmail(models.Model):
     def save(self, *args, **kwargs):
         self.email = self.email.strip().lower()
         super().save(*args, **kwargs)
+
+
+# Users holding this permission (or superusers) sign in to the website portal
+# with their own username and password and may open every institution.
+SPECTRUM_PORTAL_CODENAME = "spectrum_portal_access"
+SPECTRUM_PORTAL_PERM = f"portal.{SPECTRUM_PORTAL_CODENAME}"
 
 
 class CaptionWorkspace(models.Model):
@@ -87,7 +90,8 @@ class CaptionWorkspace(models.Model):
 
     class Meta:
         ordering = ["institution__name"]
-        verbose_name = "title workspace"
+        verbose_name = "institution workspace"
+        permissions = [(SPECTRUM_PORTAL_CODENAME, "Can sign in to the institution portal as the Spectrum team")]
 
     def __str__(self):
         return str(self.institution)
@@ -170,16 +174,20 @@ class SchoolClass(models.Model):
     GROUPS = [("Primary", "Primary"), ("Middle", "Middle"), ("Senior", "Senior")]
 
     institution = models.ForeignKey("catalog.Institution", on_delete=models.CASCADE, related_name="classes")
-    name = models.CharField(max_length=20, help_text='e.g. "6C" or "Nursery".')
-    slug = models.SlugField(max_length=30, blank=True, help_text="Filled from the name.")
+    name = models.CharField(max_length=60, help_text='e.g. "6C" or "Nursery". Uploaded folders become classes of '
+                                                     'the same name.')
+    slug = models.SlugField(max_length=70, blank=True, help_text="Filled from the name.")
     group = models.CharField(max_length=10, choices=GROUPS, default="Primary")
-    sort_order = models.PositiveIntegerField("order", default=0)
+    sort_order = models.PositiveIntegerField("order", default=0)  # no longer used for ordering; kept with its data
+    # Classes are listed in school order — Nursery, LKG, UKG, 1A, 1B … 12C —
+    # from their names (see `class_sort_key`), filled on save.
+    sort_key = models.CharField(max_length=200, blank=True, editable=False, db_index=True)
 
     class Meta:
-        ordering = ["institution", "sort_order", "pk"]
+        ordering = ["institution", "sort_key", "pk"]
         constraints = [models.UniqueConstraint(fields=["institution", "slug"], name="uniq_class_slug")]
         verbose_name = "class"
-        verbose_name_plural = "classes"
+        verbose_name_plural = "all classes"
 
     def __str__(self):
         return f"{self.name} · {self.institution}" if self.institution_id else self.name
@@ -195,8 +203,17 @@ class SchoolClass(models.Model):
         if not self.slug:
             from django.utils.text import slugify
 
-            self.slug = slugify(self.name)
+            self.slug = slugify(self.name)[:70]
+        self.sort_key = class_sort_key(self.name)
+        kwargs = _with_field(kwargs, "sort_key")
         super().save(*args, **kwargs)
+
+
+def _with_field(kwargs: dict, name: str) -> dict:
+    """A save limited to `update_fields` still writes the derived field."""
+    if kwargs.get("update_fields") is not None:
+        kwargs = {**kwargs, "update_fields": {*kwargs["update_fields"], name}}
+    return kwargs
 
 
 class Student(ProcessedImage):
@@ -205,11 +222,24 @@ class Student(ProcessedImage):
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name="students",
                                      verbose_name="class")
     name = models.CharField(max_length=120, blank=True)
+    # The uploaded file's name: photos are listed in file-name order (numbers
+    # numeric), and re-uploading a file of the same name into the same class
+    # replaces that photo and keeps the student's name.
+    source_name = models.CharField("file name", max_length=200, blank=True, editable=False)
+    sort_key = models.CharField(max_length=200, blank=True, editable=False)
     sort_order = models.PositiveIntegerField("order", default=0)
 
     class Meta:
-        ordering = ["sort_order", "pk"]
-        indexes = [models.Index(fields=["school_class", "sort_order"])]
+        # Photos uploaded before file names were kept have no sort key and
+        # stay in upload order among themselves.
+        ordering = ["sort_key", "sort_order", "pk"]
+        indexes = [models.Index(fields=["school_class", "sort_order"]),
+                   models.Index(fields=["school_class", "sort_key"], name="portal_stud_class_sortkey")]
 
     def __str__(self):
         return self.name or f"Student {self.pk}"
+
+    def save(self, *args, **kwargs):
+        self.sort_key = padded(self.source_name)
+        kwargs = _with_field(kwargs, "sort_key")
+        super().save(*args, **kwargs)

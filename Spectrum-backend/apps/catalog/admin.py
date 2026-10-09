@@ -1,5 +1,7 @@
-from django.contrib import admin
-from django.db.models import Count, Q
+from django import forms
+from django.contrib import admin, messages
+from django.contrib.auth.password_validation import validate_password
+from django.db.models import Count, F, Q
 
 from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin
 from apps.core.models import ImageStatus
@@ -29,23 +31,84 @@ class PortalAccessEmailInline(admin.TabularInline):
     model = PortalAccessEmail
     extra = 1
     fields = ("email", "note")
-    verbose_name_plural = "portal access emails"
+    verbose_name = "access email"
+    verbose_name_plural = "institution credentials — emails that unlock the portal"
+
+
+class InstitutionForm(forms.ModelForm):
+    """The portal password is set here and stored hashed: it can be replaced,
+    never read back."""
+
+    new_portal_password = forms.CharField(
+        label="Portal password", required=False, strip=False,
+        widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "new-password"}),
+        help_text="Type a password to set or change it; leave blank to keep the current one. A new password signs "
+                  "the institution out of the portal on every device.")
+
+    class Meta:
+        model = Institution
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "new_portal_password" in self.fields and self.instance.portal_password:
+            self.fields["new_portal_password"].help_text = "A password is set. " + \
+                self.fields["new_portal_password"].help_text
+
+    def clean_portal_username(self):
+        username = (self.cleaned_data.get("portal_username") or "").strip()
+        if not username:
+            return None
+        taken = Institution.objects.filter(portal_username__iexact=username).exclude(pk=self.instance.pk)
+        if taken.exists():
+            raise forms.ValidationError("Another institution already signs in with that username.")
+        return username
+
+    def clean_new_portal_password(self):
+        password = self.cleaned_data.get("new_portal_password")
+        if password:
+            validate_password(password)
+        return password
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("portal_username") and not (cleaned.get("new_portal_password") or self.instance.portal_password):
+            self.add_error("new_portal_password", "Set a password for this username.")
+        return cleaned
+
+    def save(self, commit=True):
+        institution = super().save(commit=False)
+        if self.cleaned_data.get("new_portal_password"):
+            institution.set_portal_password(self.cleaned_data["new_portal_password"])
+        if commit:
+            institution.save()
+            self.save_m2m()
+        return institution
 
 
 @admin.register(Institution)
 class InstitutionAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
-    # No uploader here: student photos are dropped on the institution's title
+    # No uploader here: student photos are dropped on the institution's
     # workspace ("Individual Photographs Upload"). The mixin stays for its page
     # template, which gives the access-email rows a tick-all-for-deletion box.
+    form = InstitutionForm
     inlines = (PortalAccessEmailInline,)
-    list_display = ("thumbnail", "name", "short", "city", "kind", "event_count", "is_published", "sort_order")
+    list_display = ("thumbnail", "name", "short", "city", "kind", "event_count", "portal_username", "is_published",
+                    "sort_order")
     list_display_links = ("thumbnail", "name")
     list_editable = ("is_published", "sort_order")
     list_filter = ("kind", "is_published")
-    search_fields = ("name", "short", "city")
+    search_fields = ("name", "short", "city", "portal_username")
     prepopulated_fields = {"slug": ("name",)}
-    fields = ("name", "short", "slug", "city", "kind", "original", "is_published", "sort_order")
-    actions = ["reprocess_images"]
+    fieldsets = (
+        (None, {"fields": ("name", "short", "slug", "city", "kind", "original", "is_published", "sort_order")}),
+        ("Institution portal sign-in", {
+            "description": "The username and password this institution signs in to the website portal with, after "
+                           "entering one of the access emails listed below.",
+            "fields": ("portal_username", "new_portal_password"),
+        }),
+    )
+    actions = ["reprocess_images", "sign_out_of_portal"]
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(event_total=Count("events"))
@@ -53,6 +116,11 @@ class InstitutionAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, adm
     @admin.display(description="Events", ordering="event_total")
     def event_count(self, obj):
         return obj.event_total
+
+    @admin.action(description="Sign out of the portal everywhere")
+    def sign_out_of_portal(self, request, queryset):
+        count = queryset.update(portal_token_version=F("portal_token_version") + 1)
+        messages.success(request, f"Signed {count} institution(s) out of the portal on every device.")
 
 
 class EventVideoInline(ImagePreviewMixin, admin.TabularInline):

@@ -20,6 +20,7 @@
               data-grid-url="{{ bulk_upload_grid_url }}"
               data-max-bytes="{{ upload_max_bytes|default:41943040 }}">
       <h2>{{ upload.label }} <span class="bulk-count">{{ upload.grid.total }}</span></h2>
+      {% if upload.hint %}<p class="bulk-section-hint">{{ upload.hint }}</p>{% endif %}
       {% if upload.choices %}
         <div class="bulk-options">
           {% for choice in upload.choices %}
@@ -35,8 +36,14 @@
         </div>
       {% endif %}
       <div class="bulk-drop" tabindex="0" role="button" aria-label="Add {{ upload.label }}">
-        <strong>Drop photos or a folder here</strong>
-        <span>or <button type="button" class="bulk-browse">choose files</button>, or click here and paste (Ctrl+V)</span>
+        {% if upload.folders %}
+          <strong>Drop class folders here</strong>
+          <span>or <button type="button" class="bulk-browse-folder">choose a folder</button> — pick one class folder, or a folder holding several</span>
+          <input type="file" class="bulk-folder-input" webkitdirectory directory multiple hidden>
+        {% else %}
+          <strong>Drop photos or a folder here</strong>
+          <span>or <button type="button" class="bulk-browse">choose files</button>, or click here and paste (Ctrl+V)</span>
+        {% endif %}
         <input type="file" class="bulk-input" multiple accept="image/*,.heic,.heif" hidden>
       </div>
       <div class="bulk-progress" hidden>
@@ -45,7 +52,7 @@
         <ul class="bulk-errors"></ul>
         <button type="button" class="bulk-retry button" hidden>Retry failed</button>
       </div>
-      <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url selectable=upload.grid.selectable delete_url=upload.grid.delete_url %}</div>
+      <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items groups=upload.grid.groups total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url selectable=upload.grid.selectable delete_url=upload.grid.delete_url download_url=upload.grid.download_url %}</div>
       {% if upload.target == bulk_tools_target %}{% if bulk_export_url or bulk_delete_all_url %}
         {% comment %}
           Workspace tools, inside the section they act on. This block sits in

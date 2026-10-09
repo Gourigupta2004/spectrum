@@ -1,0 +1,8 @@
+<li class="is-{{ item.status }}">
+  {# No name attribute: these sit inside the admin's own form and must not ride along with Save. #}
+  {% if selectable %}<label class="bulk-pick" title="Select"><input type="checkbox" class="bulk-select" value="{{ item.pk }}" aria-label="Select {{ item.label|default:'photo' }}"></label>{% endif %}
+  {% if item.url %}<a href="{{ item.url }}" title="{{ item.label }}">{% else %}<span title="{{ item.label }}">{% endif %}
+    {% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy">{% else %}<span class="bulk-status">{{ item.status_label }}</span>{% endif %}
+    <em>{{ item.label|default:"—" }}</em>
+  {% if item.url %}</a>{% else %}</span>{% endif %}
+</li>

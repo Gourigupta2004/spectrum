@@ -1,17 +1,19 @@
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied
 from django.db import models
-from django.db.models import Count, F, Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, thumb_html
 from apps.core.models import ImageStatus
 
 from .models import (
-    CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student, natural_key,
+    SPECTRUM_PORTAL_CODENAME, CaptionItem, CaptionStatus, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student,
+    natural_key,
 )
 
 
@@ -28,16 +30,68 @@ def _safe_file_name(name: str) -> str:
     return cleaned or "Student"
 
 
+def class_photos_zip(request, classes):
+    """
+    The class folder the website used to build, now admin-only: one folder
+    per class ({CODE}-{CLASS}-Photos), one file per *named* student called
+    after them — but from the uploaded originals, at full size, instead of
+    the website's re-encoded web copies. None (with a warning) when there is
+    nothing to put in it.
+    """
+    import os
+    import tempfile
+    import zipfile
+
+    from django.http import FileResponse
+
+    if not request.user.has_perm("portal.view_student"):
+        raise PermissionDenied
+    classes = list(classes)
+    buffer = tempfile.TemporaryFile()  # spooled to disk, so huge classes never sit in RAM
+    included = unnamed = 0
+    folders = []
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:  # photos are already compressed
+        for cls in classes:
+            folder = _safe_file_name(f"{_institution_code(cls.institution.name)}-{cls.name.upper()}-Photos")
+            folders.append(folder)
+            used: dict[str, int] = {}
+            for student in cls.students.all():  # file-name order (Student.Meta)
+                if not student.name.strip():
+                    unnamed += 1  # nothing to file them under, same rule as the website had
+                    continue
+                if not student.original:
+                    continue
+                base = _safe_file_name(student.name)
+                n = used.get(base.lower(), 0) + 1
+                used[base.lower()] = n
+                ext = os.path.splitext(student.original.name)[1].lower() or ".jpg"
+                filename = f"{base}{'' if n == 1 else f' ({n})'}{ext}"
+                with student.original.open("rb") as handle:
+                    archive.writestr(f"{folder}/{filename}", handle.read())
+                included += 1
+    if not included:
+        buffer.close()
+        messages.warning(request, "Nothing to download: no named students with photos in the selection.")
+        return None
+    if unnamed:
+        messages.warning(request, f"{unnamed} unnamed student(s) were left out — they have no name to be filed under.")
+    buffer.seek(0)
+    zip_name = f"{folders[0]}.zip" if len(folders) == 1 else (
+        f"{_institution_code(classes[0].institution.name)}-Class-Photos.zip")
+    return FileResponse(buffer, as_attachment=True, filename=zip_name, content_type="application/zip")
+
+
 @admin.register(SchoolClass)
-class SchoolClassAdmin(AppendOrderMixin, BulkUploadMixin, admin.ModelAdmin):
+class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
+    # Listed in school order (Nursery, LKG, UKG, 1A … 12C), from the names.
     bulk_upload_targets = ("portal.student",)
-    list_display = ("name", "institution", "group", "student_count", "named_count", "sort_order")
-    list_editable = ("group", "sort_order")
+    list_display = ("name", "institution", "group", "student_count", "named_count")
+    list_editable = ("group",)
     list_filter = ("institution", "group")
     list_select_related = ("institution",)
     search_fields = ("name", "institution__name")
     prepopulated_fields = {"slug": ("name",)}
-    fields = ("institution", "name", "slug", "group", "sort_order")
+    fields = ("institution", "name", "slug", "group")
     autocomplete_fields = ("institution",)
     actions = ["download_photos"]
 
@@ -47,53 +101,7 @@ class SchoolClassAdmin(AppendOrderMixin, BulkUploadMixin, admin.ModelAdmin):
 
     @admin.action(description="Download photos — folder of originals, named after the students")
     def download_photos(self, request, queryset):
-        """
-        The class folder the website used to build, now admin-only: one folder
-        per class ({CODE}-{CLASS}-Photos), one file per *named* student called
-        after them — but from the uploaded originals, at full size, instead of
-        the website's re-encoded web copies.
-        """
-        import os
-        import tempfile
-        import zipfile
-
-        from django.http import FileResponse
-
-        if not request.user.has_perm("portal.view_student"):
-            raise PermissionDenied
-        classes = list(queryset.select_related("institution"))
-        buffer = tempfile.TemporaryFile()  # spooled to disk, so huge classes never sit in RAM
-        included = unnamed = 0
-        folders = []
-        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:  # photos are already compressed
-            for cls in classes:
-                folder = f"{_institution_code(cls.institution.name)}-{cls.name.upper()}-Photos"
-                folders.append(folder)
-                used: dict[str, int] = {}
-                for student in cls.students.order_by("sort_order", "pk"):
-                    if not student.name.strip():
-                        unnamed += 1  # nothing to file them under, same rule as the website had
-                        continue
-                    if not student.original:
-                        continue
-                    base = _safe_file_name(student.name)
-                    n = used.get(base.lower(), 0) + 1
-                    used[base.lower()] = n
-                    ext = os.path.splitext(student.original.name)[1].lower() or ".jpg"
-                    filename = f"{base}{'' if n == 1 else f' ({n})'}{ext}"
-                    with student.original.open("rb") as handle:
-                        archive.writestr(f"{folder}/{filename}", handle.read())
-                    included += 1
-        if not included:
-            buffer.close()
-            messages.warning(request, "Nothing to download: no named students with photos in the selection.")
-            return None
-        if unnamed:
-            messages.warning(request, f"{unnamed} unnamed student(s) were left out — they have no name to be filed under.")
-        buffer.seek(0)
-        zip_name = f"{folders[0]}.zip" if len(folders) == 1 else (
-            f"{_institution_code(classes[0].institution.name)}-Class-Photos.zip")
-        return FileResponse(buffer, as_attachment=True, filename=zip_name, content_type="application/zip")
+        return class_photos_zip(request, queryset.select_related("institution"))
 
     @admin.display(description="Students", ordering="size")
     def student_count(self, obj):
@@ -106,13 +114,16 @@ class SchoolClassAdmin(AppendOrderMixin, BulkUploadMixin, admin.ModelAdmin):
 
 @admin.register(Student)
 class StudentAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
-    list_display = ("thumbnail", "name", "school_class", "image_status", "sort_order")
-    list_editable = ("name", "sort_order")
+    # Listed by class, then file name (numbers numeric) — the portal's order.
+    list_display = ("thumbnail", "name", "source_name", "school_class", "image_status")
+    list_editable = ("name",)
     list_filter = ("school_class__institution", "school_class")
     list_select_related = ("school_class__institution",)
     list_per_page = 100
-    search_fields = ("name",)
-    fields = ("school_class", "name", "original", "sort_order")
+    search_fields = ("name", "source_name")
+    fields = ("school_class", "name", "original", "source_name", "sort_order")
+    readonly_fields = ("source_name",)
+    ordering = ("school_class__institution", "school_class__sort_key", "school_class", "sort_key", "sort_order", "pk")
     autocomplete_fields = ("school_class",)
     actions = ["reprocess_images"]
 
@@ -140,26 +151,6 @@ class CaptionItemForm(forms.ModelForm):
             item.save()
             self.save_m2m()
         return item
-
-
-def _retag(queryset, tag: str) -> int:
-    return queryset.exclude(status=CaptionStatus.APPROVED).update(status=tag, requested=tag, updated_at=timezone.now())
-
-
-class RetagActionsMixin:
-    """Actions for the tags the institution sees on the workspace cards."""
-
-    @admin.action(description="Ask the institution to write a title")
-    def mark_needs_caption(self, request, queryset):
-        messages.success(request, f"{_retag(queryset, CaptionStatus.NEEDS_CAPTION)} item(s) now need a title.")
-
-    @admin.action(description="Ask the institution to approve")
-    def mark_needs_approval(self, request, queryset):
-        messages.success(request, f"{_retag(queryset, CaptionStatus.NEEDS_APPROVAL)} item(s) sent for approval.")
-
-    @admin.action(description="Ask the institution to correct")
-    def mark_needs_correction(self, request, queryset):
-        messages.success(request, f"{_retag(queryset, CaptionStatus.NEEDS_CORRECTION)} item(s) sent for correction.")
 
 
 class NaturalTitleFormSet(forms.models.BaseInlineFormSet):
@@ -192,7 +183,6 @@ class CaptionItemInline(admin.TabularInline):
               "action_by_phone", "updated_at")
     readonly_fields = ("image", "status", "action_by", "action_by_phone", "updated_at")
     ordering = ("sort_order", "pk")
-    show_change_link = True
     formfield_overrides = {
         models.TextField: {"widget": forms.Textarea(attrs={"rows": 3, "cols": 34})},
         models.CharField: {"widget": forms.TextInput(attrs={"size": 22})},
@@ -208,8 +198,9 @@ class CaptionItemInline(admin.TabularInline):
 
 @admin.register(CaptionWorkspace)
 class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
-    # Class photographs go to the institution for titles; individual (student)
-    # photographs are filed into the institution's classes by file name.
+    # Class photographs go to the institution for titles (edited in the table
+    # on this page — they have no admin list of their own); individual
+    # (student) photographs come in as class folders, one class per folder.
     bulk_upload_targets = ("portal.captionitem", "portal.workspacestudent")
     inlines = (CaptionItemInline,)
     list_display = ("institution", "photo_count", "needs_caption", "awaiting", "corrected_count", "approved_count",
@@ -230,6 +221,8 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
                  name="portal_captionworkspace_delete_photos"),
             path("<path:object_id>/export-titles/", self.admin_site.admin_view(self.export_titles),
                  name="portal_captionworkspace_export_titles"),
+            path("<path:object_id>/download-students/", self.admin_site.admin_view(self.download_students),
+                 name="portal_captionworkspace_download_students"),
             *super().get_urls(),
         ]
 
@@ -263,6 +256,19 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
             content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
+
+    def download_students(self, request, object_id):
+        """The zip of one class's (or every class's) originals, from the pick
+        under Individual Photographs."""
+        from django.shortcuts import get_object_or_404, redirect
+
+        workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
+        classes = SchoolClass.objects.filter(institution_id=workspace.institution_id).select_related("institution")
+        choice = request.GET.get("class", "all")
+        if choice != "all":
+            classes = classes.filter(pk=int(choice) if choice.isdigit() else 0)
+        response = class_photos_zip(request, classes)
+        return response or redirect("admin:portal_captionworkspace_change", workspace.pk)
 
     def delete_photos(self, request, object_id):
         from django.http import HttpResponseNotAllowed
@@ -327,31 +333,7 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
         return obj.n_approved
 
 
-@admin.register(CaptionItem)
-class CaptionItemAdmin(RetagActionsMixin, ImagePreviewMixin, admin.ModelAdmin):
-    form = CaptionItemForm
-    list_display = ("thumbnail", "moment_title", "institution", "status", "action_by", "action_by_phone",
-                    "updated_at")
-    list_editable = ("moment_title",)
-    list_filter = ("status", "institution", "event")
-    list_select_related = ("institution", "event")
-    list_per_page = 100
-    search_fields = ("moment_title", "caption", "institution__name")
-    readonly_fields = ("institution", "status", "action_by", "action_by_phone", "updated_at")
-    fields = ("institution", "event", "original", "moment_title", "caption", "requested",
-              "status", "action_by", "action_by_phone", "updated_at", "sort_order")
-    autocomplete_fields = ("event",)
-    actions = ["reprocess_images", "mark_needs_caption", "mark_needs_approval", "mark_needs_correction"]
-
-    def get_readonly_fields(self, request, obj=None):
-        # A brand-new item needs an event to know which institution it belongs to.
-        return self.readonly_fields if obj else tuple(f for f in self.readonly_fields if f != "institution")
-
-    def get_fields(self, request, obj=None):
-        return self.fields if obj else tuple(f for f in self.fields if f != "institution")
-
-
-# --------------------------------------------------------------------------- access & logins
+# --------------------------------------------------------------------------- institution credentials (access emails)
 
 
 @admin.register(PortalAccessEmail)
@@ -364,68 +346,57 @@ class PortalAccessEmailAdmin(admin.ModelAdmin):
     fields = ("institution", "email", "note")
 
 
-class MemberForm(forms.ModelForm):
-    login_id = forms.CharField(label="Login ID", max_length=150, help_text='What they type to sign in, e.g. "dps-newdelhi".')
-    password = forms.CharField(widget=forms.PasswordInput(render_value=False), required=False,
-                               help_text="Leave blank to keep the current password.")
+# --------------------------------------------------------------------------- Spectrum team portal access
 
-    class Meta:
-        model = Member
-        fields = ("institution", "role", "display_name")
+
+def _portal_permission():
+    return Permission.objects.get(content_type__app_label="portal", codename=SPECTRUM_PORTAL_CODENAME)
+
+
+class PortalAccessUserForm(UserAdmin.form):
+    portal_access = forms.BooleanField(
+        label="Institution portal access", required=False,
+        help_text="Lets this user sign in to the website's institution portal with this username and password, as "
+                  "the Spectrum team, and open every institution. Superusers always can.")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk:
-            self.fields["login_id"].initial = self.instance.user.get_username()
-        else:
-            self.fields["password"].required = True
-
-    def clean_login_id(self):
-        login_id = self.cleaned_data["login_id"].strip()
-        users = get_user_model().objects.filter(username=login_id)
-        if self.instance.pk:
-            users = users.exclude(pk=self.instance.user_id)
-        if users.exists():
-            raise forms.ValidationError("That login ID is already taken.")
-        return login_id
-
-    def clean_password(self):
-        password = self.cleaned_data.get("password")
-        if password:
-            validate_password(password)
-        return password
-
-    def save(self, commit=True):
-        member = super().save(commit=False)
-        user = member.user if member.pk else get_user_model()(is_staff=False)
-        user.username = self.cleaned_data["login_id"]
-        if self.cleaned_data.get("password"):
-            user.set_password(self.cleaned_data["password"])
-            if member.pk:
-                member.token_version += 1  # a new password signs out every device
-        user.save()
-        member.user = user
-        if commit:
-            member.save()
-        return member
+            self.fields["portal_access"].initial = self.instance.user_permissions.filter(
+                content_type__app_label="portal", codename=SPECTRUM_PORTAL_CODENAME).exists()
 
 
-@admin.register(Member)
-class MemberAdmin(admin.ModelAdmin):
-    form = MemberForm
-    list_display = ("login", "display_name", "institution", "role")
-    list_filter = ("role", "institution")
-    list_select_related = ("user", "institution")
-    search_fields = ("user__username", "display_name")
-    fields = ("login_id", "password", "display_name", "institution", "role")
-    autocomplete_fields = ("institution",)
-    actions = ["sign_out_everywhere"]
+class PortalAccessUserAdmin(UserAdmin):
+    """The Users table, with the Spectrum team's portal access beside the rest
+    of what a user may do (it replaces the old Portal logins table)."""
 
-    @admin.display(description="Login ID", ordering="user__username")
-    def login(self, obj):
-        return obj.user.get_username()
+    form = PortalAccessUserForm
+    list_display = (*UserAdmin.list_display, "portal_access")
+    fieldsets = (
+        UserAdmin.fieldsets[0],
+        UserAdmin.fieldsets[1],
+        ("Institution portal", {"fields": ("portal_access",)}),
+        *UserAdmin.fieldsets[2:],
+    )
 
-    @admin.action(description="Sign out everywhere")
-    def sign_out_everywhere(self, request, queryset):
-        count = queryset.update(token_version=F("token_version") + 1)
-        messages.success(request, f"Signed out {count} login(s) on every device.")
+    @admin.display(description="Portal access", boolean=True)
+    def portal_access(self, obj):
+        from .auth import has_spectrum_access
+
+        return has_spectrum_access(obj)
+
+    def save_related(self, request, form, formsets, change):
+        # After the permissions list is saved, so the tick box has the last word.
+        super().save_related(request, form, formsets, change)
+        if "portal_access" in form.cleaned_data:
+            permission = _portal_permission()
+            if form.cleaned_data["portal_access"]:
+                form.instance.user_permissions.add(permission)
+            else:
+                form.instance.user_permissions.remove(permission)
+
+
+User = get_user_model()
+if admin.site.is_registered(User):
+    admin.site.unregister(User)
+admin.site.register(User, PortalAccessUserAdmin)

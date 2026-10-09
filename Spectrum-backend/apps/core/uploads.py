@@ -51,9 +51,9 @@ class Target:
     # instead of a new row being created. Non-matching files create rows as usual.
     upsert_by_name: bool = False
     # A routed target: the uploader page lives on `page_parent` (app.Model) and
-    # each file's real `parent` FK value is derived from its file name by
-    # `route(page_parent_id, filename)`, which may create the parent on the fly
-    # and returns None when the name carries no destination.
+    # each file's real `parent` FK value is derived from its folder and file
+    # name by `route(page_parent_id, filename, folder)`, which may create the
+    # parent on the fly and returns None when neither names a destination.
     page_parent: str | None = None
     route: object = None
     # Lookup path from the model to the page's parent, for the thumbnail grid
@@ -62,6 +62,21 @@ class Target:
     # The grid's "manage these" link filter as `(page_parent_id) -> query`,
     # for when `grid_parent` isn't a lookup the changelist accepts.
     changelist_query: object = None
+    # `(filename, folder) -> error or None`: files that can never be filed are
+    # refused when the upload is prepared, before any bytes are sent.
+    name_error: object = None
+    # A line under the section heading, e.g. how files must be named.
+    hint: str = ""
+    # The drop zone offers a folder picker and reads each file's folder.
+    folders: bool = False
+    # The thumbnail grid is split into one block per value of this FK (e.g.
+    # one per class), each headed by its name.
+    group_by: str | None = None
+    # Order of the thumbnails (within each group).
+    grid_ordering: tuple = ("sort_order", "pk")
+    # `(page_parent_id) -> url` of a zip download offered under the grid, with
+    # a pick of one group or all; needs view permission on the model.
+    download_url: object = None
     # The thumbnail grid gets a tick box per photo and a "Delete selected"
     # button, for admins allowed to delete this model.
     select_delete: bool = False
@@ -119,17 +134,77 @@ def class_for_file(institution_id, filename):
     return cls.pk
 
 
+# A folder named only for its class, "6c" or "6 C", is filed as "6C".
+WHOLE_CLASS = re.compile(r"^\s*(\d{1,2})\s*([A-Za-z]{1,3})\s*$")
+LEADING_NUMBER = re.compile(r"^\s*(?:class|grade|std\.?|standard)?\s*(\d{1,2})(?!\d)", re.I)
+
+NO_CLASS_ERROR = 'no class at the front of the file name (expected e.g. "6C_...")'
+NO_FOLDER_ERROR = 'not inside a class folder — drop folders named after their class (e.g. a folder "6C")'
+BAD_FOLDER_ERROR = "the folder name needs letters or numbers to become a class name"
+
+
+def class_name_error(filename, folder="") -> str | None:
+    stem = os.path.splitext(os.path.basename(filename))[0]
+    return None if CLASS_TOKEN.match(stem) else NO_CLASS_ERROR
+
+
+def folder_class_name(folder: str) -> str:
+    """The class a folder stands for: its name, tidied ("6c" -> "6C")."""
+    name = re.sub(r"\s+", " ", str(folder or "")).strip()[:60].strip()
+    match = WHOLE_CLASS.match(name)
+    return f"{int(match.group(1))}{match.group(2).upper()}" if match else name
+
+
+def folder_error(filename, folder="") -> str | None:
+    """Files go into the class named by their folder; a loose file still
+    works when its name starts with the class ("6C_Aarav.jpg")."""
+    from django.utils.text import slugify
+
+    if not str(folder or "").strip():
+        return None if class_name_error(filename) is None else NO_FOLDER_ERROR
+    return None if slugify(folder_class_name(folder)) else BAD_FOLDER_ERROR
+
+
+def class_for_folder(institution_id, folder, filename):
+    """The class a photo belongs in: the folder it was uploaded in (created on
+    first sight, so ten class folders make ten classes), else the class at
+    the front of its file name. None when neither names one."""
+    from django.utils.text import slugify
+
+    from apps.portal.models import SchoolClass
+
+    name = folder_class_name(folder)
+    if not name:
+        return class_for_file(institution_id, filename)
+    slug = slugify(name)[:70]
+    if not slug:
+        return None
+    number = LEADING_NUMBER.match(name)
+    grade = int(number.group(1)) if number else 0
+    group = "Primary" if grade <= 5 else "Middle" if grade <= 8 else "Senior"
+    cls, _ = SchoolClass.objects.get_or_create(
+        institution_id=institution_id, slug=slug, defaults={"name": name, "group": group})
+    return cls.pk
+
+
 def _workspace_institution(workspace_id) -> int | None:
     from apps.portal.models import CaptionWorkspace
 
     return CaptionWorkspace.objects.filter(pk=workspace_id).values_list("institution_id", flat=True).first()
 
 
-def class_for_workspace_file(workspace_id, filename):
-    """`class_for_file` for the drop on a title workspace: files land in the
-    classes of the workspace's institution."""
+def class_for_workspace_file(workspace_id, filename, folder=""):
+    """`class_for_folder` for the drop on an institution workspace: files land
+    in the classes of the workspace's institution."""
     institution_id = _workspace_institution(workspace_id)
-    return class_for_file(institution_id, filename) if institution_id else None
+    return class_for_folder(institution_id, folder, filename) if institution_id else None
+
+
+def _workspace_download(workspace_id) -> str:
+    return reverse("admin:portal_captionworkspace_download_students", args=[workspace_id])
+
+
+STUDENT_ORDER = ("sort_key", "sort_order", "pk")  # file-name order, as Student.Meta
 
 
 TARGETS = {
@@ -144,17 +219,23 @@ TARGETS = {
         choices={"requested": _request_tags}, mirror={"requested": "status"},
         upsert_by_name=True,
     ),
-    "portal.student": Target("portal.Student", "school_class", None, "Student photos"),
-    # The institution-wide drop, on the title workspace: thousands of files land
-    # at once and each is filed into a class of the workspace's institution
-    # (created as needed) from its file name. Keyed apart from the old drop on
-    # the institution page, whose batches carried an institution id; a leftover
-    # one of those is refused rather than read as a workspace id.
+    "portal.student": Target("portal.Student", "school_class", None, "Student photos", grid_ordering=STUDENT_ORDER),
+    # The institution-wide drop, on the institution workspace: class folders
+    # land at once and each folder becomes a class of the workspace's
+    # institution (created as needed), its photos filed under it. Keyed apart
+    # from the old drop on the institution page, whose batches carried an
+    # institution id; a leftover one of those is refused rather than read as a
+    # workspace id.
     "portal.workspacestudent": Target(
         "portal.Student", "school_class", None, "Individual Photographs Upload",
         page_parent="portal.CaptionWorkspace", route=class_for_workspace_file,
-        grid_parent="school_class__institution__caption_workspace",
+        grid_parent="school_class__institution__caption_workspace", name_error=folder_error,
+        hint="Drop one folder per class — the folder's name becomes the class name, e.g. a folder \"6C\" with "
+             "that class's photos inside. Drop several folders at once for several classes. Re-uploading a file "
+             "with the same name into the same class replaces that photo and keeps the student's name.",
         changelist_query=lambda workspace_id: f"school_class__institution__id__exact={_workspace_institution(workspace_id)}",
+        upsert_by_name=True, folders=True, group_by="school_class", grid_ordering=STUDENT_ORDER,
+        download_url=_workspace_download,
     ),
     "content.heroslide": Target("content.HeroSlide", "page", "caption", "Hero carousel slides"),
     "content.tieup": Target("content.TieUp", "page", "name", "Tie-up photos"),
@@ -260,6 +341,7 @@ def prepare(request):
             continue
         client_id = str(item.get("clientId", ""))[:64]
         name = str(item.get("name", "image.jpg"))[:200]
+        folder = str(item.get("folder") or "")[:200]
         size = _int(item.get("size"))
         ext = os.path.splitext(name)[1].lower()
         if ext not in IMAGE_EXTENSIONS:
@@ -267,6 +349,10 @@ def prepare(request):
             continue
         if size <= 0 or size > settings.UPLOAD_MAX_BYTES:
             entries.append({"clientId": client_id, "error": "File is empty or too large"})
+            continue
+        name_error = target.name_error(name, folder) if target.name_error else None
+        if name_error:
+            entries.append({"clientId": client_id, "error": name_error})
             continue
         key = original_key(model, name)
         new_keys.append(key)
@@ -343,14 +429,14 @@ def commit(request, batch_id):
         token = _unsign(str(item.get("token", "")))
         if token and token[0] == str(batch.pk):
             index = max(0, _int(item.get("index")))
-            parsed.append((token[1], token[2], index, str(item.get("name") or "")))
+            parsed.append((token[1], token[2], index, str(item.get("name") or ""), str(item.get("folder") or "")[:200]))
     done = set(
         UploadBatchFile.objects.filter(batch=batch, client_id__in=[p[0] for p in parsed]).values_list("client_id", flat=True)
     )
     storage = private_storage()
     created, skipped, errors = [], [], {}
     with transaction.atomic():
-        for client_id, key, index, name in parsed:
+        for client_id, key, index, name, folder in parsed:
             if client_id in done:
                 created.append(client_id)
                 continue
@@ -363,11 +449,11 @@ def commit(request, batch_id):
                 continue
             parent_value = batch.parent_id
             if target.route:
-                parent_value = target.route(batch.parent_id, name)
+                parent_value = target.route(batch.parent_id, name, folder)
                 if parent_value is None:
                     storage.delete(key)
                     skipped.append(client_id)
-                    errors[client_id] = 'no class at the front of the file name (expected e.g. "6C_...")'
+                    errors[client_id] = (target.name_error and target.name_error(name, folder)) or NO_CLASS_ERROR
                     continue
             obj = _matching_row(target, model, parent_attname, parent_value, name)
             if obj is not None:
@@ -397,7 +483,7 @@ def _matching_row(target: Target, model, parent_attname: str, parent_id, name: s
         return None
     lookup = Q(source_name__iexact=name[:200])
     title = humanize(name)
-    if title:
+    if title and target.name_field:
         lookup |= Q(source_name="", **{f"{target.name_field}__iexact": title})
     return model.objects.filter(**{parent_attname: parent_id}).filter(lookup).order_by("pk").first()
 
@@ -449,6 +535,7 @@ def retry_failed(request, batch_id):
 
 
 GRID_LIMIT = 300
+GROUP_LIMIT = 200  # thumbnails shown per group (e.g. per class)
 
 
 def _grid_queryset(target: Target, parent_id):
@@ -471,27 +558,51 @@ def grid_context(target_key: str, parent_id, user=None) -> dict:
         except NoReverseMatch:  # edited inline on its parent page, no screen of its own
             return ""
 
-    items = []
-    for obj in queryset.only(*fields).order_by("sort_order", "pk")[:GRID_LIMIT]:
+    def item(obj):
         label = getattr(obj, target.name_field) if target.name_field else (getattr(obj, "name", "") or "Unnamed")
-        items.append({
+        return {
             "pk": obj.pk,
             "thumb": obj.thumb_url,
             "label": label,
             "status": obj.image_status,
             "status_label": obj.get_image_status_display(),
             "url": admin_url("change", obj.pk),
-        })
-    total = queryset.count()
+        }
+
     changelist = admin_url("changelist")
+    items, groups = [], []
+    if target.group_by:
+        # One block per group (class), in the group model's own order.
+        group_field = meta.get_field(target.group_by)
+        counts = dict(queryset.values_list(group_field.attname).annotate(n=Count("pk")).order_by())
+        for group in group_field.related_model.objects.filter(pk__in=counts):
+            rows = queryset.filter(**{group_field.attname: group.pk}).only(*fields).order_by(*target.grid_ordering)
+            shown = [item(obj) for obj in rows[:GROUP_LIMIT]]
+            groups.append({
+                "pk": group.pk,
+                "name": getattr(group, "name", "") or str(group),
+                "total": counts[group.pk],
+                "items": shown,
+                "hidden": max(0, counts[group.pk] - len(shown)),
+                "changelist_url": f"{changelist}?{target.group_by}__id__exact={group.pk}" if changelist else "",
+            })
+        total = sum(counts.values())
+    else:
+        items = [item(obj) for obj in queryset.only(*fields).order_by(*target.grid_ordering)[:GRID_LIMIT]]
+        total = queryset.count()
     selectable = bool(target.select_delete and user is not None
                       and user.has_perm(f"{meta.app_label}.delete_{meta.model_name}"))
+    download = ""
+    if target.download_url and total and (user is None or user.has_perm(f"{meta.app_label}.view_{meta.model_name}")):
+        download = target.download_url(parent_id)
     return {
         "items": items,
+        "groups": groups,
         "total": total,
         "selectable": selectable,
         "delete_url": reverse("admin-upload-delete") if selectable else "",
-        "hidden": max(0, total - GRID_LIMIT),
+        "download_url": download,
+        "hidden": max(0, total - GRID_LIMIT) if not groups else 0,
         "changelist_url": (
             f"{changelist}?" + (target.changelist_query(parent_id) if target.changelist_query
                                 else f"{target.grid_parent or target.parent}__id__exact={parent_id}")

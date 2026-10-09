@@ -15,7 +15,8 @@ import { createStore, sessionStore, useClientStore, useStore } from "./portal-st
 export type PortalInstitution = { id: string; name: string; city: string };
 
 export type PortalMember = {
-  id: number;
+  /** "i<pk>" for an institution's sign-in, "s<pk>" for a Spectrum team user. */
+  id: string;
   loginId: string;
   displayName: string;
   role: "institution" | "spectrum";

@@ -37,8 +37,17 @@
 
   function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
 
+  function pathOf(file) { return file.relativePath || file.webkitRelativePath || ""; }
+
   function naturalCompare(a, b) {
-    return (a.relativePath || a.name).localeCompare(b.relativePath || b.name, undefined, { numeric: true, sensitivity: "base" });
+    return (pathOf(a) || a.name).localeCompare(pathOf(b) || b.name, undefined, { numeric: true, sensitivity: "base" });
+  }
+
+  /* The folder a file sits in directly ("6C" for "Batch/6C/a.jpg"); empty for
+     a loose file. Folder uploads file each photo into the class of that name. */
+  function folderOf(file) {
+    var parts = pathOf(file).split("/").filter(Boolean);
+    return parts.length > 1 ? parts[parts.length - 2] : "";
   }
 
   function formatBytes(bytes) {
@@ -101,6 +110,7 @@
 
     this.drop = root.querySelector(".bulk-drop");
     this.input = root.querySelector(".bulk-input");
+    this.folderInput = root.querySelector(".bulk-folder-input");
     this.progress = root.querySelector(".bulk-progress");
     this.bar = root.querySelector(".bulk-bar span");
     this.line = root.querySelector(".bulk-line");
@@ -119,14 +129,18 @@
     this.drop.addEventListener("click", function (event) {
       activate();
       if (event.target.classList.contains("bulk-browse")) self.input.click();
+      else if (event.target.classList.contains("bulk-browse-folder")) self.folderInput.click();
       else self.drop.focus();
     });
     this.drop.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); self.input.click(); }
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); (self.folderInput || self.input).click(); }
     });
-    this.input.addEventListener("change", function () {
-      self.add(Array.prototype.slice.call(self.input.files));
-      self.input.value = "";
+    [this.input, this.folderInput].forEach(function (input) {
+      if (!input) return;
+      input.addEventListener("change", function () {
+        self.add(Array.prototype.slice.call(input.files));
+        input.value = "";
+      });
     });
     ["dragenter", "dragover"].forEach(function (type) {
       self.drop.addEventListener(type, function (event) {
@@ -144,6 +158,14 @@
     });
     this.retryButton.addEventListener("click", function () { self.retryFailed(); });
     this.bindSelection();
+    // "Download photos of [class]": the link follows the picked class. Bound on
+    // the grid container, so it survives the grid being refreshed.
+    this.grid.addEventListener("change", function (event) {
+      var select = event.target;
+      if (!select.classList || !select.classList.contains("bulk-download-class")) return;
+      var link = self.grid.querySelector(".bulk-download");
+      if (link) link.href = select.dataset.url + "?class=" + encodeURIComponent(select.value);
+    });
   };
 
   /* Tick boxes on the thumbnail grid (only rendered where the admin may
@@ -243,7 +265,7 @@
       parentId: this.parentId,
       batchId: this.batchId,
       files: items.map(function (item) {
-        return { clientId: item.clientId, name: item.file.name, size: item.file.size, type: item.file.type };
+        return { clientId: item.clientId, name: item.file.name, folder: folderOf(item.file), size: item.file.size, type: item.file.type };
       }),
     }).then(function (data) {
       self.batchId = data.batchId;
@@ -251,12 +273,20 @@
       data.files.forEach(function (entry) { byId[entry.clientId] = entry; });
       items.forEach(function (item) {
         var entry = byId[item.clientId];
-        if (!entry || entry.error) return self.fail(item, entry ? entry.error : "rejected");
+        if (!entry || entry.error) {
+          // Refused before upload (type, size, or a name that can't be filed):
+          // it won't be sent, so it leaves the totals, and a retry can't help.
+          self.stats.total -= 1;
+          self.stats.bytesTotal -= item.file.size;
+          return self.fail(item, entry ? entry.error : "rejected", true);
+        }
         item.entry = entry;
         self.queue.push(item);
       });
+      self.render();
     }).catch(function (error) {
       items.forEach(function (item) { self.fail(item, error.message); });
+      self.render();
     });
   };
 
@@ -322,7 +352,7 @@
           retry = retry.then(function () {
             return postJSON(self.prepareUrl, {
               target: self.target, parentId: self.parentId, batchId: self.batchId,
-              files: [{ clientId: item.clientId, name: item.file.name, size: item.file.size, type: item.file.type }],
+              files: [{ clientId: item.clientId, name: item.file.name, folder: folderOf(item.file), size: item.file.size, type: item.file.type }],
             }).then(function (data) { item.entry = data.files[0]; });
           });
         }
@@ -332,6 +362,7 @@
     attempt()
       .then(function () {
         self.stats.uploaded += 1;
+        item.sent = true;
         self.toCommit.push(item);
         if (self.toCommit.length >= COMMIT_EVERY) self.flush(false);
       })
@@ -366,7 +397,7 @@
   Uploader.prototype.commit = function (batch, tries) {
     var self = this;
     return postJSON(this.prepareUrl.replace(/prepare\/$/, this.batchId + "/commit/"), {
-      files: batch.map(function (item) { return { token: item.entry.token, index: item.index, name: item.file.name }; }),
+      files: batch.map(function (item) { return { token: item.entry.token, index: item.index, name: item.file.name, folder: folderOf(item.file) }; }),
       options: this.options(),
     }).then(function (data) {
       self.stats.committed += data.created.length;
@@ -374,7 +405,9 @@
       data.skipped.forEach(function (id) { skipped[id] = true; });
       var reasons = data.errors || {};
       batch.forEach(function (item) {
-        if (skipped[item.clientId]) self.fail(item, reasons[item.clientId] || "not found after upload");
+        // A skip with a reason is a verdict on the file (e.g. its name), so a
+        // retry would only fail again; a bare skip may be a lost upload.
+        if (skipped[item.clientId]) self.fail(item, reasons[item.clientId] || "not found after upload", !!reasons[item.clientId]);
       });
       self.render();
     }).catch(function (error) {
@@ -438,23 +471,39 @@
     if (this.count && empty) this.count.textContent = "0";
   };
 
-  Uploader.prototype.fail = function (item, reason) {
+  function retryable(item) { return item.clientId && !item.permanent; }
+
+  Uploader.prototype.fail = function (item, reason, permanent) {
+    item.permanent = !!permanent || !item.clientId;
+    item.reason = reason;
     this.failed.push(item);
     var li = document.createElement("li");
-    li.textContent = item.file.name + ": " + reason;
+    li.textContent = (pathOf(item.file) || item.file.name).replace(/^\//, "") + ": " + reason;
     this.errors.appendChild(li);
-    this.retryButton.hidden = !this.failed.some(function (f) { return f.clientId; });
+    this.retryButton.hidden = !this.failed.some(retryable);
     this.progress.hidden = false;
   };
 
+  /* Re-sends only what a retry can fix (network, storage, save errors); files
+     refused for their type, size or name stay listed. Each retried file comes
+     off the counters first, so totals don't double. */
   Uploader.prototype.retryFailed = function () {
-    var files = this.failed.filter(function (item) { return item.clientId; }).map(function (item) { return item.file; });
+    var self = this;
+    var retry = this.failed.filter(retryable);
+    var keep = this.failed.filter(function (item) { return !retryable(item); });
+    retry.forEach(function (item) {
+      self.stats.total -= 1;
+      self.stats.bytesTotal -= item.file.size;
+      if (item.sent) {
+        self.stats.uploaded -= 1;
+        self.stats.bytesDone -= item.file.size;
+      }
+    });
     this.failed = [];
     this.errors.innerHTML = "";
     this.retryButton.hidden = true;
-    this.stats.total -= files.length;
-    this.stats.bytesTotal -= files.reduce(function (sum, file) { return sum + file.size; }, 0);
-    this.add(files);
+    keep.forEach(function (item) { self.fail(item, item.reason, true); });
+    this.add(retry.map(function (item) { return item.file; }));
   };
 
   Uploader.prototype.renderSoon = function () {
@@ -473,6 +522,8 @@
       parts = ["Uploaded " + stats.committed + ". Making web versions: " + done + " of " + this.processing.total + "…"];
     } else if (finalCounts) {
       parts = ["Done. " + finalCounts.ready + " ready" + (finalCounts.failed ? ", " + finalCounts.failed + " could not be read" : "") + "."];
+    } else if (!stats.total && this.failed.length) {
+      parts = ["Nothing to upload"];
     } else {
       parts = ["Uploading " + stats.uploaded + " of " + stats.total, formatBytes(stats.bytesDone) + " / " + formatBytes(stats.bytesTotal)];
     }

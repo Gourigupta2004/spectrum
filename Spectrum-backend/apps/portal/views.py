@@ -1,7 +1,6 @@
 import re
 
 from django.conf import settings
-from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
@@ -13,10 +12,10 @@ from apps.content.models import PortalPage
 from apps.core.http import ApiError, api, rate_limit, text
 from apps.core.models import ImageStatus, storage_url
 
-from .auth import REFRESH_SALT, issue_tokens, member_from_token, read_token, require_member
-from .models import (
-    CaptionItem, CaptionStatus, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student, natural_key,
+from .auth import (
+    REFRESH_SALT, PortalLogin, authenticate_portal, issue_tokens, member_from_token, read_token, require_member,
 )
+from .models import CaptionItem, CaptionStatus, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student, natural_key
 
 CAPTION_FIELDS = ("pk", "moment_title", "caption", "requested", "status", "updated_at", "action_by",
                   "action_by_phone", "web", "thumb", "width", "height", "event__name")
@@ -28,7 +27,7 @@ def date_label(value) -> str:
     return f"{local:%B} {local.day}, {local.year}"
 
 
-def acting_institution(member: Member, request) -> Institution:
+def acting_institution(member: PortalLogin, request) -> Institution:
     """Institution logins see their own data; Spectrum team logins may pick one with ?institution=."""
     if not member.is_spectrum:
         if member.institution is None:
@@ -46,11 +45,11 @@ def institution_dict(institution: Institution) -> dict:
     return {"id": institution.slug, "name": institution.name, "city": institution.city}
 
 
-def member_dict(member: Member, institution: Institution | None) -> dict:
+def member_dict(member: PortalLogin, institution: Institution | None) -> dict:
     return {
-        "id": member.pk,
-        "loginId": member.user.get_username(),
-        "displayName": member.display_name or member.user.get_username(),
+        "id": member.id,
+        "loginId": member.login_id,
+        "displayName": member.display_name or member.login_id,
         "role": member.role,
         "institution": institution_dict(institution) if institution else None,
     }
@@ -90,17 +89,16 @@ def login(request):
     rate_limit(request, "portal-login-user", limit=20, window=3600, extra=username.lower())
     password = request.json.get("password") or ""
     email = _clean_email(text(request.json, "email", 254))
-    user = authenticate(request, username=username, password=password)
-    member = getattr(user, "member", None) if user else None
+    member = authenticate_portal(request, username, password)
     if member is None:
         raise ApiError(PortalPage.load().login_error or "Invalid login.", status=401)
     # The login must belong to the institution the verified email unlocked, so
     # one school's credentials can never open another school's workspace.
     if email and not member.is_spectrum:
-        allowed = PortalAccessEmail.objects.filter(email=email, institution_id=member.institution_id).exists()
+        allowed = PortalAccessEmail.objects.filter(email=email, institution_id=member.institution.pk).exists()
         if not allowed:
             raise ApiError("This login doesn't belong to the institution registered for that email.", status=403)
-    institution = member.institution if not member.is_spectrum else (member.institution or Institution.objects.first())
+    institution = member.institution if not member.is_spectrum else Institution.objects.first()
     return {**issue_tokens(member), "member": member_dict(member, institution)}
 
 
@@ -271,7 +269,7 @@ def caption_resolve(request, item_id):
 def classes(request):
     member = require_member(request)
     institution = acting_institution(member, request)
-    rows = (
+    rows = (  # school order: Nursery, LKG, UKG, 1A … 12C (SchoolClass.sort_key)
         SchoolClass.objects.filter(institution=institution)
         .annotate(size=Count("students"), named=Count("students", filter=~Q(students__name="")))
         .values_list("slug", "name", "group", "size", "named")
@@ -296,8 +294,8 @@ def scoped_class(member, request, slug) -> SchoolClass:
 def class_detail(request, slug):
     member = require_member(request)
     cls = scoped_class(member, request, slug)
-    rows = (Student.objects.filter(school_class=cls).order_by("sort_order", "pk")
-            .values_list("pk", "name", "web", "width", "height"))
+    # File-name order (numbers numeric), the same order the admin shows.
+    rows = Student.objects.filter(school_class=cls).values_list("pk", "name", "web", "width", "height")
     students = [{"id": str(pk), "name": name, "photo": storage_url(web), "width": width, "height": height}
                 for pk, name, web, width, height in rows]
     return {

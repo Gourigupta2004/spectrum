@@ -106,6 +106,8 @@ class BulkUploadMixin:
                 uploads.append({
                     "target": key,
                     "label": target.label,
+                    "hint": target.hint,
+                    "folders": target.folders,
                     "parent_id": obj.pk,
                     "choices": target.choice_fields(),
                     "grid": grid_context(key, obj.pk, request.user),

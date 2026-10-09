@@ -4,17 +4,30 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from apps.portal.models import CaptionItem, CaptionWorkspace, Member, PortalAccessEmail, SchoolClass, Student
+from apps.portal.models import CaptionItem, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student
 
 from .base import SpectrumTestCase, jpeg_bytes
+
+
+def give_portal_login(institution, username, password):
+    institution.portal_username = username
+    institution.set_portal_password(password)
+    institution.save()
+
+
+def make_spectrum_user(username="ops", password="team-pass-123", **extra):
+    from django.contrib.auth.models import Permission
+
+    user = get_user_model().objects.create_user(username, password=password, **extra)
+    user.user_permissions.add(Permission.objects.get(codename="spectrum_portal_access"))
+    return user
 
 
 class PortalTests(SpectrumTestCase):
     def setUp(self):
         super().setUp()
         self.make_catalog()
-        user = get_user_model().objects.create_user("dps-newdelhi", password="demo")
-        self.member = Member.objects.create(user=user, institution=self.institution)
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
         self.token = self.login("dps-newdelhi", "demo")["access"]
 
     def login(self, username, password):
@@ -39,9 +52,65 @@ class PortalTests(SpectrumTestCase):
         self.assertEqual(self.client.get("/api/portal/me/").status_code, 401)
 
     def test_sign_out_everywhere_invalidates_tokens(self):
+        from apps.catalog.models import Institution
+
         self.assertEqual(self.api("get", "/api/portal/me/").status_code, 200)
-        Member.objects.filter(pk=self.member.pk).update(token_version=2)
+        Institution.objects.filter(pk=self.institution.pk).update(portal_token_version=99)
         self.assertEqual(self.api("get", "/api/portal/me/").status_code, 401)
+
+    def test_institution_login_lives_on_the_institution(self):
+        from apps.catalog.models import Institution
+
+        self.institution.refresh_from_db()
+        self.assertTrue(self.institution.portal_password.startswith("pbkdf2_"), "stored hashed, never plain")
+        me = self.api("get", "/api/portal/me/").json()
+        self.assertEqual((me["loginId"], me["role"], me["displayName"], me["institution"]["id"]),
+                         ("dps-newdelhi", "institution", "Delhi Public School", "dps"))
+        self.assertEqual(self.login("DPS-NewDelhi", "demo")["member"]["loginId"], "dps-newdelhi",
+                         "usernames ignore letter case")
+        # A new password ends every session.
+        self.institution.set_portal_password("brand-new-pass")
+        self.institution.save()
+        self.assertEqual(self.api("get", "/api/portal/me/").status_code, 401)
+        self.assertIn("error", self.login("dps-newdelhi", "demo"))
+        self.assertIn("access", self.login("dps-newdelhi", "brand-new-pass"))
+        # Clearing the username closes the portal for that institution.
+        token = self.login("dps-newdelhi", "brand-new-pass")["access"]
+        Institution.objects.filter(pk=self.institution.pk).update(portal_username=None)
+        self.assertEqual(self.client.get("/api/portal/me/", HTTP_AUTHORIZATION=f"Bearer {token}").status_code, 401)
+
+    def test_tokens_from_before_the_move_are_refused(self):
+        from django.core import signing
+
+        old = signing.dumps({"u": 1, "v": 1, "t": 2_000_000_000}, salt="portal.access")
+        self.assertEqual(self.client.get("/api/portal/me/", HTTP_AUTHORIZATION=f"Bearer {old}").status_code, 401)
+
+    def test_spectrum_team_signs_in_with_the_user_permission(self):
+        from django.contrib.auth.models import Permission
+
+        user = make_spectrum_user(first_name="Riya", last_name="Ops")
+        result = self.login("ops", "team-pass-123")
+        self.assertEqual((result["member"]["role"], result["member"]["displayName"]), ("spectrum", "Riya Ops"))
+        token = result["access"]
+        auth = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        other = self.client.get("/api/portal/me/?institution=doon", **auth).json()
+        self.assertEqual(other["institution"]["id"], "doon", "the Spectrum team may open any institution")
+        # Taking the permission away ends the session; a plain staff user never gets in.
+        user.user_permissions.remove(Permission.objects.get(codename="spectrum_portal_access"))
+        self.assertEqual(self.client.get("/api/portal/me/", **auth).status_code, 401)
+        get_user_model().objects.create_user("clerk", password="clerk-pass-123", is_staff=True)
+        self.assertIn("error", self.login("clerk", "clerk-pass-123"))
+        get_user_model().objects.create_superuser("boss", password="boss-pass-123")
+        self.assertEqual(self.login("boss", "boss-pass-123")["member"]["role"], "spectrum")
+
+    def test_spectrum_session_ends_when_the_password_changes(self):
+        user = make_spectrum_user()
+        token = self.login("ops", "team-pass-123")["access"]
+        auth = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        self.assertEqual(self.client.get("/api/portal/me/", **auth).status_code, 200)
+        user.set_password("another-pass-456")
+        user.save()
+        self.assertEqual(self.client.get("/api/portal/me/", **auth).status_code, 401)
 
     def test_captions_are_scoped_to_institution(self):
         mine = self.caption(self.event, "needs-approval")
@@ -90,8 +159,7 @@ class PortalAccessTests(SpectrumTestCase):
     def setUp(self):
         super().setUp()
         self.make_catalog()
-        user = get_user_model().objects.create_user("dps-newdelhi", password="demo")
-        Member.objects.create(user=user, institution=self.institution)
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
         PortalAccessEmail.objects.create(institution=self.institution, email="Principal@DPS.edu ")
         PortalAccessEmail.objects.create(institution=self.other, email="head@doon.edu")
 
@@ -112,6 +180,10 @@ class PortalAccessTests(SpectrumTestCase):
         ok = self.post("/api/portal/login/", {"username": "dps-newdelhi", "password": "demo", "email": "principal@dps.edu"})
         self.assertEqual(ok.status_code, 200)
         self.assertEqual(ok.json()["member"]["institution"]["id"], "dps")
+        # The Spectrum team isn't tied to the email's institution.
+        make_spectrum_user()
+        team = self.post("/api/portal/login/", {"username": "ops", "password": "team-pass-123", "email": "head@doon.edu"})
+        self.assertEqual(team.status_code, 200)
 
 
 class CaptionWorkspaceTests(SpectrumTestCase):
@@ -159,8 +231,7 @@ class CaptionWorkspaceTests(SpectrumTestCase):
 
     def test_workspace_items_reach_the_portal_without_an_event(self):
         item = self.upload()
-        user = get_user_model().objects.create_user("dps-newdelhi", password="demo")
-        Member.objects.create(user=user, institution=self.institution)
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
         token = self.post("/api/portal/login/", {"username": "dps-newdelhi", "password": "demo"}).json()["access"]
         items = self.client.get("/api/portal/captions/", HTTP_AUTHORIZATION=f"Bearer {token}").json()["items"]
         self.assertEqual([(i["id"], i["event"], i["status"]) for i in items], [(str(item.pk), "", "needs-caption")])
@@ -187,3 +258,85 @@ class CaptionWorkspaceTests(SpectrumTestCase):
         self.assertEqual(response.status_code, 302, response.content[:500])
         item.refresh_from_db()
         self.assertEqual((item.status, item.requested), ("needs-approval", "needs-approval"))
+
+
+class PortalAdminTests(SpectrumTestCase):
+    """Where the Spectrum team manages portal sign-ins in the admin."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+
+    def institution_form(self, **extra):
+        return {
+            "name": self.institution.name, "short": "", "slug": self.institution.slug, "city": "New Delhi",
+            "kind": self.institution.kind_id, "is_published": "on", "sort_order": "0",
+            "portal_emails-TOTAL_FORMS": "0", "portal_emails-INITIAL_FORMS": "0",
+            "portal_emails-MIN_NUM_FORMS": "0", "portal_emails-MAX_NUM_FORMS": "1000",
+            "_save": "1", **extra,
+        }
+
+    def test_institution_page_sets_username_and_hashed_password(self):
+        url = f"/admin/catalog/institution/{self.institution.pk}/change/"
+        html = self.client.get(url).content.decode()
+        self.assertIn("Institution portal sign-in", html)
+        self.assertIn("institution credentials", html.lower())
+        # A username needs a password.
+        response = self.client.post(url, self.institution_form(portal_username="dps-newdelhi"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Set a password for this username", response.content.decode())
+
+        response = self.client.post(url, self.institution_form(portal_username="dps-newdelhi",
+                                                               new_portal_password="Lotus-Garden-42"))
+        self.assertEqual(response.status_code, 302, response.content[:800])
+        self.institution.refresh_from_db()
+        self.assertEqual(self.institution.portal_username, "dps-newdelhi")
+        self.assertNotIn("Lotus-Garden-42", self.institution.portal_password)
+        self.assertTrue(self.institution.check_portal_password("Lotus-Garden-42"))
+        version = self.institution.portal_token_version
+
+        # Saving again with the password left blank keeps it.
+        self.client.post(url, self.institution_form(portal_username="dps-newdelhi"))
+        self.institution.refresh_from_db()
+        self.assertTrue(self.institution.check_portal_password("Lotus-Garden-42"))
+        self.assertEqual(self.institution.portal_token_version, version)
+
+        # Another institution can't take the same username, in any letter case.
+        response = self.client.post(f"/admin/catalog/institution/{self.other.pk}/change/", {
+            **self.institution_form(portal_username="DPS-NEWDELHI", new_portal_password="Another-Pass-77"),
+            "name": self.other.name, "slug": self.other.slug})
+        self.assertIn("Another institution already signs in with that username", response.content.decode())
+
+    def test_sign_out_action_bumps_the_institution_version(self):
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
+        before = self.institution.portal_token_version
+        self.client.post("/admin/catalog/institution/", {"action": "sign_out_of_portal",
+                                                         "_selected_action": [self.institution.pk]})
+        self.institution.refresh_from_db()
+        self.assertEqual(self.institution.portal_token_version, before + 1)
+
+    def test_users_table_grants_portal_access(self):
+        user = get_user_model().objects.create_user("riya", password="riya-pass-123")
+        url = f"/admin/auth/user/{user.pk}/change/"
+        html = self.client.get(url).content.decode()
+        self.assertIn("Institution portal access", html)
+        form = {"username": "riya", "first_name": "", "last_name": "", "email": "", "is_active": "on",
+                "date_joined_0": "2026-10-09", "date_joined_1": "10:00:00", "initial-date_joined_0": "2026-10-09",
+                "initial-date_joined_1": "10:00:00", "portal_access": "on", "_save": "1"}
+        response = self.client.post(url, form)
+        self.assertEqual(response.status_code, 302, response.content[:800])
+        user = get_user_model().objects.get(pk=user.pk)
+        self.assertTrue(user.has_perm("portal.spectrum_portal_access"))
+        self.assertIn("Portal access", self.client.get("/admin/auth/user/").content.decode())
+        form.pop("portal_access")
+        self.client.post(url, form)
+        user = get_user_model().objects.get(pk=user.pk)
+        self.assertFalse(user.has_perm("portal.spectrum_portal_access"))
+
+    def test_admin_index_shows_the_renamed_tables(self):
+        index = self.client.get("/admin/").content.decode()
+        for label in ("Institution workspaces", "All classes", "Institution credentials"):
+            self.assertIn(label, index)
+        for gone in ("Portal logins", "Class photograph items", "Title workspaces"):
+            self.assertNotIn(gone, index)

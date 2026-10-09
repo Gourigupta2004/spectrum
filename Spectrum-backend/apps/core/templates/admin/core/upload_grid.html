@@ -1,23 +1,38 @@
 {% if deleted %}<p class="bulk-deleted">Deleted {{ deleted }} photo{{ deleted|pluralize }}.</p>{% endif %}
 {% if items %}
   <ul class="bulk-thumbs{% if selectable %} is-selectable{% endif %}">
-    {% for item in items %}
-      <li class="is-{{ item.status }}">
-        {# No name attribute: these sit inside the admin's own form and must not ride along with Save. #}
-        {% if selectable %}<label class="bulk-pick" title="Select"><input type="checkbox" class="bulk-select" value="{{ item.pk }}" aria-label="Select {{ item.label|default:'photo' }}"></label>{% endif %}
-        {% if item.url %}<a href="{{ item.url }}" title="{{ item.label }}">{% else %}<span title="{{ item.label }}">{% endif %}
-          {% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy">{% else %}<span class="bulk-status">{{ item.status_label }}</span>{% endif %}
-          <em>{{ item.label|default:"—" }}</em>
-        {% if item.url %}</a>{% else %}</span>{% endif %}
-      </li>
-    {% endfor %}
+    {% for item in items %}{% include "admin/core/upload_thumb.html" %}{% endfor %}
   </ul>
 {% endif %}
+{% for group in groups %}
+  {# One block per class (or other group), in order, each with its own photos. #}
+  <section class="bulk-group">
+    <h3 class="bulk-group-title">{{ group.name }} <span class="bulk-group-count">{{ group.total }}</span>
+      {% if group.changelist_url %}<a href="{{ group.changelist_url }}">open →</a>{% endif %}</h3>
+    <ul class="bulk-thumbs{% if selectable %} is-selectable{% endif %}">
+      {% for item in group.items %}{% include "admin/core/upload_thumb.html" %}{% endfor %}
+    </ul>
+    {% if group.hidden %}<p class="bulk-group-more">and {{ group.hidden }} more — <a href="{{ group.changelist_url }}">see all {{ group.total }}</a></p>{% endif %}
+  </section>
+{% endfor %}
 {% if selectable and items %}
   <div class="bulk-selectbar" data-url="{{ delete_url }}">
     <label><input type="checkbox" class="bulk-select-all"> Select all{% if hidden %} shown{% endif %}</label>
     <span class="bulk-selected-count">None selected</span>
     <button type="button" class="button bulk-delete-selected" disabled>Delete selected images</button>
+  </div>
+{% endif %}
+{% if download_url %}
+  {# No name attributes: these sit inside the admin's own form and must not ride along with Save. #}
+  <div class="bulk-downloadbar">
+    <label>Download photos of
+      <select class="bulk-download-class" data-url="{{ download_url }}" aria-label="Class to download">
+        <option value="all">All classes</option>
+        {% for group in groups %}<option value="{{ group.pk }}">{{ group.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <a href="{{ download_url }}?class=all" class="button bulk-download">Download</a>
+    <span class="bulk-download-hint">A .zip of the original photos, one folder per class, each file named after its student. Unnamed students are left out.</span>
   </div>
 {% endif %}
 <p class="bulk-manage">

@@ -110,23 +110,31 @@ class BulkUploadTests(SpectrumTestCase):
         self.assertIn(response.status_code, (302, 403))
 
     def upload_batch(self, target, parent_id, filenames, options=None):
-        files = [{"clientId": f"c{i}", "name": name, "size": 1000, "type": "image/jpeg"}
-                 for i, name in enumerate(filenames)]
+        # A "6C/a.jpg" name is the file a.jpg inside the folder 6C.
+        paths = [name.rsplit("/", 1) if "/" in name else ["", name] for name in filenames]
+        filenames = [name for _, name in paths]
+        files = [{"clientId": f"c{i}", "name": name, "folder": folder, "size": 1000, "type": "image/jpeg"}
+                 for i, (folder, name) in enumerate(paths)]
         prepared = self.post("/admin/uploads/prepare/", {
             "target": target, "parentId": parent_id, "files": files,
         }).json()
         entries = {e["clientId"]: e for e in prepared["files"]}
+        refused = {key: entry["error"] for key, entry in entries.items() if "error" in entry}
         for i, name in enumerate(filenames):
-            self.client.post("/admin/uploads/direct/", {
-                "token": entries[f"c{i}"]["token"],
-                "file": SimpleUploadedFile(name, jpeg_bytes(), content_type="image/jpeg"),
-            })
+            if f"c{i}" not in refused:
+                self.client.post("/admin/uploads/direct/", {
+                    "token": entries[f"c{i}"]["token"],
+                    "file": SimpleUploadedFile(name, jpeg_bytes(), content_type="image/jpeg"),
+                })
         with self.captureOnCommitCallbacks(execute=True):
-            return self.post(f"/admin/uploads/{prepared['batchId']}/commit/", {
-                "files": [{"token": entries[f"c{i}"]["token"], "index": i, "name": name}
-                          for i, name in enumerate(filenames)],
+            result = self.post(f"/admin/uploads/{prepared['batchId']}/commit/", {
+                "files": [{"token": entries[f"c{i}"]["token"], "index": i, "name": name, "folder": folder}
+                          for i, (folder, name) in enumerate(paths) if f"c{i}" not in refused],
                 "options": options or {},
             }).json()
+        # Files refused before upload are reported with the commit's refusals.
+        result["errors"] = {**refused, **result.get("errors", {})}
+        return result
 
     def upload_to_workspace(self, workspace, filename, requested="needs-caption"):
         result = self.upload_batch("portal.captionitem", workspace.pk, [filename],
@@ -143,11 +151,10 @@ class BulkUploadTests(SpectrumTestCase):
         from apps.portal.models import SchoolClass, Student
 
         result = self.workspace_students([
-            "6C_amity_1.jpg", "6C_amity_2.jpg", "12AB_x_42.jpg", "2bb_front.jpg", "notes.jpg",
+            "6C_amity_1.jpg", "6C_amity_2.jpg", "12AB_x_42.jpg", "2bb_front.jpg",
         ])
         self.assertEqual(len(result["created"]), 4)
-        self.assertEqual(len(result["skipped"]), 1)
-        self.assertIn("no class at the front of the file name", result["errors"]["c4"])
+        self.assertEqual(result["skipped"], [])
 
         classes = {c.name: c for c in SchoolClass.objects.filter(institution=self.institution)}
         self.assertEqual(set(classes), {"6C", "12AB", "2BB"})
@@ -327,6 +334,103 @@ class BulkUploadTests(SpectrumTestCase):
         html = self.client.get(f"/admin/catalog/institution/{self.institution.pk}/change/").content.decode()
         self.assertNotIn("data-target=", html)  # no uploader on the institution page
         self.assertIn("Tick every row for deletion", html)  # access-email rows keep their select-all
+
+    def test_workspace_refuses_unfileable_names_before_upload(self):
+        from django.core import signing
+
+        from apps.core.models import UploadBatch
+        from apps.core.uploads import TOKEN_SALT
+        from apps.portal.models import CaptionWorkspace, Student
+        from spectrum.storages import private_storage
+
+        workspace = CaptionWorkspace.for_institution(self.institution.pk)
+        prepared = self.post("/admin/uploads/prepare/", {
+            "target": "portal.workspacestudent", "parentId": workspace.pk, "files": [
+                {"clientId": "a", "name": "IMG_7932.JPG", "size": 1000, "type": "image/jpeg"},
+                {"clientId": "b", "name": "6C_Aarav.jpg", "size": 1000, "type": "image/jpeg"},
+            ]}).json()
+        entries = {e["clientId"]: e for e in prepared["files"]}
+        self.assertIn("not inside a class folder", entries["a"]["error"])
+        self.assertNotIn("token", entries["a"], "a refused file gets no upload slot")
+        self.assertIn("token", entries["b"])
+        # A bad name that reaches commit anyway is still refused there.
+        batch = UploadBatch.objects.get(pk=prepared["batchId"])
+        key = private_storage().save("originals/x/IMG_1.JPG", ContentFile(jpeg_bytes()))
+        token = signing.dumps([str(batch.pk), "z", key], salt=TOKEN_SALT, compress=True)
+        result = self.post(f"/admin/uploads/{batch.pk}/commit/", {
+            "files": [{"token": token, "index": 0, "name": "IMG_1.JPG"}]}).json()
+        self.assertEqual(result["skipped"], ["z"])
+        self.assertFalse(Student.objects.exists())
+
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        self.assertIn("Drop one folder per class", html)
+        self.assertIn("webkitdirectory", html)
+
+    def test_each_folder_becomes_a_class(self):
+        from apps.portal.models import SchoolClass, Student
+
+        result = self.workspace_students([
+            "6C/IMG_10.jpg", "6C/IMG_2.jpg", "Nursery/a.jpg", "10 science/x.jpg", "12ab/y.jpg", "IMG_7.jpg",
+        ])
+        self.assertEqual(len(result["created"]), 5)
+        self.assertIn("not inside a class folder", result["errors"]["c5"], "a loose camera file is refused")
+        classes = {c.name: c for c in SchoolClass.objects.filter(institution=self.institution)}
+        self.assertEqual(set(classes), {"6C", "Nursery", "10 science", "12AB"})
+        self.assertEqual((classes["10 science"].group, classes["Nursery"].group), ("Senior", "Primary"))
+        self.assertEqual([s.source_name for s in Student.objects.filter(school_class=classes["6C"])],
+                         ["IMG_2.jpg", "IMG_10.jpg"], "photos in file-name order, numbers numeric")
+        # The same folder again adds to its class; the same file name replaces that photo, keeping the name.
+        student = Student.objects.get(school_class=classes["6C"], source_name="IMG_2.jpg")
+        Student.objects.filter(pk=student.pk).update(name="Aarav Sharma")
+        before = student.original.name
+        self.workspace_students(["6c/IMG_2.jpg", "6C/IMG_3.jpg"])
+        self.assertEqual(SchoolClass.objects.filter(institution=self.institution).count(), 4)
+        self.assertEqual(Student.objects.filter(school_class=classes["6C"]).count(), 3)
+        student.refresh_from_db()
+        self.assertEqual(student.name, "Aarav Sharma")
+        self.assertNotEqual(student.original.name, before)
+
+    def test_workspace_grid_groups_photos_by_class_with_download(self):
+        import zipfile
+        from io import BytesIO
+
+        from apps.portal.models import CaptionWorkspace, SchoolClass, Student
+
+        self.workspace_students(["10A/b.jpg", "2B/a.jpg", "2B/c.jpg", "LKG/k.jpg"])
+        workspace = CaptionWorkspace.for_institution(self.institution.pk)
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        section = html[html.index('data-target="portal.workspacestudent"'):]
+        titles = [section.index(f'<h3 class="bulk-group-title">{name} ') for name in ("LKG", "2B", "10A")]
+        self.assertEqual(titles, sorted(titles), "classes in school order")
+        self.assertIn('<option value="all">All classes</option>', section)
+        download = f"/admin/portal/captionworkspace/{workspace.pk}/download-students/"
+        self.assertIn(f'href="{download}?class=all"', section)
+
+        # Nothing named yet: back to the page with a warning instead of an empty zip.
+        response = self.client.get(download + "?class=all")
+        self.assertEqual(response.status_code, 302)
+        Student.objects.filter(school_class__name="2B", source_name="a.jpg").update(name="Diya")
+        Student.objects.filter(school_class__name="10A").update(name="Kabir")
+        with zipfile.ZipFile(BytesIO(b"".join(self.client.get(download + "?class=all").streaming_content))) as zf:
+            self.assertEqual(sorted(zf.namelist()), ["DPS-10A-Photos/Kabir.jpg", "DPS-2B-Photos/Diya.jpg"])
+        two_b = SchoolClass.objects.get(institution=self.institution, name="2B")
+        response = self.client.get(f"{download}?class={two_b.pk}")
+        self.assertIn("DPS-2B-Photos.zip", response["Content-Disposition"])
+        # Another institution's class is never in this workspace's zip.
+        other = SchoolClass.objects.create(institution=self.other, name="2B")
+        self.assertEqual(self.client.get(f"{download}?class={other.pk}").status_code, 302)
+
+    def test_classes_and_students_come_in_order_on_the_portal(self):
+        from apps.portal.models import SchoolClass, class_sort_key
+
+        names = ["12C", "1A", "UKG", "Nursery", "10B", "2A", "LKG", "Class 3"]
+        for name in names:
+            SchoolClass.objects.create(institution=self.institution, name=name)
+        ordered = list(SchoolClass.objects.filter(institution=self.institution).values_list("name", flat=True))
+        self.assertEqual(ordered, ["Nursery", "LKG", "UKG", "1A", "2A", "Class 3", "10B", "12C"])
+        self.assertLess(class_sort_key("KG"), class_sort_key("1A"))
+        changelist = self.client.get("/admin/portal/schoolclass/").content.decode()
+        self.assertLess(changelist.index(">Nursery<"), changelist.index(">12C<"))
 
     def test_workspace_students_land_in_that_institutions_classes(self):
         from apps.portal.models import SchoolClass, Student

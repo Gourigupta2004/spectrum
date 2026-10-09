@@ -29,7 +29,7 @@ from apps.catalog.models import Event, EventPhoto, Institution, InstitutionKind
 from apps.content.models import (
     Capability, ContactDetail, Faq, HeroSlide, Service, SiteSettings, Stat, StoryBlock, TieUp,
 )
-from apps.portal.models import CaptionItem, Member, SchoolClass, Student
+from apps.portal.models import SPECTRUM_PORTAL_CODENAME, CaptionItem, SchoolClass, Student
 
 SEED_DIR = settings.BASE_DIR / "seed"
 
@@ -248,15 +248,18 @@ class Command(BaseCommand):
         login = portal["login"]
         if not self.demo_logins:
             self.stdout.write("Skipped demo portal logins (DEBUG is off). Create logins in the admin, or pass --demo-logins.")
-        elif not User.objects.filter(username=login["username"]).exists():
-            user = User.objects.create_user(login["username"], password=login["password"])
-            Member.objects.create(user=user, institution=institution, role=Member.INSTITUTION,
-                                  display_name=institution.name)
-            self.stdout.write(f"Portal login {login['username']} / {login['password']} created.")
+        elif not institution.portal_username:
+            institution.portal_username = login["username"]
+            institution.set_portal_password(login["password"])
+            institution.save(update_fields=["portal_username", "portal_password", "portal_token_version"])
+            self.stdout.write(f"Portal login {login['username']} / {login['password']} set on {institution}.")
         if self.demo_logins and not User.objects.filter(username="spectrum-team").exists():
+            from django.contrib.auth.models import Permission
+
             password = secrets.token_urlsafe(9)
-            user = User.objects.create_user("spectrum-team", password=password)
-            Member.objects.create(user=user, role=Member.SPECTRUM, display_name="Spectrum team")
+            user = User.objects.create_user("spectrum-team", password=password, first_name="Spectrum team")
+            user.user_permissions.add(Permission.objects.get(content_type__app_label="portal",
+                                                             codename=SPECTRUM_PORTAL_CODENAME))
             self.stdout.write(self.style.WARNING(f"Portal login spectrum-team / {password} created (note it down)."))
 
         if event is not None:

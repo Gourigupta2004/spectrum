@@ -8,9 +8,11 @@ GROUPS = [
     ("Events & galleries", ["catalog.event", "catalog.eventphoto"]),
     # Institutions live in the catalog app (their table is unchanged); they are
     # only listed here, beside the portal they sign in to.
+    # Class photograph items are edited on their institution workspace; portal
+    # sign-ins live on the institution (and, for the Spectrum team, on Users).
     ("Institution portal", [
-        "catalog.institution", "portal.captionworkspace", "portal.captionitem", "portal.schoolclass",
-        "portal.student", "portal.portalaccessemail", "portal.member",
+        "catalog.institution", "portal.captionworkspace", "portal.schoolclass", "portal.student",
+        "portal.portalaccessemail",
     ]),
     ("Inbox", ["content.enquiry", "orders.order", "orders.delivery"]),
     ("System", ["core.task", "auth.user"]),
