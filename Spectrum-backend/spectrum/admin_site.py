@@ -15,7 +15,7 @@ GROUPS = [
         "portal.portalaccessemail",
     ]),
     ("Inbox", ["content.enquiry", "orders.order", "orders.delivery"]),
-    ("System", ["core.task", "auth.user"]),
+    ("System", ["core.task", "auth.user", "catalog.institutionkind"]),
 ]
 
 

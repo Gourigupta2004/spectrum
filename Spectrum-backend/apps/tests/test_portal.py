@@ -340,3 +340,25 @@ class PortalAdminTests(SpectrumTestCase):
             self.assertIn(label, index)
         for gone in ("Portal logins", "Class photograph items", "Title workspaces"):
             self.assertNotIn(gone, index)
+
+    def test_credentials_table_shows_the_sign_in_each_email_leads_to(self):
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
+        email = PortalAccessEmail.objects.create(institution=self.institution, email="principal@dps.edu")
+        PortalAccessEmail.objects.create(institution=self.other, email="head@doon.edu")
+        listing = self.client.get("/admin/portal/portalaccessemail/").content.decode()
+        self.assertIn("dps-newdelhi", listing)
+        self.assertIn("Set · change", listing)
+        self.assertIn("Not set · set one", listing)  # Doon has no portal password yet
+        self.assertNotIn(self.institution.portal_password, listing, "the hash is never shown")
+        page = self.client.get(f"/admin/portal/portalaccessemail/{email.pk}/change/").content.decode()
+        self.assertIn("dps-newdelhi", page)
+        self.assertIn(f"/admin/catalog/institution/{self.institution.pk}/change/", page)
+
+    def test_event_videos_and_types_in_the_admin(self):
+        index = self.client.get("/admin/").content.decode()
+        self.assertNotIn("Event videos", index, "videos are edited on their event")
+        self.assertNotIn(">Other<", index)
+        system = index[index.index(">System<"):]
+        self.assertIn(">Types<", system)
+        self.assertNotIn("Institution types", index)
+        self.assertIn("Poster image", self.client.get(f"/admin/catalog/event/{self.event.pk}/change/").content.decode())

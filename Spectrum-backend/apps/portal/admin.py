@@ -338,12 +338,32 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
 
 @admin.register(PortalAccessEmail)
 class PortalAccessEmailAdmin(admin.ModelAdmin):
-    list_display = ("email", "institution", "note", "created_at")
+    """Each access email beside the sign-in it leads to: the institution's
+    portal username and whether its password is set. The password is stored
+    hashed, so it can only be replaced (on the institution), never shown."""
+
+    list_display = ("email", "institution", "portal_username", "portal_password", "note", "created_at")
     list_filter = ("institution",)
     list_select_related = ("institution",)
-    search_fields = ("email", "note", "institution__name")
+    search_fields = ("email", "note", "institution__name", "institution__portal_username")
     autocomplete_fields = ("institution",)
-    fields = ("institution", "email", "note")
+    fields = ("institution", "email", "note", "portal_username", "portal_password")
+    readonly_fields = ("portal_username", "portal_password")
+
+    @admin.display(description="Portal username", ordering="institution__portal_username")
+    def portal_username(self, obj):
+        return (obj.institution.portal_username or "—") if obj.institution_id else "—"
+
+    @admin.display(description="Portal password")
+    def portal_password(self, obj):
+        from django.urls import reverse
+        from django.utils.html import format_html
+
+        if not obj.institution_id:
+            return "—"
+        url = reverse("admin:catalog_institution_change", args=[obj.institution_id])
+        label = "Set · change" if obj.institution.portal_password else "Not set · set one"
+        return format_html('<a href="{}">{}</a>', url, label)
 
 
 # --------------------------------------------------------------------------- Spectrum team portal access

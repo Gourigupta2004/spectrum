@@ -124,12 +124,14 @@ class InstitutionAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, adm
 
 
 class EventVideoInline(ImagePreviewMixin, admin.TabularInline):
-    """Upload the event's purchasable videos right on the event page."""
+    """The event's purchasable videos, uploaded and edited only here on the
+    event page (they have no admin list of their own)."""
 
     model = EventVideo
     extra = 1
     ordering = ("sort_order", "pk")
-    fields = ("video", "title", "duration_label", "original", "sort_order")
+    fields = ("video", "title", "duration_label", "original", "image_status", "sort_order")
+    readonly_fields = ("image_status",)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == "original":
@@ -193,24 +195,3 @@ class EventPhotoAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
         return super().get_queryset(request).only(
             "pk", "title", "thumb", "image_status", "sort_order", "event__name", "original", "image_error",
             "width", "height", "event_id")
-
-
-@admin.register(EventVideo)
-class EventVideoAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
-    list_display = ("thumbnail", "title", "event", "duration_label", "image_status", "sort_order")
-    list_editable = ("title", "duration_label", "sort_order")
-    list_filter = ("event__institution", "event")
-    list_select_related = ("event",)
-    search_fields = ("title", "event__name")
-    readonly_fields = ("image_status", "image_error")
-    fields = ("event", "title", "video", "duration_label", "original", "sort_order", "image_status", "image_error")
-    autocomplete_fields = ("event",)
-    actions = ["reprocess_images"]
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        field = form.base_fields.get("original")
-        if field is not None:
-            field.label = "Poster image"
-            field.help_text = "Shown in the gallery with the watermark; buyers get the video file."
-        return form

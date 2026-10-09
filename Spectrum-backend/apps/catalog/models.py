@@ -33,7 +33,7 @@ class InstitutionKind(models.Model):
 
     class Meta:
         ordering = ["sort_order", "name"]
-        verbose_name = "institution type"
+        verbose_name = "type"
 
     def __str__(self):
         return self.name
