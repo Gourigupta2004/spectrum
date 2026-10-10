@@ -46,14 +46,20 @@ def class_sort_key(name: str) -> str:
 
 class PortalAccessEmail(models.Model):
     """
-    An email address that unlocks the portal for one institution. Visitors enter
-    their email on the website; only addresses listed here reveal the Portal
-    link and the institution's personalised sign-in, where the institution's
-    portal username and password (on the Institution) are still required.
+    One sign-in to an institution's portal: an email with its own username and
+    password. Visitors enter the email on the website; only addresses listed
+    here reveal the Portal link and the institution's personalised sign-in,
+    where this row's username and password are then required. The password is
+    stored hashed (like a Django user's); bumping the token version signs out
+    every device holding a portal session from this sign-in.
     """
 
     institution = models.ForeignKey("catalog.Institution", on_delete=models.CASCADE, related_name="portal_emails")
     email = models.EmailField(unique=True)
+    username = models.CharField(max_length=150, blank=True, db_index=True,
+                                help_text='What they type to sign in after entering this email, e.g. "dps-newdelhi".')
+    password = models.CharField(max_length=128, blank=True, editable=False)
+    token_version = models.PositiveIntegerField(default=1, editable=False)
     note = models.CharField(max_length=120, blank=True, help_text='Who this is, e.g. "Principal" or "Class 6 coordinator".')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -67,7 +73,32 @@ class PortalAccessEmail(models.Model):
 
     def save(self, *args, **kwargs):
         self.email = self.email.strip().lower()
+        self.username = self.username.strip()
         super().save(*args, **kwargs)
+
+    @property
+    def has_login(self) -> bool:
+        return bool(self.username and self.password)
+
+    def set_password(self, raw: str):
+        """Hashes and stores a new password; a new password signs out every device."""
+        from django.contrib.auth.hashers import make_password
+
+        self.password = make_password(raw)
+        if self.pk:
+            self.token_version += 1
+
+    def check_password(self, raw: str) -> bool:
+        from django.contrib.auth.hashers import check_password, make_password
+
+        if not self.password:
+            return False
+
+        def upgrade(raw_password):  # the hasher's settings changed: re-hash, keep sessions
+            self.password = make_password(raw_password)
+            type(self).objects.filter(pk=self.pk).update(password=self.password)
+
+        return check_password(raw, self.password, upgrade)
 
 
 # Users holding this permission (or superusers) sign in to the website portal

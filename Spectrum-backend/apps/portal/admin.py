@@ -5,12 +5,13 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Permission
 from django.core.exceptions import PermissionDenied
 from django.db import models
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, thumb_html
 from apps.core.models import ImageStatus
 
+from .forms import AccessEmailForm, password_status
 from .models import (
     SPECTRUM_PORTAL_CODENAME, CaptionItem, CaptionStatus, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student,
     natural_key,
@@ -338,32 +339,28 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
 
 @admin.register(PortalAccessEmail)
 class PortalAccessEmailAdmin(admin.ModelAdmin):
-    """Each access email beside the sign-in it leads to: the institution's
-    portal username and whether its password is set. The password is stored
-    hashed, so it can only be replaced (on the institution), never shown."""
+    """Every sign-in: an email that unlocks an institution's portal, with the
+    username and password that sign in through it. The password is stored
+    hashed, so it can be replaced here but never shown."""
 
-    list_display = ("email", "institution", "portal_username", "portal_password", "note", "created_at")
+    form = AccessEmailForm
+    list_display = ("email", "institution", "username", "password_set", "note", "created_at")
     list_filter = ("institution",)
     list_select_related = ("institution",)
-    search_fields = ("email", "note", "institution__name", "institution__portal_username")
+    search_fields = ("email", "username", "note", "institution__name")
     autocomplete_fields = ("institution",)
-    fields = ("institution", "email", "note", "portal_username", "portal_password")
-    readonly_fields = ("portal_username", "portal_password")
+    fields = ("institution", "email", "username", "new_password", "password_set", "note")
+    readonly_fields = ("password_set",)
+    actions = ["sign_out_everywhere"]
 
-    @admin.display(description="Portal username", ordering="institution__portal_username")
-    def portal_username(self, obj):
-        return (obj.institution.portal_username or "—") if obj.institution_id else "—"
+    @admin.display(description="Password set?")
+    def password_set(self, obj):
+        return password_status(obj)
 
-    @admin.display(description="Portal password")
-    def portal_password(self, obj):
-        from django.urls import reverse
-        from django.utils.html import format_html
-
-        if not obj.institution_id:
-            return "—"
-        url = reverse("admin:catalog_institution_change", args=[obj.institution_id])
-        label = "Set · change" if obj.institution.portal_password else "Not set · set one"
-        return format_html('<a href="{}">{}</a>', url, label)
+    @admin.action(description="Sign out of the portal everywhere")
+    def sign_out_everywhere(self, request, queryset):
+        count = queryset.update(token_version=F("token_version") + 1)
+        messages.success(request, f"Signed {count} sign-in(s) out of the portal on every device.")
 
 
 # --------------------------------------------------------------------------- Spectrum team portal access

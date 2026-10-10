@@ -89,15 +89,15 @@ def login(request):
     rate_limit(request, "portal-login-user", limit=20, window=3600, extra=username.lower())
     password = request.json.get("password") or ""
     email = _clean_email(text(request.json, "email", 254))
-    member = authenticate_portal(request, username, password)
+    member = authenticate_portal(request, username, password, email)
     if member is None:
+        row = PortalAccessEmail.objects.filter(email=email).only("username", "password").first() if email else None
+        if row is not None and not row.has_login:
+            raise ApiError("No username and password have been set up for this email yet. Please contact Spectrum.",
+                           status=401)
         raise ApiError(PortalPage.load().login_error or "Invalid login.", status=401)
-    # The login must belong to the institution the verified email unlocked, so
-    # one school's credentials can never open another school's workspace.
-    if email and not member.is_spectrum:
-        allowed = PortalAccessEmail.objects.filter(email=email, institution_id=member.institution.pk).exists()
-        if not allowed:
-            raise ApiError("This login doesn't belong to the institution registered for that email.", status=403)
+    # With an email, an institution sign-in is that email's own, so one
+    # school's credentials can never open another school's workspace.
     institution = member.institution if not member.is_spectrum else Institution.objects.first()
     return {**issue_tokens(member), "member": member_dict(member, institution)}
 

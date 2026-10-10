@@ -50,46 +50,12 @@ class Institution(ProcessedImage):
                              verbose_name="type")
     is_published = models.BooleanField("published", default=True)
     sort_order = models.PositiveIntegerField("order", default=0)
-    # The institution's sign-in for the website portal. The password is stored
-    # hashed (like a Django user's); bumping the token version signs out every
-    # device that holds a portal session for this institution.
-    portal_username = models.CharField(
-        "portal username", max_length=150, unique=True, null=True, blank=True,
-        help_text='What the institution types to sign in to the portal, e.g. "dps-newdelhi".')
-    portal_password = models.CharField("portal password", max_length=128, blank=True, editable=False)
-    portal_token_version = models.PositiveIntegerField(default=1, editable=False)
 
     class Meta:
         ordering = ["sort_order", "name"]
 
     def __str__(self):
         return self.name
-
-    @property
-    def has_portal_login(self) -> bool:
-        return bool(self.portal_username and self.portal_password)
-
-    def set_portal_password(self, raw: str):
-        """Hashes and stores a new portal password; a new password signs out every device."""
-        from django.contrib.auth.hashers import make_password
-
-        self.portal_password = make_password(raw)
-        if self.pk:
-            self.portal_token_version += 1
-
-    def check_portal_password(self, raw: str) -> bool:
-        from django.contrib.auth.hashers import check_password
-
-        if not self.portal_password:
-            return False
-
-        def upgrade(raw_password):  # the hasher's settings changed: re-hash, keep sessions
-            from django.contrib.auth.hashers import make_password
-
-            self.portal_password = make_password(raw_password)
-            type(self).objects.filter(pk=self.pk).update(portal_password=self.portal_password)
-
-        return check_password(raw, self.portal_password, upgrade)
 
 
 class Event(ProcessedImage):

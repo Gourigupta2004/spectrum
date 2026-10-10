@@ -29,7 +29,7 @@ from apps.catalog.models import Event, EventPhoto, Institution, InstitutionKind
 from apps.content.models import (
     Capability, ContactDetail, Faq, HeroSlide, Service, SiteSettings, Stat, StoryBlock, TieUp,
 )
-from apps.portal.models import SPECTRUM_PORTAL_CODENAME, CaptionItem, SchoolClass, Student
+from apps.portal.models import SPECTRUM_PORTAL_CODENAME, CaptionItem, PortalAccessEmail, SchoolClass, Student
 
 SEED_DIR = settings.BASE_DIR / "seed"
 
@@ -248,11 +248,13 @@ class Command(BaseCommand):
         login = portal["login"]
         if not self.demo_logins:
             self.stdout.write("Skipped demo portal logins (DEBUG is off). Create logins in the admin, or pass --demo-logins.")
-        elif not institution.portal_username:
-            institution.portal_username = login["username"]
-            institution.set_portal_password(login["password"])
-            institution.save(update_fields=["portal_username", "portal_password", "portal_token_version"])
-            self.stdout.write(f"Portal login {login['username']} / {login['password']} set on {institution}.")
+        elif not institution.portal_emails.exclude(username="").exists():
+            email = login.get("email") or f"{login['username']}@example.com"
+            row, _ = PortalAccessEmail.objects.get_or_create(institution=institution, email=email)
+            row.username = login["username"]
+            row.set_password(login["password"])
+            row.save()
+            self.stdout.write(f"Portal sign-in {email} · {login['username']} / {login['password']} set on {institution}.")
         if self.demo_logins and not User.objects.filter(username="spectrum-team").exists():
             from django.contrib.auth.models import Permission
 

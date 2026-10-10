@@ -9,10 +9,14 @@ from apps.portal.models import CaptionItem, CaptionWorkspace, PortalAccessEmail,
 from .base import SpectrumTestCase, jpeg_bytes
 
 
-def give_portal_login(institution, username, password):
-    institution.portal_username = username
-    institution.set_portal_password(password)
-    institution.save()
+def give_portal_login(institution, username, password, email=None):
+    """An access email with its own username and password."""
+    row, _ = PortalAccessEmail.objects.get_or_create(institution=institution,
+                                                     email=email or f"{username}@school.test")
+    row.username = username
+    row.set_password(password)
+    row.save()
+    return row
 
 
 def make_spectrum_user(username="ops", password="team-pass-123", **extra):
@@ -27,7 +31,7 @@ class PortalTests(SpectrumTestCase):
     def setUp(self):
         super().setUp()
         self.make_catalog()
-        give_portal_login(self.institution, "dps-newdelhi", "demo")
+        self.sign_in = give_portal_login(self.institution, "dps-newdelhi", "demo")
         self.token = self.login("dps-newdelhi", "demo")["access"]
 
     def login(self, username, password):
@@ -52,32 +56,55 @@ class PortalTests(SpectrumTestCase):
         self.assertEqual(self.client.get("/api/portal/me/").status_code, 401)
 
     def test_sign_out_everywhere_invalidates_tokens(self):
-        from apps.catalog.models import Institution
-
         self.assertEqual(self.api("get", "/api/portal/me/").status_code, 200)
-        Institution.objects.filter(pk=self.institution.pk).update(portal_token_version=99)
+        PortalAccessEmail.objects.filter(pk=self.sign_in.pk).update(token_version=99)
         self.assertEqual(self.api("get", "/api/portal/me/").status_code, 401)
 
-    def test_institution_login_lives_on_the_institution(self):
-        from apps.catalog.models import Institution
-
-        self.institution.refresh_from_db()
-        self.assertTrue(self.institution.portal_password.startswith("pbkdf2_"), "stored hashed, never plain")
+    def test_institution_sign_in_lives_on_its_access_email(self):
+        self.sign_in.refresh_from_db()
+        self.assertTrue(self.sign_in.password.startswith("pbkdf2_"), "stored hashed, never plain")
         me = self.api("get", "/api/portal/me/").json()
         self.assertEqual((me["loginId"], me["role"], me["displayName"], me["institution"]["id"]),
                          ("dps-newdelhi", "institution", "Delhi Public School", "dps"))
         self.assertEqual(self.login("DPS-NewDelhi", "demo")["member"]["loginId"], "dps-newdelhi",
                          "usernames ignore letter case")
-        # A new password ends every session.
-        self.institution.set_portal_password("brand-new-pass")
-        self.institution.save()
+        # A new password ends every session from this sign-in.
+        self.sign_in.set_password("brand-new-pass")
+        self.sign_in.save()
         self.assertEqual(self.api("get", "/api/portal/me/").status_code, 401)
         self.assertIn("error", self.login("dps-newdelhi", "demo"))
         self.assertIn("access", self.login("dps-newdelhi", "brand-new-pass"))
-        # Clearing the username closes the portal for that institution.
+        # Clearing the username closes the portal for that sign-in.
         token = self.login("dps-newdelhi", "brand-new-pass")["access"]
-        Institution.objects.filter(pk=self.institution.pk).update(portal_username=None)
+        PortalAccessEmail.objects.filter(pk=self.sign_in.pk).update(username="")
         self.assertEqual(self.client.get("/api/portal/me/", HTTP_AUTHORIZATION=f"Bearer {token}").status_code, 401)
+
+    def test_each_email_signs_in_with_its_own_username_and_password(self):
+        give_portal_login(self.institution, "dps-principal", "principal-pass", email="principal@dps.edu")
+        login = lambda **data: self.client.post("/api/portal/login/", json.dumps(data),
+                                                 content_type="application/json")
+        ok = login(username="dps-principal", password="principal-pass", email="principal@dps.edu")
+        self.assertEqual(ok.json()["member"]["loginId"], "dps-principal")
+        # Another email's credentials don't sign in through this email, even within the school.
+        self.assertEqual(login(username="dps-newdelhi", password="demo", email="principal@dps.edu").status_code, 401)
+        # A session belongs to its own sign-in: signing one out leaves the other.
+        other = ok.json()["access"]
+        PortalAccessEmail.objects.filter(email="principal@dps.edu").update(token_version=50)
+        self.assertEqual(self.client.get("/api/portal/me/", HTTP_AUTHORIZATION=f"Bearer {other}").status_code, 401)
+        self.assertEqual(self.api("get", "/api/portal/me/").status_code, 200)
+        # An email with no username yet says so.
+        PortalAccessEmail.objects.create(institution=self.institution, email="office@dps.edu")
+        response = login(username="x", password="y", email="office@dps.edu")
+        self.assertIn("No username and password have been set up", response.json()["error"])
+
+    def test_tokens_from_the_institution_sign_in_are_refused(self):
+        from django.core import signing
+
+        # Then the marker was "institution" with an institution id; it must
+        # never be read as an access-email id.
+        old = signing.dumps({"r": "institution", "id": self.sign_in.pk, "v": "1", "t": 2_000_000_000},
+                            salt="portal.access")
+        self.assertEqual(self.client.get("/api/portal/me/", HTTP_AUTHORIZATION=f"Bearer {old}").status_code, 401)
 
     def test_tokens_from_before_the_move_are_refused(self):
         from django.core import signing
@@ -159,9 +186,8 @@ class PortalAccessTests(SpectrumTestCase):
     def setUp(self):
         super().setUp()
         self.make_catalog()
-        give_portal_login(self.institution, "dps-newdelhi", "demo")
-        PortalAccessEmail.objects.create(institution=self.institution, email="Principal@DPS.edu ")
-        PortalAccessEmail.objects.create(institution=self.other, email="head@doon.edu")
+        give_portal_login(self.institution, "dps-newdelhi", "demo", email="Principal@DPS.edu ")
+        give_portal_login(self.other, "doon", "doon-pass-123", email="head@doon.edu")
 
     def post(self, url, data):
         return self.client.post(url, json.dumps(data), content_type="application/json")
@@ -176,7 +202,7 @@ class PortalAccessTests(SpectrumTestCase):
 
     def test_login_must_match_the_unlocked_institution(self):
         mismatch = self.post("/api/portal/login/", {"username": "dps-newdelhi", "password": "demo", "email": "head@doon.edu"})
-        self.assertEqual(mismatch.status_code, 403)
+        self.assertEqual(mismatch.status_code, 401)
         ok = self.post("/api/portal/login/", {"username": "dps-newdelhi", "password": "demo", "email": "principal@dps.edu"})
         self.assertEqual(ok.status_code, 200)
         self.assertEqual(ok.json()["member"]["institution"]["id"], "dps")
@@ -268,53 +294,79 @@ class PortalAdminTests(SpectrumTestCase):
         self.make_catalog()
         self.client.force_login(self.make_staff())
 
-    def institution_form(self, **extra):
-        return {
+    def institution_form(self, rows=(), **extra):
+        """The institution page's POST, with its sign-in rows (dicts of email/username/new_password/id)."""
+        data = {
             "name": self.institution.name, "short": "", "slug": self.institution.slug, "city": "New Delhi",
             "kind": self.institution.kind_id, "is_published": "on", "sort_order": "0",
-            "portal_emails-TOTAL_FORMS": "0", "portal_emails-INITIAL_FORMS": "0",
-            "portal_emails-MIN_NUM_FORMS": "0", "portal_emails-MAX_NUM_FORMS": "1000",
-            "_save": "1", **extra,
+            "portal_emails-TOTAL_FORMS": str(len(rows)),
+            "portal_emails-INITIAL_FORMS": str(sum(1 for r in rows if r.get("id"))),
+            "portal_emails-MIN_NUM_FORMS": "0", "portal_emails-MAX_NUM_FORMS": "1000", "_save": "1",
         }
+        for i, row in enumerate(rows):
+            for key in ("id", "email", "username", "new_password", "note"):
+                data[f"portal_emails-{i}-{key}"] = row.get(key, "")
+            data[f"portal_emails-{i}-institution"] = str(self.institution.pk)
+        data.update(extra)
+        return data
 
-    def test_institution_page_sets_username_and_hashed_password(self):
+    def test_institution_page_has_one_section_of_email_username_password(self):
         url = f"/admin/catalog/institution/{self.institution.pk}/change/"
         html = self.client.get(url).content.decode()
-        self.assertIn("Institution portal sign-in", html)
-        self.assertIn("institution credentials", html.lower())
-        # A username needs a password.
-        response = self.client.post(url, self.institution_form(portal_username="dps-newdelhi"))
-        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Institution portal sign-in", html, "no separate username/password section")
+        for name in ("portal_emails-0-email", "portal_emails-0-username", "portal_emails-0-new_password"):
+            self.assertIn(f'name="{name}"', html)
+        # "Add another" clones the empty row: the same three boxes.
+        self.assertIn('name="portal_emails-__prefix__-username"', html)
+        self.assertIn('name="portal_emails-__prefix__-new_password"', html)
+
+        # Username and password are optional...
+        response = self.client.post(url, self.institution_form([{"email": "office@dps.edu"}]))
+        self.assertEqual(response.status_code, 302, response.content[:800])
+        office = PortalAccessEmail.objects.get(email="office@dps.edu")
+        self.assertEqual((office.username, office.password), ("", ""))
+        # ...but go together.
+        response = self.client.post(url, self.institution_form([{"id": str(office.pk), "email": "office@dps.edu",
+                                                                 "username": "dps-office"}]))
         self.assertIn("Set a password for this username", response.content.decode())
 
-        response = self.client.post(url, self.institution_form(portal_username="dps-newdelhi",
-                                                               new_portal_password="Lotus-Garden-42"))
+        response = self.client.post(url, self.institution_form([
+            {"id": str(office.pk), "email": "office@dps.edu", "username": "dps-office", "new_password": "Lotus-Garden-42"},
+            {"email": "principal@dps.edu", "username": "dps-principal", "new_password": "Banyan-Tree-77"},
+        ]))
         self.assertEqual(response.status_code, 302, response.content[:800])
-        self.institution.refresh_from_db()
-        self.assertEqual(self.institution.portal_username, "dps-newdelhi")
-        self.assertNotIn("Lotus-Garden-42", self.institution.portal_password)
-        self.assertTrue(self.institution.check_portal_password("Lotus-Garden-42"))
-        version = self.institution.portal_token_version
+        office.refresh_from_db()
+        principal = PortalAccessEmail.objects.get(email="principal@dps.edu")
+        self.assertEqual((office.username, principal.username), ("dps-office", "dps-principal"))
+        self.assertNotIn("Lotus-Garden-42", office.password)
+        self.assertTrue(office.check_password("Lotus-Garden-42"))
+        self.assertTrue(principal.check_password("Banyan-Tree-77"))
+        version = office.token_version
 
         # Saving again with the password left blank keeps it.
-        self.client.post(url, self.institution_form(portal_username="dps-newdelhi"))
-        self.institution.refresh_from_db()
-        self.assertTrue(self.institution.check_portal_password("Lotus-Garden-42"))
-        self.assertEqual(self.institution.portal_token_version, version)
+        self.client.post(url, self.institution_form([{"id": str(office.pk), "email": "office@dps.edu",
+                                                      "username": "dps-office"},
+                                                     {"id": str(principal.pk), "email": "principal@dps.edu",
+                                                      "username": "dps-principal"}]))
+        office.refresh_from_db()
+        self.assertTrue(office.check_password("Lotus-Garden-42"))
+        self.assertEqual(office.token_version, version)
 
         # Another institution can't take the same username, in any letter case.
         response = self.client.post(f"/admin/catalog/institution/{self.other.pk}/change/", {
-            **self.institution_form(portal_username="DPS-NEWDELHI", new_portal_password="Another-Pass-77"),
-            "name": self.other.name, "slug": self.other.slug})
+            **self.institution_form([{"email": "head@doon.edu", "username": "DPS-OFFICE",
+                                      "new_password": "Another-Pass-77"}]),
+            "name": self.other.name, "slug": self.other.slug,
+            "portal_emails-0-institution": str(self.other.pk)})
         self.assertIn("Another institution already signs in with that username", response.content.decode())
 
-    def test_sign_out_action_bumps_the_institution_version(self):
-        give_portal_login(self.institution, "dps-newdelhi", "demo")
-        before = self.institution.portal_token_version
+    def test_sign_out_action_bumps_every_sign_in_of_the_institution(self):
+        row = give_portal_login(self.institution, "dps-newdelhi", "demo")
+        before = row.token_version
         self.client.post("/admin/catalog/institution/", {"action": "sign_out_of_portal",
                                                          "_selected_action": [self.institution.pk]})
-        self.institution.refresh_from_db()
-        self.assertEqual(self.institution.portal_token_version, before + 1)
+        row.refresh_from_db()
+        self.assertEqual(row.token_version, before + 1)
 
     def test_users_table_grants_portal_access(self):
         user = get_user_model().objects.create_user("riya", password="riya-pass-123")
@@ -341,18 +393,17 @@ class PortalAdminTests(SpectrumTestCase):
         for gone in ("Portal logins", "Class photograph items", "Title workspaces"):
             self.assertNotIn(gone, index)
 
-    def test_credentials_table_shows_the_sign_in_each_email_leads_to(self):
-        give_portal_login(self.institution, "dps-newdelhi", "demo")
-        email = PortalAccessEmail.objects.create(institution=self.institution, email="principal@dps.edu")
+    def test_credentials_table_shows_each_emails_username_and_password(self):
+        row = give_portal_login(self.institution, "dps-newdelhi", "demo", email="principal@dps.edu")
         PortalAccessEmail.objects.create(institution=self.other, email="head@doon.edu")
         listing = self.client.get("/admin/portal/portalaccessemail/").content.decode()
         self.assertIn("dps-newdelhi", listing)
-        self.assertIn("Set · change", listing)
-        self.assertIn("Not set · set one", listing)  # Doon has no portal password yet
-        self.assertNotIn(self.institution.portal_password, listing, "the hash is never shown")
-        page = self.client.get(f"/admin/portal/portalaccessemail/{email.pk}/change/").content.decode()
-        self.assertIn("dps-newdelhi", page)
-        self.assertIn(f"/admin/catalog/institution/{self.institution.pk}/change/", page)
+        self.assertIn("Not set", listing)  # Doon's email has no password yet
+        self.assertNotIn(row.password, listing, "the hash is never shown")
+        page = self.client.get(f"/admin/portal/portalaccessemail/{row.pk}/change/").content.decode()
+        self.assertIn('value="dps-newdelhi"', page)
+        self.assertIn('name="new_password"', page)
+        self.assertNotIn(row.password, page)
 
     def test_event_videos_and_types_in_the_admin(self):
         index = self.client.get("/admin/").content.decode()
