@@ -61,7 +61,9 @@ WSGI_APPLICATION = "spectrum.wsgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # Project-wide admin template overrides (e.g. admin/change_list.html),
+        # ahead of the admin app's own templates.
+        "DIRS": [BASE_DIR / "spectrum" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

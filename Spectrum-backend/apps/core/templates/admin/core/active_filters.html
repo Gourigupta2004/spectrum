@@ -1,0 +1,12 @@
+{% if chips %}
+  <div class="active-filters" role="region" aria-label="Applied filters">
+    <span class="active-filters-label">Showing only:</span>
+    {% for chip in chips %}
+      <a class="active-filter" href="{{ chip.url }}" title="Remove this filter">
+        <span class="active-filter-title">{{ chip.title|capfirst }}:</span> {{ chip.value }}
+        <span class="active-filter-x" aria-hidden="true">×</span><span class="visually-hidden"> (remove)</span>
+      </a>
+    {% endfor %}
+    {% if clear_url %}<a class="active-filters-clear" href="{{ clear_url }}">Clear all</a>{% endif %}
+  </div>
+{% endif %}
