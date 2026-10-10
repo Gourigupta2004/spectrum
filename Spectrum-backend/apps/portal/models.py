@@ -134,13 +134,18 @@ class CaptionWorkspace(models.Model):
 
 class CaptionStatus(models.TextChoices):
     """Stored values keep their historic names; the labels say "title". The
-    definition order is the order admin dropdowns offer the request tags."""
+    definition order is the order admin dropdowns offer the request tags.
+
+    Two rounds: a first upload asks for a title (the website shows it as
+    Pending); the teacher writes it, reviews it and saves — Submitted, locked.
+    Edited photos come back For Approval, where the wording can still be
+    adjusted before approving — Approved, locked. ("For Correction" was folded
+    into For Approval; portal 0010 retagged its rows.)"""
 
     NEEDS_CAPTION = "needs-caption", "For Title"
-    NEEDS_CORRECTION = "needs-correction", "For Correction"
     NEEDS_APPROVAL = "needs-approval", "For Approval"
     APPROVED = "approved", "Approved"
-    CORRECTED = "corrected", "Corrected"
+    CORRECTED = "corrected", "Submitted"
 
 
 REQUEST_CHOICES = [c for c in CaptionStatus.choices if c[0].startswith("needs-")]

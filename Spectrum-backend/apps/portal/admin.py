@@ -304,7 +304,7 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
             photos=Count("items", filter=ready),
             n_caption=Count("items", filter=ready & Q(items__status=CaptionStatus.NEEDS_CAPTION)),
             n_waiting=Count("items", filter=ready & Q(
-                items__status__in=[CaptionStatus.NEEDS_APPROVAL, CaptionStatus.NEEDS_CORRECTION])),
+                items__status=CaptionStatus.NEEDS_APPROVAL)),
             n_corrected=Count("items", filter=ready & Q(items__status=CaptionStatus.CORRECTED)),
             n_approved=Count("items", filter=ready & Q(items__status=CaptionStatus.APPROVED)),
         )
@@ -324,7 +324,7 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
     def awaiting(self, obj):
         return obj.n_waiting
 
-    @admin.display(description="Corrected", ordering="n_corrected")
+    @admin.display(description="Submitted", ordering="n_corrected")
     def corrected_count(self, obj):
         return obj.n_corrected
 

@@ -1,4 +1,4 @@
-import { Lock, PencilLine } from "lucide-react";
+import { Lock } from "lucide-react";
 import { captionStatusLabel, type CaptionStatus } from "@/lib/caption-data";
 
 export function StatusPill({
@@ -21,34 +21,24 @@ export function StatusPill({
     );
   }
 
-  // Corrected is still in flight (Spectrum reviews it next), so it is outlined
-  // like the other pending states rather than filled like Approved.
+  // Submitted: the teacher's title is in and locked, but it isn't the final
+  // approval — outlined in the same teal rather than filled like Approved.
   if (status === "corrected") {
     return (
       <span
         className={`${base} border border-teal bg-[#221f29]/85 text-teal backdrop-blur-sm ${className}`}
       >
-        <PencilLine className="h-3.5 w-3.5" />
+        <Lock className="h-3.5 w-3.5" />
         {captionStatusLabel[status]}
       </span>
     );
   }
 
-  // The institution still owes us the text.
+  // Pending: the institution still owes us the title.
   if (status === "needs-caption") {
     return (
       <span
         className={`${base} border border-[#ffc93c] bg-[#221f29]/85 text-[#ffd978] backdrop-blur-sm ${className}`}
-      >
-        {captionStatusLabel[status]}
-      </span>
-    );
-  }
-
-  if (status === "needs-correction") {
-    return (
-      <span
-        className={`${base} border border-[#e8503a] bg-[#221f29]/85 text-[#ff9b6a] backdrop-blur-sm ${className}`}
       >
         {captionStatusLabel[status]}
       </span>

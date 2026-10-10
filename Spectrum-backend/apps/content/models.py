@@ -457,6 +457,7 @@ class PortalPage(SingletonModel):
     guidelines_dismiss = line("Got it", 40)
     captions_empty_all = line("No images yet.")
     captions_empty_pending = line("Nothing pending — all caught up.")
+    captions_empty_submitted = line("Nothing submitted yet.")
     captions_empty_approved = line("No approved images yet.")
     locked_title = line("Locked", 40)
     locked_body = line("This title has been submitted and locked. Only the Spectrum team can change it now.")

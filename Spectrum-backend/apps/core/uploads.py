@@ -213,7 +213,7 @@ STUDENT_ORDER = ("sort_key", "sort_order", "pk")  # file-name order, as Student.
 TARGETS = {
     "catalog.eventphoto": Target("catalog.EventPhoto", "event", "title", "Gallery photos", select_delete=True),
     # A fresh upload always starts by asking the institution for a title; the
-    # uploader's "Requested" tag can switch a batch to approval or correction.
+    # uploader's "Requested" tag can switch a batch to For Approval.
     # Re-uploading a file with a name the workspace has seen replaces that
     # row's photo and keeps its title and status.
     "portal.captionitem": Target(

@@ -164,6 +164,17 @@ class PortalTests(SpectrumTestCase):
         self.assertEqual((data["status"], data["caption"]), ("approved", "Final wording"))
         self.assertEqual(self.api("post", url, {"status": "approved", "actionBy": "A. Kapoor", "actionByPhone": "9876543210"}).status_code, 409)
 
+    def test_for_correction_is_no_longer_a_tag(self):
+        from apps.portal.models import REQUEST_CHOICES
+
+        self.assertEqual([value for value, _ in REQUEST_CHOICES], ["needs-caption", "needs-approval"])
+        item = self.caption(self.event, "needs-approval")
+        # An approval may carry adjusted wording; the photo is then Approved and locked.
+        data = self.api("post", f"/api/portal/captions/{item.pk}/resolve/",
+                        {"status": "approved", "text": "Adjusted wording", "actionBy": "A. Kapoor",
+                         "actionByPhone": "9876543210"}).json()
+        self.assertEqual((data["status"], data["caption"]), ("approved", "Adjusted wording"))
+
     def test_institution_cannot_add_photos(self):
         response = self.client.post("/api/portal/captions/", {"momentTitle": "x"}, HTTP_AUTHORIZATION=f"Bearer {self.token}")
         self.assertEqual(response.status_code, 403)
@@ -275,20 +286,20 @@ class CaptionWorkspaceTests(SpectrumTestCase):
         self.assertEqual(self.post(url, {"options": {"requested": "approved"}}).json(), {"updated": 0})
         # A photo the institution has already acted on keeps its state.
         CaptionItem.objects.filter(pk=item.pk).update(status="approved")
-        self.assertEqual(self.post(url, {"options": {"requested": "needs-correction"}}).json(), {"updated": 0})
+        self.assertEqual(self.post(url, {"options": {"requested": "needs-caption"}}).json(), {"updated": 0})
         item.refresh_from_db()
         self.assertEqual(item.status, "approved")
 
     def test_reupload_in_a_batch_keeps_its_own_tag_when_retagged(self):
         item = self.upload()
-        CaptionItem.objects.filter(pk=item.pk).update(status="needs-correction", requested="needs-correction")
+        CaptionItem.objects.filter(pk=item.pk).update(status="needs-approval", requested="needs-approval")
         UploadBatch.objects.all().delete()
         self.upload()  # the same file name again: replaces the photo in place
         batch = UploadBatch.objects.get()
         self.assertFalse(batch.files.get().created)
-        self.post(f"/admin/uploads/{batch.pk}/options/", {"options": {"requested": "needs-approval"}})
+        self.post(f"/admin/uploads/{batch.pk}/options/", {"options": {"requested": "needs-caption"}})
         item.refresh_from_db()
-        self.assertEqual(item.status, "needs-correction", "a replaced photo keeps its tag, as at upload")
+        self.assertEqual(item.status, "needs-approval", "a replaced photo keeps its tag, as at upload")
 
     def test_workspace_is_created_for_event_captions(self):
         item = CaptionItem(event=self.other_event, moment_title="Moment")

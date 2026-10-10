@@ -181,7 +181,7 @@ def create_caption(request, member):
     if slug and event is None:
         raise ApiError("Event not found", status=404)
     requested = request.POST.get("requested", CaptionStatus.NEEDS_APPROVAL)
-    if requested not in {CaptionStatus.NEEDS_APPROVAL, CaptionStatus.NEEDS_CORRECTION, CaptionStatus.NEEDS_CAPTION}:
+    if requested not in {CaptionStatus.NEEDS_APPROVAL, CaptionStatus.NEEDS_CAPTION}:
         requested = CaptionStatus.NEEDS_APPROVAL
     upload = _uploaded_image(request)
     item = CaptionItem(
@@ -237,27 +237,19 @@ def caption_resolve(request, item_id):
         if item.status in (CaptionStatus.APPROVED, CaptionStatus.CORRECTED):
             raise ApiError("This title is locked and can no longer be edited.", status=409)
         fields = ["status", "action_by", "action_by_phone", "updated_at"]
-        if item.status == CaptionStatus.NEEDS_CAPTION:
+        if item.status == CaptionStatus.NEEDS_CAPTION:  # first round: the title is written -> Submitted
             if not body:
                 raise ApiError("Write the title first.", field="text")
             item.caption = body
             item.status = CaptionStatus.CORRECTED
             fields.append("caption")
-        elif item.status == CaptionStatus.NEEDS_APPROVAL:
+        else:  # needs-approval: the last chance to adjust the wording, then Approved
             if wanted != CaptionStatus.APPROVED:
                 raise ApiError("This title is waiting for approval.")
-            # The approval screen is the last chance to adjust the wording, so
-            # an approval may carry the final text with it.
             if body:
                 item.caption = body
                 fields.append("caption")
             item.status = CaptionStatus.APPROVED
-        else:  # needs-correction: the corrected title replaces the old one
-            if not body:
-                raise ApiError("Write the corrected title first.", field="text")
-            item.caption = body
-            item.status = CaptionStatus.CORRECTED
-            fields.append("caption")
         item.action_by = by
         item.action_by_phone = phone
         item.updated_at = timezone.now()

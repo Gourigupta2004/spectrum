@@ -167,6 +167,7 @@ export const portalCopy = {
   guidelinesDismiss: "Got it",
   captionsEmptyAll: "No images yet.",
   captionsEmptyPending: "Nothing pending — all caught up.",
+  captionsEmptySubmitted: "Nothing submitted yet.",
   captionsEmptyApproved: "No approved images yet.",
   lockedTitle: "Locked",
   lockedBody: "This title has been submitted and locked. Only the Spectrum team can change it now.",

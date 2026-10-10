@@ -1,7 +1,13 @@
 import { galleryPhotos, type Photo } from "./spectrum-data";
 
-export type CaptionStatus =
-  "needs-caption" | "needs-approval" | "needs-correction" | "approved" | "corrected";
+/**
+ * Two rounds. A first upload asks the institution for a title ("needs-caption",
+ * shown as Pending); the teacher writes it, reviews it and saves — "corrected",
+ * shown as Submitted and locked. Edited photos come back "needs-approval",
+ * where the wording can still be adjusted before approving — "approved",
+ * locked. (There is no separate correction round any more.)
+ */
+export type CaptionStatus = "needs-caption" | "needs-approval" | "approved" | "corrected";
 
 /**
  * The states Spectrum can put an item into. `approved`/`corrected` are outcomes
@@ -31,13 +37,12 @@ export type CaptionItem = {
   actionByPhone?: string;
 };
 
-/** On-screen wording says "title"; the status values underneath are unchanged. */
+/** On-screen wording; the status values underneath keep their historic names. */
 export const captionStatusLabel: Record<CaptionStatus, string> = {
-  "needs-caption": "For Title",
+  "needs-caption": "Pending",
   "needs-approval": "For Approval",
-  "needs-correction": "For Correction",
   approved: "Approved",
-  corrected: "Corrected",
+  corrected: "Submitted",
 };
 
 /**
@@ -51,7 +56,6 @@ export const portalRole: "institution" | "spectrum" = "institution";
 export const awaitingInstitution: ReadonlySet<CaptionStatus> = new Set([
   "needs-caption",
   "needs-approval",
-  "needs-correction",
 ]);
 
 export const pluralImages = (n: number): string => `${n} ${n === 1 ? "image" : "images"}`;
@@ -105,8 +109,8 @@ export const captionItems: CaptionItem[] = [
     momentTitle: "Chief Guest Speech",
     image: img("Chief Guest Speech"),
     caption: "Our chief guest addressing the gathering.",
-    requested: "needs-correction",
-    status: "needs-correction",
+    requested: "needs-approval",
+    status: "needs-approval",
     updatedAt: "March 18, 2025",
   },
   {
@@ -123,7 +127,7 @@ export const captionItems: CaptionItem[] = [
     momentTitle: "Award Distribution",
     image: img("Award Distribution"),
     caption: "Principal Mrs. Sharma presents the Excellence Award to Class XII topper.",
-    requested: "needs-correction",
+    requested: "needs-caption",
     status: "corrected",
     updatedAt: "March 21, 2025",
     actionBy: "R. Menon",
@@ -143,8 +147,8 @@ export const captionItems: CaptionItem[] = [
     momentTitle: "Drama / Skit",
     image: img("Drama / Skit"),
     caption: "Students perform a short skit.",
-    requested: "needs-correction",
-    status: "needs-correction",
+    requested: "needs-approval",
+    status: "needs-approval",
     updatedAt: "March 19, 2025",
   },
   {
