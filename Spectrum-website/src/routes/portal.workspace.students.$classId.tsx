@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check } from "lucide-react";
+import { Check, MessageSquarePlus, UserPlus, X } from "lucide-react";
 import { classLabel, type Student } from "@/lib/student-data";
-import { useRoster, useStudentNames } from "@/lib/portal-data";
+import { absenteePreviews, useClassExtras, useRoster, useStudentNames } from "@/lib/portal-data";
+import { useStore } from "@/lib/portal-store";
 import { usePortalCopy } from "@/lib/use-portal-copy";
 import { fill } from "@/lib/text";
 
@@ -30,6 +31,34 @@ function ClassRoster() {
   const copy = usePortalCopy();
   const { cls, students, loading } = useRoster(classId);
   const { names, commit } = useStudentNames(classId, students);
+  const { comment, addAbsentees, removeAbsentee, saveComment } = useClassExtras(classId);
+  const previews = useStore(absenteePreviews);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [commenting, setCommenting] = useState(false);
+
+  const upload = async (files: File[]) => {
+    if (!files.length) return;
+    setActionError("");
+    setUploading({ done: 0, total: files.length });
+    try {
+      await addAbsentees(files, (done) => setUploading({ done, total: files.length }));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not add the photos.");
+    } finally {
+      setUploading(null);
+    }
+  };
+  const remove = async (studentId: string) => {
+    if (!window.confirm("Remove this absentee photo?")) return;
+    setActionError("");
+    try {
+      await removeAbsentee(studentId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not remove the photo.");
+    }
+  };
 
   if (!cls) {
     if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -48,10 +77,55 @@ function ClassRoster() {
         ← All Classes
       </Link>
 
-      <h1 className="mt-6 font-display text-4xl text-foreground md:text-5xl">
-        {fill(copy.rosterTitle, { class: classLabel(cls) })}
-      </h1>
+      {/* The title, with what a teacher can add beside it: photos of absent
+          students (named like everyone else) and one comment for the class. */}
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-display text-4xl text-foreground md:text-5xl">
+          {fill(copy.rosterTitle, { class: classLabel(cls) })}
+        </h1>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading !== null}
+            className="spectrum-border inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20 disabled:cursor-wait disabled:opacity-70"
+          >
+            <UserPlus className="h-4 w-4" />
+            {uploading ? `Adding ${uploading.done} of ${uploading.total}…` : "Add Absentees"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setCommenting(true)}
+            className="spectrum-border inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20"
+          >
+            <MessageSquarePlus className="h-4 w-4" /> Add Comments
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = ""; // the same files can be picked again
+              void upload(files);
+            }}
+          />
+        </div>
+      </div>
       <p className="mt-2 text-sm font-medium text-muted-foreground">{countLine}</p>
+      {comment && (
+        <p className="mt-3 max-w-3xl whitespace-pre-line rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm text-foreground">
+          <span className="font-semibold text-muted-foreground">Comment: </span>
+          {comment}
+        </p>
+      )}
+      {actionError && (
+        <p role="alert" className="mt-3 text-sm font-medium text-[#ff9b6a]">
+          {actionError}
+        </p>
+      )}
 
       {/* Six across on desktop — compact square frames, short enough that
           three rows fit on screen at once — the photos only rendered
@@ -63,14 +137,23 @@ function ClassRoster() {
         {students.map((s, i) => (
           <StudentCard
             key={s.id}
-            student={s}
+            student={s.photo || !previews[s.id] ? s : { ...s, photo: previews[s.id]! }}
             index={i}
             committed={names[s.id] ?? ""}
             onCommit={commit}
+            onRemove={s.absentee ? () => void remove(s.id) : undefined}
             placeholder={copy.studentPlaceholder}
           />
         ))}
       </div>
+
+      <CommentBox
+        open={commenting}
+        title={`Comment for ${classLabel(cls)}`}
+        initial={comment}
+        onClose={() => setCommenting(false)}
+        onSave={saveComment}
+      />
     </div>
   );
 }
@@ -86,12 +169,15 @@ function StudentCard({
   index,
   committed,
   onCommit,
+  onRemove,
   placeholder,
 }: {
   student: Student;
   index: number;
   committed: string;
   onCommit: (studentId: string, value: string) => void;
+  /** Absentees only: they were added by the institution and can be taken out again. */
+  onRemove?: (() => void) | undefined;
   placeholder: string;
 }) {
   // Local draft while typing; the store only learns about it on blur or Enter.
@@ -132,6 +218,21 @@ function StudentCard({
         ) : (
           <div className="h-full w-full bg-background/60" />
         )}
+        {student.absentee && (
+          <span className="absolute bottom-2 left-2 z-[2] rounded-full bg-black/60 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+            Absentee
+          </span>
+        )}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove this absentee photo"
+            className="absolute right-2 top-2 z-[2] grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white/90 backdrop-blur-sm transition-colors hover:bg-[#ba2121] hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
         <AnimatePresence>
           {named && (
             <motion.span
@@ -165,6 +266,109 @@ function StudentCard({
         />
       </div>
     </motion.div>
+  );
+}
+
+/** One comment per class, for the Spectrum team; it goes into the class's photo download. */
+function CommentBox({
+  open,
+  title,
+  initial,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  title: string;
+  initial: string;
+  onClose: () => void;
+  onSave: (comment: string) => Promise<void>;
+}) {
+  const [text, setText] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (open) {
+      setText(initial);
+      setError("");
+    }
+  }, [open, initial]);
+
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await onSave(text.trim());
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the comment.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={busy ? undefined : onClose}
+          className="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-4 backdrop-blur-md"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.96, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 26 }}
+            onClick={(e) => e.stopPropagation()}
+            className="spectrum-border glass relative w-full max-w-lg rounded-3xl bg-surface p-6"
+          >
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute right-4 top-4 text-foreground/80 transition-colors hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 className="font-display text-2xl text-foreground">{title}</h2>
+            <p className="mt-1 text-xs font-medium text-muted-foreground">
+              Anything the Spectrum team should know about this class's photos.
+            </p>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={6}
+              maxLength={5000}
+              autoFocus
+              placeholder="e.g. Two students were away on a school trip; their photos are added as absentees."
+              className="mt-4 w-full resize-none rounded-xl border border-border bg-background/60 px-4 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+            />
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={onClose}
+                disabled={busy}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void save()}
+                disabled={busy}
+                className="spectrum-fill flex-1 rounded-xl py-3 text-sm font-semibold disabled:cursor-wait disabled:opacity-70"
+              >
+                {busy ? "Saving…" : "Save Comment"}
+              </button>
+            </div>
+            {error && (
+              <p role="alert" className="mt-3 text-center text-xs font-medium text-[#ff9b6a]">
+                {error}
+              </p>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

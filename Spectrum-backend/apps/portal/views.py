@@ -1,3 +1,4 @@
+import os
 import re
 
 from django.conf import settings
@@ -282,19 +283,77 @@ def scoped_class(member, request, slug) -> SchoolClass:
     return cls
 
 
+def student_dict(pk, name, web, width, height, absentee) -> dict:
+    return {"id": str(pk), "name": name, "photo": storage_url(web), "width": width, "height": height,
+            "absentee": absentee}
+
+
 @api()
 def class_detail(request, slug):
     member = require_member(request)
     cls = scoped_class(member, request, slug)
-    # File-name order (numbers numeric), the same order the admin shows.
-    rows = Student.objects.filter(school_class=cls).values_list("pk", "name", "web", "width", "height")
-    students = [{"id": str(pk), "name": name, "photo": storage_url(web), "width": width, "height": height}
-                for pk, name, web, width, height in rows]
+    # File-name order (numbers numeric), the same order the admin shows; absentees last.
+    rows = Student.objects.filter(school_class=cls).values_list("pk", "name", "web", "width", "height", "is_absentee")
+    students = [student_dict(*row) for row in rows]
     return {
         "class": {"id": cls.slug, "name": cls.name, "group": cls.group, "size": len(students),
-                  "namedCount": sum(1 for s in students if s["name"])},
+                  "namedCount": sum(1 for s in students if s["name"]), "comment": cls.comment},
         "students": students,
     }
+
+
+MAX_ABSENTEE_FILES = 20
+
+
+@api(methods=("POST",))
+def class_absentees(request, slug):
+    """Photos of absent students, uploaded by the institution; they are then
+    named like every other student. Their web copies are made in the
+    background, so `photo` may be empty in the reply."""
+    from apps.core.models import IMAGE_EXTENSIONS
+
+    member = require_member(request)
+    rate_limit(request, "portal-absentees", limit=120, window=600)
+    cls = scoped_class(member, request, slug)
+    uploads = request.FILES.getlist("images")[:MAX_ABSENTEE_FILES]
+    if not uploads:
+        raise ApiError("Choose at least one photo.", field="images")
+    for upload in uploads:
+        if os.path.splitext(upload.name or "")[1].lower() not in IMAGE_EXTENSIONS:
+            raise ApiError(f"{upload.name} is not a photo.", field="images")
+        if upload.size > MAX_PHOTO_BYTES:
+            raise ApiError(f"{upload.name} is too large.", field="images")
+    created = []
+    with transaction.atomic():
+        for upload in uploads:
+            student = Student(school_class=cls, is_absentee=True, source_name=(upload.name or "")[:200])
+            student.original = upload
+            student.save()
+            created.append(student)
+    return {"students": [student_dict(s.pk, s.name, s.web.name if s.web else "", s.width, s.height, True)
+                         for s in created]}
+
+
+@api(methods=("DELETE",))
+def class_absentee(request, slug, student_id):
+    """Removes an absentee photo added by mistake. Only absentees: the class's
+    own photos come from Spectrum and stay."""
+    member = require_member(request)
+    cls = scoped_class(member, request, slug)
+    student = Student.objects.filter(school_class=cls, pk=student_id, is_absentee=True).first()
+    if student is None:
+        raise ApiError("Not found", status=404)
+    student.delete()  # the delete signal queues the storage cleanup
+    return {"deleted": 1}
+
+
+@api(methods=("PUT", "POST"))
+def class_comment(request, slug):
+    member = require_member(request)
+    cls = scoped_class(member, request, slug)
+    cls.comment = text(request.json, "comment", 5000)
+    cls.save(update_fields=["comment"])
+    return {"comment": cls.comment}
 
 
 @api(methods=("PUT", "POST"))

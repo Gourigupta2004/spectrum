@@ -13,7 +13,7 @@ import {
   type CaptionStatus,
 } from "./caption-data";
 import { authStore, portalFetch } from "./portal-session";
-import { captionStore, namesStore, useStore } from "./portal-store";
+import { captionStore, createStore, namesStore, useStore } from "./portal-store";
 import {
   classes as demoClasses,
   findClass,
@@ -318,13 +318,130 @@ export function useRoster(classId: string): Roster {
       !(error instanceof Error && /not found/i.test(error.message)) && count < 2,
     staleTime: Infinity, // names are kept locally while the page is open
   });
+  const demoAdded = useStore(demoAbsentees)[classId];
   const demoCls = useMemo(() => (hasApi ? undefined : findClass(classId)), [classId]);
-  const demoStudents = useMemo(() => (demoCls ? studentsOf(demoCls.id) : []), [demoCls]);
+  const demoStudents = useMemo(
+    () => (demoCls ? [...studentsOf(demoCls.id), ...(demoAdded ?? [])] : []),
+    [demoCls, demoAdded],
+  );
   if (!hasApi) return { cls: demoCls, students: demoStudents, loading: false };
   return {
     cls: query.data?.class,
     students: query.data?.students ?? NO_STUDENTS,
     loading: query.isPending,
+  };
+}
+
+/* ------------------------------------------------------------------ absentees & class comment */
+
+/** Local previews of absentee photos just uploaded, shown until the server's web copy is ready. */
+export const absenteePreviews = createStore<Record<string, string>>({});
+/** Demo mode only: absentees and comments added in this browser session. */
+const demoAbsentees = createStore<Record<string, Student[]>>({});
+const demoComments = createStore<Record<string, string>>({});
+
+type RosterData = { class: SchoolClass; students: Student[] };
+
+/**
+ * What a teacher adds to a class beyond naming: photos of absent students
+ * (named like the rest afterwards) and one comment for the class. Spectrum
+ * downloads both with the class's photos.
+ */
+export function useClassExtras(classId: string) {
+  const client = useQueryClient();
+  const demoComment = useStore(demoComments)[classId] ?? "";
+  const cached = client.getQueryData<RosterData>(keys.roster(classId));
+
+  const patchRoster = useCallback(
+    (update: (data: RosterData) => RosterData) =>
+      client.setQueryData<RosterData>(keys.roster(classId), (data) => (data ? update(data) : data)),
+    [client, classId],
+  );
+
+  /** Uploads one photo at a time, so a slow connection still shows progress. */
+  const addAbsentees = useCallback(
+    async (files: File[], onProgress: (done: number) => void) => {
+      if (!hasApi) {
+        const added = files.map((file, i) => ({
+          id: `${classId}-absent-${Date.now()}-${i}`,
+          photo: URL.createObjectURL(file),
+          name: "",
+          absentee: true,
+        }));
+        demoAbsentees.set((prev) => ({ ...prev, [classId]: [...(prev[classId] ?? []), ...added] }));
+        onProgress(files.length);
+        return;
+      }
+      let done = 0;
+      for (const file of files) {
+        const body = new FormData();
+        body.append("images", file);
+        const { students } = await portalFetch<{ students: Student[] }>(
+          `/api/portal/classes/${encodeURIComponent(classId)}/absentees/`,
+          { method: "POST", body },
+        );
+        const preview = URL.createObjectURL(file);
+        absenteePreviews.set((prev) => ({
+          ...prev,
+          ...Object.fromEntries(students.map((s) => [s.id, preview])),
+        }));
+        patchRoster((data) => ({ ...data, students: [...data.students, ...students] }));
+        onProgress(++done);
+      }
+      client.invalidateQueries({ queryKey: keys.classes() });
+      client.invalidateQueries({ queryKey: keys.summary() });
+      // The web copies are made in the background; pick them up shortly.
+      window.setTimeout(
+        () => void client.invalidateQueries({ queryKey: keys.roster(classId) }),
+        6000,
+      );
+    },
+    [classId, client, patchRoster],
+  );
+
+  const removeAbsentee = useCallback(
+    async (studentId: string) => {
+      if (!hasApi) {
+        demoAbsentees.set((prev) => ({
+          ...prev,
+          [classId]: (prev[classId] ?? []).filter((s) => s.id !== studentId),
+        }));
+        return;
+      }
+      await portalFetch(
+        `/api/portal/classes/${encodeURIComponent(classId)}/absentees/${encodeURIComponent(studentId)}/`,
+        { method: "DELETE" },
+      );
+      patchRoster((data) => ({
+        ...data,
+        students: data.students.filter((s) => s.id !== studentId),
+      }));
+      client.invalidateQueries({ queryKey: keys.classes() });
+      client.invalidateQueries({ queryKey: keys.summary() });
+    },
+    [classId, client, patchRoster],
+  );
+
+  const saveComment = useCallback(
+    async (comment: string) => {
+      if (!hasApi) {
+        demoComments.set((prev) => ({ ...prev, [classId]: comment.trim() }));
+        return;
+      }
+      const result = await portalFetch<{ comment: string }>(
+        `/api/portal/classes/${encodeURIComponent(classId)}/comment/`,
+        { method: "PUT", json: { comment } },
+      );
+      patchRoster((data) => ({ ...data, class: { ...data.class, comment: result.comment } }));
+    },
+    [classId, patchRoster],
+  );
+
+  return {
+    comment: hasApi ? (cached?.class.comment ?? "") : demoComment,
+    addAbsentees,
+    removeAbsentee,
+    saveComment,
   };
 }
 

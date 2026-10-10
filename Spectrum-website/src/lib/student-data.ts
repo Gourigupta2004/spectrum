@@ -9,6 +9,8 @@ export type SchoolClass = {
   name: string;
   group: "Primary" | "Middle" | "Senior";
   size: number;
+  /** The institution's comment for this class (Add Comments). */
+  comment?: string;
 };
 
 export const classGroups = ["All", "Primary", "Middle", "Senior"] as const;
@@ -52,6 +54,8 @@ export type Student = {
   /** Pixel size of the uploaded photo; the card takes its proportions from it. */
   width?: number | null;
   height?: number | null;
+  /** Added by the institution with Add Absentees; can be removed again. */
+  absentee?: boolean;
 };
 
 /** Passport-style placeholder headshot, rendered as an inline SVG data URI. */

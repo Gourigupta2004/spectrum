@@ -218,6 +218,10 @@ class SchoolClass(models.Model):
     # Classes are listed in school order — Nursery, LKG, UKG, 1A, 1B … 12C —
     # from their names (see `class_sort_key`), filled on save.
     sort_key = models.CharField(max_length=200, blank=True, editable=False, db_index=True)
+    comment = models.TextField(
+        "comment from the institution", blank=True,
+        help_text="Written by the institution on the website (Add Comments). The photo download puts it in the "
+                  "class folder as comment.txt.")
 
     class Meta:
         ordering = ["institution", "sort_key", "pk"]
@@ -264,6 +268,11 @@ class Student(ProcessedImage):
     source_name = models.CharField("file name", max_length=200, blank=True, editable=False)
     sort_key = models.CharField(max_length=200, blank=True, editable=False)
     sort_order = models.PositiveIntegerField("order", default=0)
+    # Photos of students missing on the day, added by the institution on the
+    # website (Add Absentees) and named like the rest. Listed after the
+    # class's own photos.
+    is_absentee = models.BooleanField("absentee", default=False,
+                                      help_text="Added by the institution on the website (Add Absentees).")
 
     class Meta:
         # Photos uploaded before file names were kept have no sort key and
@@ -276,6 +285,7 @@ class Student(ProcessedImage):
         return self.name or f"Student {self.pk}"
 
     def save(self, *args, **kwargs):
-        self.sort_key = padded(self.source_name)
+        # "~" sorts after every letter and digit: absentees come last.
+        self.sort_key = ("~" if self.is_absentee else "") + padded(self.source_name)
         kwargs = _with_field(kwargs, "sort_key")
         super().save(*args, **kwargs)

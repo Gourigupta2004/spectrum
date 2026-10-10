@@ -37,7 +37,8 @@ def class_photos_zip(request, classes):
     per class ({CODE}-{CLASS}-Photos), one file per student — called after
     the student once named, else "Unnamed <uploaded file name>" — from the
     uploaded originals, at full size, instead of the website's re-encoded web
-    copies. None (with a warning) when there is nothing to put in it.
+    copies — plus comment.txt with the institution's comment for the class,
+    when there is one. None (with a warning) when there is nothing to put in it.
     """
     import os
     import tempfile
@@ -71,6 +72,9 @@ def class_photos_zip(request, classes):
                 with student.original.open("rb") as handle:
                     archive.writestr(f"{folder}/{filename}", handle.read())
                 included += 1
+            if cls.comment.strip():  # the institution's comment for this class, beside its photos
+                archive.writestr(f"{folder}/comment.txt", cls.comment.strip() + "\n")
+                included += 1
     if not included:
         buffer.close()
         messages.warning(request, "Nothing to download: no student photos in the selection.")
@@ -85,13 +89,13 @@ def class_photos_zip(request, classes):
 class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
     # Listed in school order (Nursery, LKG, UKG, 1A … 12C), from the names.
     bulk_upload_targets = ("portal.student",)
-    list_display = ("name", "institution", "group", "student_count", "named_count")
+    list_display = ("name", "institution", "group", "student_count", "named_count", "has_comment")
     list_editable = ("group",)
     list_filter = ("institution", "group")
     list_select_related = ("institution",)
     search_fields = ("name", "institution__name")
     prepopulated_fields = {"slug": ("name",)}
-    fields = ("institution", "name", "slug", "group")
+    fields = ("institution", "name", "slug", "group", "comment")
     autocomplete_fields = ("institution",)
     actions = ["download_photos"]
 
@@ -111,17 +115,21 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
     def named_count(self, obj):
         return obj.named
 
+    @admin.display(description="Comment", boolean=True)
+    def has_comment(self, obj):
+        return bool(obj.comment.strip())
+
 
 @admin.register(Student)
 class StudentAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
     # Listed by class, then file name (numbers numeric) — the portal's order.
-    list_display = ("thumbnail", "name", "source_name", "school_class", "image_status")
+    list_display = ("thumbnail", "name", "source_name", "school_class", "is_absentee", "image_status")
     list_editable = ("name",)
-    list_filter = ("school_class__institution", "school_class")
+    list_filter = ("school_class__institution", "school_class", "is_absentee")
     list_select_related = ("school_class__institution",)
     list_per_page = 100
     search_fields = ("name", "source_name")
-    fields = ("school_class", "name", "original", "source_name", "sort_order")
+    fields = ("school_class", "name", "original", "source_name", "is_absentee", "sort_order")
     readonly_fields = ("source_name",)
     ordering = ("school_class__institution", "school_class__sort_key", "school_class", "sort_key", "sort_order", "pk")
     autocomplete_fields = ("school_class",)

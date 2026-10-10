@@ -192,6 +192,73 @@ class PortalTests(SpectrumTestCase):
         self.assertEqual(listing["totals"], {"students": 3, "named": 2})
 
 
+class AbsenteesAndCommentsTests(SpectrumTestCase):
+    """Absent students' photos and a comment per class, added by the institution."""
+
+    login = PortalTests.login
+    api = PortalTests.api
+
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
+        self.token = self.login("dps-newdelhi", "demo")["access"]
+        self.cls = SchoolClass.objects.create(institution=self.institution, name="6C", group="Middle")
+        regular = Student(school_class=self.cls, source_name="IMG_2.jpg")
+        regular.original.save("r.jpg", ContentFile(jpeg_bytes()), save=False)
+        with self.captureOnCommitCallbacks(execute=True):
+            regular.save()
+        self.regular = regular
+
+    def upload(self, *names, slug="6c"):
+        files = [SimpleUploadedFile(name, jpeg_bytes(), content_type="image/jpeg") for name in names]
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(f"/api/portal/classes/{slug}/absentees/", {"images": files},
+                                    HTTP_AUTHORIZATION=f"Bearer {self.token}")
+
+    def test_absentees_are_added_named_and_listed_last(self):
+        response = self.upload("aarav.jpg", "0001.jpg")
+        self.assertEqual(response.status_code, 200, response.content)
+        added = response.json()["students"]
+        self.assertEqual([s["absentee"] for s in added], [True, True])
+        detail = self.api("get", "/api/portal/classes/6c/").json()
+        self.assertEqual([s["absentee"] for s in detail["students"]], [False, True, True], "absentees come last")
+        # They are named like everyone else.
+        self.api("put", "/api/portal/classes/6c/names/", {"names": {added[0]["id"]: "Kabir Nair"}})
+        self.assertEqual(Student.objects.get(pk=added[0]["id"]).name, "Kabir Nair")
+        # A mistake can be removed; the class's own photos can't be.
+        self.assertEqual(self.api("delete", f"/api/portal/classes/6c/absentees/{added[1]['id']}/").status_code, 200)
+        self.assertEqual(self.api("delete", f"/api/portal/classes/6c/absentees/{self.regular.pk}/").status_code, 404)
+        self.assertEqual(Student.objects.filter(school_class=self.cls).count(), 2)
+
+    def test_absentee_uploads_are_checked_and_scoped(self):
+        bad = self.client.post("/api/portal/classes/6c/absentees/",
+                               {"images": [SimpleUploadedFile("notes.txt", b"hello", content_type="text/plain")]},
+                               HTTP_AUTHORIZATION=f"Bearer {self.token}")
+        self.assertEqual(bad.status_code, 400)
+        SchoolClass.objects.create(institution=self.other, name="7A")
+        self.assertEqual(self.upload("x.jpg", slug="7a").status_code, 404, "another school's class")
+        self.assertFalse(Student.objects.filter(is_absentee=True).exists())
+
+    def test_comment_is_saved_and_downloaded_with_the_photos(self):
+        import zipfile
+        from io import BytesIO
+
+        result = self.api("put", "/api/portal/classes/6c/comment/",
+                          {"comment": "  Two students were on a school trip.  "}).json()
+        self.assertEqual(result["comment"], "Two students were on a school trip.")
+        self.assertEqual(self.api("get", "/api/portal/classes/6c/").json()["class"]["comment"],
+                         "Two students were on a school trip.")
+
+        self.client.force_login(self.make_staff())
+        response = self.client.post("/admin/portal/schoolclass/", {"action": "download_photos",
+                                                                    "_selected_action": [self.cls.pk]})
+        with zipfile.ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
+            names = archive.namelist()
+            self.assertIn("DPS-6C-Photos/comment.txt", names)
+            self.assertEqual(archive.read("DPS-6C-Photos/comment.txt").decode(), "Two students were on a school trip.\n")
+
+
 class PortalAccessTests(SpectrumTestCase):
     """The email step that unlocks the portal, and the institution check on login."""
 
