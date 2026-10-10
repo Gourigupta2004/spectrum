@@ -188,8 +188,9 @@ class BulkUploadTests(SpectrumTestCase):
             names = archive.namelist()
         folder = names[0].split("/")[0]
         self.assertTrue(folder.endswith("-6C-Photos"), folder)
-        self.assertEqual(len(names), 1, "unnamed students are left out")
+        self.assertEqual(len(names), 2, "unnamed students are included too")
         self.assertIn("Aarav Sharma.jpg", names[0])
+        self.assertTrue(names[1].endswith("/Unnamed 6C_amity_2.jpg"), names[1])
         students[0].refresh_from_db()
         with zipfile.ZipFile(BytesIO(b"".join(self.client.post("/admin/portal/schoolclass/", {
             "action": "download_photos", "_selected_action": [cls.pk],
@@ -406,17 +407,16 @@ class BulkUploadTests(SpectrumTestCase):
         download = f"/admin/portal/captionworkspace/{workspace.pk}/download-students/"
         self.assertIn(f'href="{download}?class=all"', section)
 
-        # Nothing named yet: back to the page with a warning instead of an empty zip.
-        response = self.client.get(download + "?class=all")
-        self.assertEqual(response.status_code, 302)
+        # Named and unnamed students alike; unnamed ones go by their uploaded file name.
         Student.objects.filter(school_class__name="2B", source_name="a.jpg").update(name="Diya")
         Student.objects.filter(school_class__name="10A").update(name="Kabir")
         with zipfile.ZipFile(BytesIO(b"".join(self.client.get(download + "?class=all").streaming_content))) as zf:
-            self.assertEqual(sorted(zf.namelist()), ["DPS-10A-Photos/Kabir.jpg", "DPS-2B-Photos/Diya.jpg"])
+            self.assertEqual(sorted(zf.namelist()), ["DPS-10A-Photos/Kabir.jpg", "DPS-2B-Photos/Diya.jpg",
+                                                     "DPS-2B-Photos/Unnamed c.jpg", "DPS-LKG-Photos/Unnamed k.jpg"])
         two_b = SchoolClass.objects.get(institution=self.institution, name="2B")
         response = self.client.get(f"{download}?class={two_b.pk}")
         self.assertIn("DPS-2B-Photos.zip", response["Content-Disposition"])
-        # Another institution's class is never in this workspace's zip.
+        # Another institution's class is never in this workspace's zip: back to the page instead.
         other = SchoolClass.objects.create(institution=self.other, name="2B")
         self.assertEqual(self.client.get(f"{download}?class={other.pk}").status_code, 302)
 

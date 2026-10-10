@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+  Every admin page. Extends Django's own base_site.html (this file sits
+  earlier in the template search path, so the same name resolves to the
+  admin's original).
+{% endcomment %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    /* Every section header on a form reads in capitals — fieldsets, inline
+       tables and the photo uploaders alike — whatever case its name is in. */
+    .change-form fieldset .fieldset-heading,
+    .change-form .inline-group .inline-heading,
+    .change-form .module > h2 { text-transform: uppercase; letter-spacing: .5px; }
+  </style>
+{% endblock %}

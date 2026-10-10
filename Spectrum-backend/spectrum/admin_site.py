@@ -1,3 +1,5 @@
+from functools import wraps
+
 from django.contrib.admin import AdminSite
 
 GROUPS = [
@@ -19,11 +21,38 @@ GROUPS = [
 ]
 
 
+def edit_wording(title: str) -> str:
+    """Page titles say "edit" where Django says "change":
+    "Select event to change" -> "Select event to edit", "Change event" ->
+    "Edit event". Titles with a colon ("Change password: …", "Change
+    history: …") name a different page and are left as they are."""
+    if title.startswith("Select ") and title.endswith(" to change"):
+        return title[: -len("change")] + "edit"
+    if title.startswith("Change ") and ":" not in title:
+        return "Edit " + title[len("Change "):]
+    return title
+
+
 class SpectrumAdminSite(AdminSite):
     site_header = "Spectrum"
     site_title = "Spectrum admin"
     index_title = "Manage the website"
     enable_nav_sidebar = True
+
+    def admin_view(self, view, cacheable=False):
+        # Every admin page passes through here (ModelAdmin URLs included), so
+        # one place rewrites the titles before the page is rendered.
+        wrapped = super().admin_view(view, cacheable)
+
+        @wraps(wrapped)
+        def inner(request, *args, **kwargs):
+            response = wrapped(request, *args, **kwargs)
+            context = getattr(response, "context_data", None)
+            if isinstance(context, dict) and isinstance(context.get("title"), str):
+                context["title"] = edit_wording(context["title"])
+            return response
+
+        return inner
 
     def get_app_list(self, request, app_label=None):
         app_list = super().get_app_list(request, app_label)

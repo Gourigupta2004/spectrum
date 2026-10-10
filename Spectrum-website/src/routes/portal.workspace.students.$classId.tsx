@@ -53,7 +53,7 @@ function ClassRoster() {
       </h1>
       <p className="mt-2 text-sm font-medium text-muted-foreground">{countLine}</p>
 
-      {/* Six across on desktop — compact 4:5 frames, short enough that three
+      {/* Six across on desktop — compact 7:8 frames, short enough that three
           rows fit on screen at once — the photos only rendered
           smaller (the stored images are untouched; full-size downloads live in
           the admin now, not here). A grid, so every card lines up: this is a
@@ -120,7 +120,7 @@ function StudentCard({
       {/* One frame for every student, with the whole photo inside it: a blurred
           copy of the same picture fills the frame, so a photo that is not the
           usual portrait shape sits on its own colours and is never cropped. */}
-      <div className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-[#14131a]">
+      <div className="relative aspect-[7/8] w-full shrink-0 overflow-hidden bg-[#14131a]">
         {student.photo ? (
           <>
             <img

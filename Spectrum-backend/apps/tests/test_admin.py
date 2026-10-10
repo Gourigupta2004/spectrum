@@ -85,3 +85,27 @@ class ActiveFilterChipTests(SpectrumTestCase):
         html, chips = self.chips(f"/admin/portal/student/?school_class__institution__id__exact={self.institution.pk}")
         self.assertIn("Delhi Public School", chips)
         self.assertNotIn("Clear all", chips, "one chip needs no clear-all")
+
+
+class WordingAndHeadingTests(SpectrumTestCase):
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+
+    def test_titles_say_edit_not_change(self):
+        from spectrum.admin_site import edit_wording
+
+        html = self.client.get("/admin/portal/captionworkspace/").content.decode()
+        self.assertIn("Select institution workspace to edit", html)
+        self.assertNotIn("to change", html)
+        html = self.client.get(f"/admin/catalog/institution/{self.institution.pk}/change/").content.decode()
+        self.assertIn("<h1>Edit institution</h1>", html)
+        self.assertIn("| Edit institution |", html)  # the browser tab too
+        self.assertEqual(edit_wording("Change password: admin"), "Change password: admin")
+        self.assertEqual(edit_wording("Add event"), "Add event")
+
+    def test_form_section_headers_are_upper_case(self):
+        html = self.client.get(f"/admin/catalog/event/{self.event.pk}/change/").content.decode()
+        self.assertIn(".change-form fieldset .fieldset-heading", html)
+        self.assertIn("text-transform: uppercase", html)

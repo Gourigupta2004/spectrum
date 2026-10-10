@@ -34,10 +34,10 @@ def _safe_file_name(name: str) -> str:
 def class_photos_zip(request, classes):
     """
     The class folder the website used to build, now admin-only: one folder
-    per class ({CODE}-{CLASS}-Photos), one file per *named* student called
-    after them — but from the uploaded originals, at full size, instead of
-    the website's re-encoded web copies. None (with a warning) when there is
-    nothing to put in it.
+    per class ({CODE}-{CLASS}-Photos), one file per student — called after
+    the student once named, else "Unnamed <uploaded file name>" — from the
+    uploaded originals, at full size, instead of the website's re-encoded web
+    copies. None (with a warning) when there is nothing to put in it.
     """
     import os
     import tempfile
@@ -49,20 +49,21 @@ def class_photos_zip(request, classes):
         raise PermissionDenied
     classes = list(classes)
     buffer = tempfile.TemporaryFile()  # spooled to disk, so huge classes never sit in RAM
-    included = unnamed = 0
+    included = 0
     folders = []
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:  # photos are already compressed
         for cls in classes:
             folder = _safe_file_name(f"{_institution_code(cls.institution.name)}-{cls.name.upper()}-Photos")
             folders.append(folder)
             used: dict[str, int] = {}
-            for student in cls.students.all():  # file-name order (Student.Meta)
-                if not student.name.strip():
-                    unnamed += 1  # nothing to file them under, same rule as the website had
-                    continue
+            for position, student in enumerate(cls.students.all(), 1):  # file-name order (Student.Meta)
                 if not student.original:
                     continue
-                base = _safe_file_name(student.name)
+                if student.name.strip():
+                    base = _safe_file_name(student.name)
+                else:
+                    stem = os.path.splitext(student.source_name)[0].strip()
+                    base = _safe_file_name(f"Unnamed {stem or position}")
                 n = used.get(base.lower(), 0) + 1
                 used[base.lower()] = n
                 ext = os.path.splitext(student.original.name)[1].lower() or ".jpg"
@@ -72,10 +73,8 @@ def class_photos_zip(request, classes):
                 included += 1
     if not included:
         buffer.close()
-        messages.warning(request, "Nothing to download: no named students with photos in the selection.")
+        messages.warning(request, "Nothing to download: no student photos in the selection.")
         return None
-    if unnamed:
-        messages.warning(request, f"{unnamed} unnamed student(s) were left out — they have no name to be filed under.")
     buffer.seek(0)
     zip_name = f"{folders[0]}.zip" if len(folders) == 1 else (
         f"{_institution_code(classes[0].institution.name)}-Class-Photos.zip")
