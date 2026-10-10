@@ -114,6 +114,8 @@ export const galleryCopy = {
   contactRequired: "Add a WhatsApp number or email address so we can deliver your memories.",
   payButton: "Pay ₹{total} with Razorpay →",
   checkoutError: "Payment could not be completed. Please try again.",
+  notForSaleMessage:
+    "These photographs are not available for sale. Please contact your Institute’s management.",
   successTitle: "Your Memories Are On Their Way.",
   successBodyWhatsapp:
     "We're sending your full-resolution photos to your WhatsApp right now. Check your messages in a while.",

@@ -40,6 +40,22 @@ class OrderTests(SpectrumTestCase):
         self.assertEqual(bundle["amount"], 299)
         self.assertEqual(Order.objects.count(), 2)
 
+    def test_not_for_sale_event_shows_but_takes_no_orders(self):
+        self.event.not_for_sale = True
+        self.event.save()
+        detail = self.client.get("/api/events/annual-day/").json()
+        self.assertTrue(detail["event"]["notForSale"])
+        self.assertIn("not available for sale", detail["copy"]["notForSaleMessage"])  # editable in the admin
+        self.assertTrue(detail["photos"], "the gallery itself still shows")
+        response = self.create()
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("not available for sale", response.json()["error"])
+        self.assertEqual(Order.objects.count(), 0)
+        # Back on sale, orders work again.
+        self.event.not_for_sale = False
+        self.event.save()
+        self.assertEqual(self.create().status_code, 200)
+
     def test_videos_are_priced_and_downloadable(self):
         clip = self.video(self.event, "Highlights")
         order = self.create(videoIds=[str(clip.pk), "999"], idempotencyKey="key-v-aaaaaaaaaaaaaaaa").json()

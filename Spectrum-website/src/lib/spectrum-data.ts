@@ -93,6 +93,8 @@ export type SpectrumEvent = {
   image: string;
   tags: ("recent" | "popular")[];
   institutionType?: string;
+  /** Gallery and selection work as usual; checkout only shows the "not for sale" message. */
+  notForSale?: boolean;
 };
 
 /**

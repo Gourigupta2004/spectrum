@@ -136,7 +136,7 @@ class GalleryPageAdmin(SingletonAdmin):
                                       "bundle_button_no_saving", "pay_cta")}),
         ("Checkout", {"fields": ("summary_heading", "bundle_line", "total_label", "name_placeholder",
                                  "whatsapp_placeholder", "whatsapp_hint", "email_placeholder", "email_hint",
-                                 "contact_required", "pay_button", "checkout_error")}),
+                                 "contact_required", "pay_button", "checkout_error", "not_for_sale_message")}),
         ("After payment", {"fields": ("success_title", "success_body_whatsapp", "success_body_email",
                                       "success_note", "success_back")}),
     )

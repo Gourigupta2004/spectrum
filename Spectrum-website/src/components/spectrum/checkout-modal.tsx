@@ -121,7 +121,9 @@ export function CheckoutModal({
             exit={{ scale: 0.96, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}
             onClick={(e) => e.stopPropagation()}
-            className="spectrum-border glass relative grid w-full max-w-3xl gap-0 overflow-hidden rounded-3xl bg-surface md:grid-cols-2"
+            className={`spectrum-border glass relative grid w-full gap-0 overflow-hidden rounded-3xl bg-surface ${
+              event.notForSale ? "max-w-lg" : "max-w-3xl md:grid-cols-2"
+            }`}
           >
             <button
               onClick={onClose}
@@ -131,108 +133,123 @@ export function CheckoutModal({
               <X className="h-5 w-5" />
             </button>
 
-            <div className="border-b border-border p-6 md:border-b-0 md:border-r">
-              <h3 className="font-display text-lg text-foreground">{copy.summaryHeading}</h3>
-              <div className="no-scrollbar mt-4 max-h-56 space-y-3 overflow-y-auto pr-1">
-                {bundle ? (
-                  <div className="flex items-center justify-between gap-3 text-sm text-foreground">
-                    <span>{fill(copy.bundleLine, { photos: albumSize })}</span>
-                    <span>₹{bundlePrice}</span>
+            {event.notForSale ? (
+              // The same box, with only the message: no summary, prices or payment.
+              <div className="px-8 py-12 text-center">
+                <p className="mx-auto max-w-sm font-display text-xl leading-relaxed text-foreground">
+                  {copy.notForSaleMessage}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="border-b border-border p-6 md:border-b-0 md:border-r">
+                  <h3 className="font-display text-lg text-foreground">{copy.summaryHeading}</h3>
+                  <div className="no-scrollbar mt-4 max-h-56 space-y-3 overflow-y-auto pr-1">
+                    {bundle ? (
+                      <div className="flex items-center justify-between gap-3 text-sm text-foreground">
+                        <span>{fill(copy.bundleLine, { photos: albumSize })}</span>
+                        <span>₹{bundlePrice}</span>
+                      </div>
+                    ) : (
+                      selected.map((m) => (
+                        <div key={m.id} className="flex items-center gap-3">
+                          <img
+                            src={m.thumb || m.image}
+                            alt=""
+                            className="h-11 w-11 rounded-lg object-cover"
+                            draggable={false}
+                          />
+                          <p className="min-w-0 flex-1 truncate text-sm text-foreground">
+                            {m.title}
+                          </p>
+                          <span className="text-sm text-foreground">₹{pricePerPhoto}</span>
+                        </div>
+                      ))
+                    )}
+                    {selectedVideos.map((v) => (
+                      <div key={v.id} className="flex items-center gap-3">
+                        <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-secondary">
+                          {(v.thumb || v.image) && (
+                            <img
+                              src={v.thumb || v.image}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              draggable={false}
+                            />
+                          )}
+                          <span className="absolute inset-0 grid place-items-center bg-black/30">
+                            <Play className="h-4 w-4 fill-current text-foreground" />
+                          </span>
+                        </span>
+                        <p className="min-w-0 flex-1 truncate text-sm text-foreground">{v.title}</p>
+                        <span className="text-sm text-foreground">₹{pricePerVideo}</span>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  selected.map((m) => (
-                    <div key={m.id} className="flex items-center gap-3">
-                      <img
-                        src={m.thumb || m.image}
-                        alt=""
-                        className="h-11 w-11 rounded-lg object-cover"
-                        draggable={false}
-                      />
-                      <p className="min-w-0 flex-1 truncate text-sm text-foreground">{m.title}</p>
-                      <span className="text-sm text-foreground">₹{pricePerPhoto}</span>
-                    </div>
-                  ))
-                )}
-                {selectedVideos.map((v) => (
-                  <div key={v.id} className="flex items-center gap-3">
-                    <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-secondary">
-                      {(v.thumb || v.image) && (
-                        <img
-                          src={v.thumb || v.image}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          draggable={false}
-                        />
-                      )}
-                      <span className="absolute inset-0 grid place-items-center bg-black/30">
-                        <Play className="h-4 w-4 fill-current text-foreground" />
-                      </span>
-                    </span>
-                    <p className="min-w-0 flex-1 truncate text-sm text-foreground">{v.title}</p>
-                    <span className="text-sm text-foreground">₹{pricePerVideo}</span>
+                  <div className="spectrum-hairline my-4" />
+                  <div className="flex items-center justify-between font-display text-lg text-foreground">
+                    <span>{copy.totalLabel}</span>
+                    <span className="spectrum-text">₹{total}</span>
                   </div>
-                ))}
-              </div>
-              <div className="spectrum-hairline my-4" />
-              <div className="flex items-center justify-between font-display text-lg text-foreground">
-                <span>{copy.totalLabel}</span>
-                <span className="spectrum-text">₹{total}</span>
-              </div>
-            </div>
+                </div>
 
-            <div className="space-y-4 p-6">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-                placeholder={copy.namePlaceholder}
-                className={inputClass}
-              />
-              <div className="relative">
-                <MessageCircle className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-teal" />
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  type="tel"
-                  autoComplete="tel"
-                  placeholder={copy.whatsappPlaceholder}
-                  className={`${inputClass} pl-11`}
-                />
-                <p className="mt-1.5 px-1 text-[0.7rem] text-muted-foreground">
-                  {copy.whatsappHint}
-                </p>
-              </div>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-teal" />
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  type="email"
-                  autoComplete="email"
-                  placeholder={copy.emailPlaceholder}
-                  className={`${inputClass} pl-11`}
-                />
-                <p className="mt-1.5 px-1 text-[0.7rem] text-muted-foreground">{copy.emailHint}</p>
-              </div>
+                <div className="space-y-4 p-6">
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
+                    placeholder={copy.namePlaceholder}
+                    className={inputClass}
+                  />
+                  <div className="relative">
+                    <MessageCircle className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-teal" />
+                    <input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder={copy.whatsappPlaceholder}
+                      className={`${inputClass} pl-11`}
+                    />
+                    <p className="mt-1.5 px-1 text-[0.7rem] text-muted-foreground">
+                      {copy.whatsappHint}
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-teal" />
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      type="email"
+                      autoComplete="email"
+                      placeholder={copy.emailPlaceholder}
+                      className={`${inputClass} pl-11`}
+                    />
+                    <p className="mt-1.5 px-1 text-[0.7rem] text-muted-foreground">
+                      {copy.emailHint}
+                    </p>
+                  </div>
 
-              <button
-                onClick={pay}
-                disabled={busy}
-                className="spectrum-fill w-full rounded-xl py-3.5 text-sm font-semibold disabled:cursor-wait disabled:opacity-70"
-              >
-                {busy ? "Opening payment…" : fill(copy.payButton, { total })}
-              </button>
-              {error && (
-                <p role="alert" className="text-center text-xs font-medium text-[#ff9b6a]">
-                  {error}
-                </p>
-              )}
-              {!hasApi && (
-                <p className="text-center text-xs text-muted-foreground">
-                  Demo checkout — no payment is processed.
-                </p>
-              )}
-            </div>
+                  <button
+                    onClick={pay}
+                    disabled={busy}
+                    className="spectrum-fill w-full rounded-xl py-3.5 text-sm font-semibold disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {busy ? "Opening payment…" : fill(copy.payButton, { total })}
+                  </button>
+                  {error && (
+                    <p role="alert" className="text-center text-xs font-medium text-[#ff9b6a]">
+                      {error}
+                    </p>
+                  )}
+                  {!hasApi && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      Demo checkout — no payment is processed.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
           </motion.div>
         </motion.div>
       )}

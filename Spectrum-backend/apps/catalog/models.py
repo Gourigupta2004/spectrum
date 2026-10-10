@@ -70,6 +70,10 @@ class Event(ProcessedImage):
     price_per_video = models.PositiveIntegerField("price per video (₹)", default=199)
     bundle_price = models.PositiveIntegerField("full album price (₹)", default=299,
                                                help_text="All photos. Videos are priced per video on top.")
+    not_for_sale = models.BooleanField(
+        "not for sale", default=False,
+        help_text="The gallery shows as usual, but checkout only says these photographs aren't for sale "
+                  "(Gallery & checkout pages › Not for sale message), and no order can be placed.")
     is_recent = models.BooleanField("tag: recent", default=False)
     is_popular = models.BooleanField("tag: popular", default=False)
     is_published = models.BooleanField("published", default=True)

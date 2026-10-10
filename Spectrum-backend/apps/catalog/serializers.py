@@ -38,6 +38,7 @@ def event_dict(event) -> dict:
         "pricePerPhoto": event.price_per_photo,
         "pricePerVideo": event.price_per_video,
         "bundlePrice": event.bundle_price,
+        "notForSale": event.not_for_sale,
         "image": public_url(event.web),
         "tags": event.tags,
     }

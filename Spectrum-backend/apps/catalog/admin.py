@@ -98,7 +98,7 @@ class EventAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.Mod
                     "price_per_video", "bundle_price", "is_published")
     list_display_links = ("thumbnail", "name")
     list_editable = ("is_published",)
-    list_filter = ("is_published", "institution", "is_recent", "is_popular")
+    list_filter = ("is_published", "not_for_sale", "institution", "is_recent", "is_popular")
     list_select_related = ("institution",)
     search_fields = ("name", "slug", "institution__name")
     prepopulated_fields = {"slug": ("name",)}
@@ -107,7 +107,8 @@ class EventAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.Mod
     actions = ["reprocess_images"]
     fieldsets = (
         (None, {"fields": ("name", "slug", "institution", "date", "date_label")}),
-        ("Cover & pricing", {"fields": ("original", "price_per_photo", "price_per_video", "bundle_price")}),
+        ("Cover & pricing", {"fields": ("original", "price_per_photo", "price_per_video", "bundle_price",
+                                        "not_for_sale")}),
         ("Listing", {"fields": ("is_recent", "is_popular", "is_published", "sort_order")}),
     )
 

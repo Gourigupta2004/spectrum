@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.catalog.models import Event, EventPhoto, EventVideo
+from apps.content.models import GalleryPage
 from apps.core.http import ApiError, api, rate_limit, text
 from apps.core.models import ImageStatus
 from spectrum.storages import private_storage
@@ -84,6 +85,8 @@ def create_order(request):
     event = Event.objects.filter(slug=text(data, "eventSlug", 120), is_published=True).first()
     if event is None:
         raise ApiError("Event not found", status=404)
+    if event.not_for_sale:
+        raise ApiError(GalleryPage.load().not_for_sale_message, status=403)
     name = text(data, "name", 120, required=True)
     email = text(data, "email", 254)
     # Delivery goes wherever the buyer filled something in: WhatsApp, email, or both.

@@ -386,6 +386,9 @@ class GalleryPage(SingletonModel):
     contact_required = line("Add a WhatsApp number or email address so we can deliver your memories.")
     pay_button = line("Pay ₹{total} with Razorpay →")
     checkout_error = line("Payment could not be completed. Please try again.")
+    not_for_sale_message = para(
+        "These photographs are not available for sale. Please contact your Institute’s management.",
+        help_text="Shown in place of the checkout for events marked Not for sale.")
 
     success_title = line("Your Memories Are On Their Way.")
     success_body_whatsapp = para(

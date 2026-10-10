@@ -642,7 +642,7 @@ function CaptionEditorInner({
             </label>
             {mode === "approve" && phase === "edit" && (
               <p className="mt-2 rounded-xl border border-[#e8503a]/50 bg-[#e8503a]/10 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-[#ff9b6a]">
-                Last chance to refine the title — once approved, it's locked.
+                Last chance to edit the title — once approved, it's locked.
               </p>
             )}
             <textarea
