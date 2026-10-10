@@ -5,6 +5,7 @@ import { Check, MessageSquarePlus, UserPlus, X } from "lucide-react";
 import { classLabel, type Student } from "@/lib/student-data";
 import { absenteePreviews, useClassExtras, useRoster, useStudentNames } from "@/lib/portal-data";
 import { useStore } from "@/lib/portal-store";
+import { useOpenRosterGuidelines } from "@/lib/roster-guidelines";
 import { usePortalCopy } from "@/lib/use-portal-copy";
 import { fill } from "@/lib/text";
 
@@ -37,6 +38,7 @@ function ClassRoster() {
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [actionError, setActionError] = useState("");
   const [commenting, setCommenting] = useState(false);
+  const openGuidelines = useOpenRosterGuidelines();
 
   const upload = async (files: File[]) => {
     if (!files.length) return;
@@ -114,7 +116,16 @@ function ClassRoster() {
           />
         </div>
       </div>
-      <p className="mt-2 text-sm font-medium text-muted-foreground">{countLine}</p>
+      <p className="mt-2 text-sm font-medium text-muted-foreground">
+        {countLine}{" "}
+        <button
+          type="button"
+          onClick={openGuidelines}
+          className="font-semibold text-teal underline decoration-teal/40 underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground/40"
+        >
+          {copy.rosterGuidelinesLink}
+        </button>
+      </p>
       {comment && (
         <p className="mt-3 max-w-3xl whitespace-pre-line rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm text-foreground">
           <span className="font-semibold text-muted-foreground">Comment: </span>

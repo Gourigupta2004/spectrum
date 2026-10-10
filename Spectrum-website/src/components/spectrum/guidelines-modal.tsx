@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BookOpen, X } from "lucide-react";
-import type { PortalCopy } from "@/lib/data/defaults";
+import type { Guidelines } from "@/lib/guidelines";
 
 /** One pointer per line in the admin; blank lines are ignored. */
 const pointers = (text: string): string[] =>
@@ -11,7 +11,7 @@ const pointers = (text: string): string[] =>
     .filter(Boolean);
 
 /**
- * The caption guidelines, in a window that takes three quarters of the screen
+ * A section's guidelines, in a window that takes three quarters of the screen
  * on anything larger than a phone (a phone gets nearly the whole screen, since
  * three quarters of one is too narrow to read). Closes from the cross, the
  * "got it" button, the backdrop or Escape. Sits above the caption editor so it
@@ -20,11 +20,11 @@ const pointers = (text: string): string[] =>
 export function GuidelinesModal({
   open,
   onClose,
-  copy,
+  content,
 }: {
   open: boolean;
   onClose: () => void;
-  copy: PortalCopy;
+  content: Guidelines;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -35,7 +35,7 @@ export function GuidelinesModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const points = pointers(copy.guidelinesPoints);
+  const points = pointers(content.points);
 
   return (
     <AnimatePresence>
@@ -75,11 +75,11 @@ export function GuidelinesModal({
                 id="guidelines-title"
                 className="mt-5 font-display text-3xl text-foreground md:text-4xl"
               >
-                {copy.guidelinesTitle}
+                {content.title}
               </h2>
-              {copy.guidelinesIntro && (
+              {content.intro && (
                 <p className="mt-4 text-base font-medium leading-relaxed text-muted-foreground">
-                  {copy.guidelinesIntro}
+                  {content.intro}
                 </p>
               )}
 
@@ -98,9 +98,9 @@ export function GuidelinesModal({
                 </ul>
               )}
 
-              {copy.guidelinesOutro && (
+              {content.outro && (
                 <p className="mt-8 border-l-2 border-teal pl-4 text-2xl font-medium leading-snug text-muted-foreground">
-                  {copy.guidelinesOutro}
+                  {content.outro}
                 </p>
               )}
             </div>
@@ -111,7 +111,7 @@ export function GuidelinesModal({
                 onClick={onClose}
                 className="spectrum-fill rounded-full px-6 py-2.5 text-sm font-semibold"
               >
-                {copy.guidelinesDismiss}
+                {content.dismiss}
               </button>
             </div>
           </motion.div>

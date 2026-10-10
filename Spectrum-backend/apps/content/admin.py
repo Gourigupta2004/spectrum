@@ -156,9 +156,12 @@ class PortalPageAdmin(SingletonAdmin):
         ("Caption workspace", {"fields": ("captions_title", "captions_empty_all", "captions_empty_pending",
                                           "captions_empty_submitted", "captions_empty_approved", "locked_title",
                                           "locked_body")}),
-        ("Caption guidelines popup", {"fields": ("guidelines_title", "guidelines_intro", "guidelines_points",
-                                                 "guidelines_outro", "guidelines_prompt", "guidelines_link",
-                                                 "guidelines_dismiss")}),
+        ("Class photographs guidelines popup", {"fields": (
+            "guidelines_title", "guidelines_intro", "guidelines_points", "guidelines_outro", "guidelines_prompt",
+            "guidelines_link", "guidelines_dismiss")}),
+        ("Individual photographs guidelines popup", {"fields": (
+            "roster_guidelines_title", "roster_guidelines_intro", "roster_guidelines_points",
+            "roster_guidelines_outro", "roster_guidelines_link", "roster_guidelines_dismiss")}),
         ("Students", {"fields": ("classes_subtitle", "roster_title", "student_placeholder")}),
     )
 

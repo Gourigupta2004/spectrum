@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { StatusPill } from "@/components/spectrum/status-pill";
 import { GuidelinesModal } from "@/components/spectrum/guidelines-modal";
+import { titleGuidelines } from "@/lib/guidelines";
 import { hasApi } from "@/lib/api";
 import {
   captionStatusLabel,
@@ -407,7 +408,11 @@ function Workspace() {
         canManagePhotos={canManagePhotos}
         onOpenGuidelines={() => setGuidelines(true)}
       />
-      <GuidelinesModal open={guidelines} onClose={() => setGuidelines(false)} copy={copy} />
+      <GuidelinesModal
+        open={guidelines}
+        onClose={() => setGuidelines(false)}
+        content={titleGuidelines(copy)}
+      />
       <AddImageModal
         open={adding}
         onClose={() => setAdding(false)}

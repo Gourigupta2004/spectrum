@@ -458,6 +458,23 @@ class PortalPage(SingletonModel):
     guidelines_prompt = line("Please follow the guidelines", 80, help_text="Shown beside the status tag in the editor.")
     guidelines_link = line("View guidelines", 60)
     guidelines_dismiss = line("Got it", 40)
+    # The same kind of popup for Individual Photographs: shown each time a
+    # teacher enters that section, and again from its "View guidelines" link.
+    roster_guidelines_title = line("Naming Guidelines")
+    roster_guidelines_intro = para(
+        "Student names travel with every photo we deliver, so please read these before you name the students."
+    )
+    roster_guidelines_points = para(
+        "Type each student's full name exactly as it appears in the class register.\n"
+        "Check the spelling before moving on — Enter saves the name and jumps to the next photo.\n"
+        "Leave a photo blank if you can't identify the student; please don't guess.\n"
+        "Use Add Absentees for students missing from the class photos, then name them like the rest.\n"
+        "Use Add Comments to tell the Spectrum team anything about this class.",
+        help_text="One pointer per line.",
+    )
+    roster_guidelines_outro = para("Names go on the photos we deliver, so take a moment to check them.")
+    roster_guidelines_link = line("View guidelines", 60)
+    roster_guidelines_dismiss = line("Got it", 40)
     captions_empty_all = line("No images yet.")
     captions_empty_pending = line("Nothing pending — all caught up.")
     captions_empty_submitted = line("Nothing submitted yet.")

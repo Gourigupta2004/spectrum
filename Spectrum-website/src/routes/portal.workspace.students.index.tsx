@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { classGroups, type ClassGroup } from "@/lib/student-data";
 import { useClassList } from "@/lib/portal-data";
 import { usePortalMember } from "@/lib/portal-session";
+import { useOpenRosterGuidelines } from "@/lib/roster-guidelines";
 import { usePortalCopy } from "@/lib/use-portal-copy";
 import { fill } from "@/lib/text";
 
@@ -54,6 +55,7 @@ function ClassList() {
   const copy = usePortalCopy();
   const { institution } = usePortalMember();
   const { classes, loading, error } = useClassList();
+  const openGuidelines = useOpenRosterGuidelines();
   const [group, setGroup] = useState<ClassGroup>("All");
 
   const list = useMemo(
@@ -74,7 +76,14 @@ function ClassList() {
         {institution.name} — Classes
       </h1>
       <p className="mt-2 text-sm font-medium text-muted-foreground">
-        {loading ? "Loading…" : error || fill(copy.classesSubtitle, { count: classes.length })}
+        {loading ? "Loading…" : error || fill(copy.classesSubtitle, { count: classes.length })}{" "}
+        <button
+          type="button"
+          onClick={openGuidelines}
+          className="font-semibold text-teal underline decoration-teal/40 underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground/40"
+        >
+          {copy.rosterGuidelinesLink}
+        </button>
       </p>
 
       <div className="no-scrollbar mt-8 flex gap-3 overflow-x-auto pb-2">
