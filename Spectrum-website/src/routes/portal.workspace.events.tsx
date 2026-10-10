@@ -535,8 +535,8 @@ function CaptionEditorInner({
         : !canAct
           ? `Add your full name and mobile number to ${actionLabel.toLowerCase()}.`
           : mode === "approve"
-            ? "Approving locks this title for every teacher; the Spectrum team makes any later change."
-            : "Saving submits this title and locks it for every teacher; the Spectrum team makes any later change.";
+            ? "Approving locks this title."
+            : "Saving submits and locks this title.";
 
   return (
     <motion.div
@@ -606,7 +606,9 @@ function CaptionEditorInner({
           />
         </div>
 
-        <div className="flex min-h-0 flex-col gap-5 p-6 md:p-8">
+        {/* Scrolls on its own if a short window can't fit everything, so no
+            field is ever squeezed under another. */}
+        <div className="flex min-h-0 flex-col gap-5 p-6 md:overflow-y-auto md:p-8">
           <div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <StatusPill status={item.status} />
@@ -631,7 +633,7 @@ function CaptionEditorInner({
               In approve mode the box stays editable: this is the one remaining
               moment the wording can change, and the disclaimer says so. While
               reviewing it is read-only and outlined, so the eye stays on it. */}
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-1 flex-col">
             <label
               htmlFor="caption-text"
               className="font-display text-[0.72rem] sm:text-[0.68rem] uppercase tracking-[0.2em] text-muted-foreground"
@@ -640,9 +642,7 @@ function CaptionEditorInner({
             </label>
             {mode === "approve" && phase === "edit" && (
               <p className="mt-2 rounded-xl border border-[#e8503a]/50 bg-[#e8503a]/10 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-[#ff9b6a]">
-                A final look before it's locked: you can still refine the title below. Once you
-                approve, it can't be changed from here — only the Spectrum team can edit it after
-                this point.
+                Last chance to refine the title — once approved, it's locked.
               </p>
             )}
             <textarea
@@ -656,7 +656,7 @@ function CaptionEditorInner({
                   ? "Write the title for this photo."
                   : "The title you are approving."
               }
-              className={`mt-2 min-h-[10rem] w-full flex-1 resize-none rounded-xl border bg-background/60 px-4 py-3 text-base font-medium leading-relaxed text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet ${
+              className={`mt-2 min-h-[7rem] w-full flex-1 resize-none rounded-xl border bg-background/60 px-4 py-3 text-base font-medium leading-relaxed text-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet ${
                 phase === "review" ? "border-transparent ring-2 ring-violet" : "border-border"
               }`}
             />
