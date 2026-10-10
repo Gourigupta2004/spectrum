@@ -54,7 +54,7 @@ export type Student = {
   /** Pixel size of the uploaded photo; the card takes its proportions from it. */
   width?: number | null;
   height?: number | null;
-  /** Added by the institution with Add Absentees; can be removed again. */
+  /** Added by the institution with Add Absentees. */
   absentee?: boolean;
 };
 

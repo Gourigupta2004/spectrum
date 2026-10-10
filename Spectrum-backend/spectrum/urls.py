@@ -29,7 +29,6 @@ api = [
     path("portal/classes/<slug:slug>/", portal.class_detail),
     path("portal/classes/<slug:slug>/names/", portal.class_names),
     path("portal/classes/<slug:slug>/absentees/", portal.class_absentees),
-    path("portal/classes/<slug:slug>/absentees/<int:student_id>/", portal.class_absentee),
     path("portal/classes/<slug:slug>/comment/", portal.class_comment),
     path("orders/", orders.create_order),
     path("orders/<uuid:order_id>/", orders.order_status),

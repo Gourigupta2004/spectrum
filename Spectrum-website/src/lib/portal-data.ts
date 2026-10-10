@@ -344,7 +344,8 @@ type RosterData = { class: SchoolClass; students: Student[] };
 
 /**
  * What a teacher adds to a class beyond naming: photos of absent students
- * (named like the rest afterwards) and one comment for the class. Spectrum
+ * (named like the rest afterwards; once added they stay) and one comment for
+ * the class. Spectrum
  * downloads both with the class's photos.
  */
 export function useClassExtras(classId: string) {
@@ -399,29 +400,6 @@ export function useClassExtras(classId: string) {
     [classId, client, patchRoster],
   );
 
-  const removeAbsentee = useCallback(
-    async (studentId: string) => {
-      if (!hasApi) {
-        demoAbsentees.set((prev) => ({
-          ...prev,
-          [classId]: (prev[classId] ?? []).filter((s) => s.id !== studentId),
-        }));
-        return;
-      }
-      await portalFetch(
-        `/api/portal/classes/${encodeURIComponent(classId)}/absentees/${encodeURIComponent(studentId)}/`,
-        { method: "DELETE" },
-      );
-      patchRoster((data) => ({
-        ...data,
-        students: data.students.filter((s) => s.id !== studentId),
-      }));
-      client.invalidateQueries({ queryKey: keys.classes() });
-      client.invalidateQueries({ queryKey: keys.summary() });
-    },
-    [classId, client, patchRoster],
-  );
-
   const saveComment = useCallback(
     async (comment: string) => {
       if (!hasApi) {
@@ -440,7 +418,6 @@ export function useClassExtras(classId: string) {
   return {
     comment: hasApi ? (cached?.class.comment ?? "") : demoComment,
     addAbsentees,
-    removeAbsentee,
     saveComment,
   };
 }

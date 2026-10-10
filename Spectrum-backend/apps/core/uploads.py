@@ -589,7 +589,7 @@ def grid_context(target_key: str, parent_id, user=None) -> dict:
     queryset = _grid_queryset(target, parent_id)
     fields = ["pk", "thumb", "image_status", "sort_order"] + ([target.name_field] if target.name_field else [])
     if meta.model_name == "student":
-        fields.append("name")
+        fields += ["name", "is_absentee"]
     def admin_url(name, *args):
         try:
             return reverse(f"admin:{meta.app_label}_{meta.model_name}_{name}", args=args)
@@ -598,6 +598,8 @@ def grid_context(target_key: str, parent_id, user=None) -> dict:
 
     def item(obj):
         label = getattr(obj, target.name_field) if target.name_field else (getattr(obj, "name", "") or "Unnamed")
+        if getattr(obj, "is_absentee", False):
+            label = f"{label} (absentee)"  # added by the institution on the website
         return {
             "pk": obj.pk,
             "thumb": obj.thumb_url,

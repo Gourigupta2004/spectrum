@@ -334,19 +334,6 @@ def class_absentees(request, slug):
                          for s in created]}
 
 
-@api(methods=("DELETE",))
-def class_absentee(request, slug, student_id):
-    """Removes an absentee photo added by mistake. Only absentees: the class's
-    own photos come from Spectrum and stay."""
-    member = require_member(request)
-    cls = scoped_class(member, request, slug)
-    student = Student.objects.filter(school_class=cls, pk=student_id, is_absentee=True).first()
-    if student is None:
-        raise ApiError("Not found", status=404)
-    student.delete()  # the delete signal queues the storage cleanup
-    return {"deleted": 1}
-
-
 @api(methods=("PUT", "POST"))
 def class_comment(request, slug):
     member = require_member(request)

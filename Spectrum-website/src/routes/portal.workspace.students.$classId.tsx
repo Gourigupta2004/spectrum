@@ -32,7 +32,7 @@ function ClassRoster() {
   const copy = usePortalCopy();
   const { cls, students, loading } = useRoster(classId);
   const { names, commit } = useStudentNames(classId, students);
-  const { comment, addAbsentees, removeAbsentee, saveComment } = useClassExtras(classId);
+  const { comment, addAbsentees, saveComment } = useClassExtras(classId);
   const previews = useStore(absenteePreviews);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
@@ -50,15 +50,6 @@ function ClassRoster() {
       setActionError(err instanceof Error ? err.message : "Could not add the photos.");
     } finally {
       setUploading(null);
-    }
-  };
-  const remove = async (studentId: string) => {
-    if (!window.confirm("Remove this absentee photo?")) return;
-    setActionError("");
-    try {
-      await removeAbsentee(studentId);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not remove the photo.");
     }
   };
 
@@ -152,7 +143,6 @@ function ClassRoster() {
             index={i}
             committed={names[s.id] ?? ""}
             onCommit={commit}
-            onRemove={s.absentee ? () => void remove(s.id) : undefined}
             placeholder={copy.studentPlaceholder}
           />
         ))}
@@ -180,15 +170,12 @@ function StudentCard({
   index,
   committed,
   onCommit,
-  onRemove,
   placeholder,
 }: {
   student: Student;
   index: number;
   committed: string;
   onCommit: (studentId: string, value: string) => void;
-  /** Absentees only: they were added by the institution and can be taken out again. */
-  onRemove?: (() => void) | undefined;
   placeholder: string;
 }) {
   // Local draft while typing; the store only learns about it on blur or Enter.
@@ -228,21 +215,6 @@ function StudentCard({
           />
         ) : (
           <div className="h-full w-full bg-background/60" />
-        )}
-        {student.absentee && (
-          <span className="absolute bottom-2 left-2 z-[2] rounded-full bg-black/60 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur-sm">
-            Absentee
-          </span>
-        )}
-        {onRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label="Remove this absentee photo"
-            className="absolute right-2 top-2 z-[2] grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white/90 backdrop-blur-sm transition-colors hover:bg-[#ba2121] hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
         )}
         <AnimatePresence>
           {named && (

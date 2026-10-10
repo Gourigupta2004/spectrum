@@ -226,10 +226,16 @@ class AbsenteesAndCommentsTests(SpectrumTestCase):
         # They are named like everyone else.
         self.api("put", "/api/portal/classes/6c/names/", {"names": {added[0]["id"]: "Kabir Nair"}})
         self.assertEqual(Student.objects.get(pk=added[0]["id"]).name, "Kabir Nair")
-        # A mistake can be removed; the class's own photos can't be.
-        self.assertEqual(self.api("delete", f"/api/portal/classes/6c/absentees/{added[1]['id']}/").status_code, 200)
-        self.assertEqual(self.api("delete", f"/api/portal/classes/6c/absentees/{self.regular.pk}/").status_code, 404)
-        self.assertEqual(Student.objects.filter(school_class=self.cls).count(), 2)
+        # They reach the admin: the workspace grid (labelled) and the Students list.
+        from apps.portal.models import CaptionWorkspace
+
+        self.client.force_login(self.make_staff())
+        workspace = CaptionWorkspace.for_institution(self.institution.pk)
+        grid = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        self.assertIn("Kabir Nair (absentee)", grid)
+        self.assertIn("Unnamed (absentee)", grid)
+        listing = self.client.get("/admin/portal/student/?is_absentee__exact=1").content.decode()
+        self.assertIn("Kabir Nair", listing)
 
     def test_absentee_uploads_are_checked_and_scoped(self):
         bad = self.client.post("/api/portal/classes/6c/absentees/",
