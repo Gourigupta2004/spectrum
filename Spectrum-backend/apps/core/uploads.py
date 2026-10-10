@@ -46,6 +46,9 @@ class Target:
     choices: dict = field(default_factory=dict)
     # Fields that take the same value as a chosen option, as {option: field}.
     mirror: dict = field(default_factory=dict)
+    # Rows a choice picked *after* uploading must not touch (e.g. ones the
+    # institution has already acted on), as a filter.
+    retag_exclude: dict = field(default_factory=dict)
     # The file name is the lookup key: a row whose `source_name` matches an
     # incoming file gets its photo replaced in place — text and status kept —
     # instead of a new row being created. Non-matching files create rows as usual.
@@ -217,7 +220,7 @@ TARGETS = {
         "portal.CaptionItem", "workspace", "moment_title", "Class Photographs",
         {"status": "needs-caption", "requested": "needs-caption"},
         choices={"requested": _request_tags}, mirror={"requested": "status"},
-        upsert_by_name=True,
+        retag_exclude={"status__in": ["approved", "corrected"]}, upsert_by_name=True,
     ),
     "portal.student": Target("portal.Student", "school_class", None, "Student photos", grid_ordering=STUDENT_ORDER),
     # The institution-wide drop, on the institution workspace: class folders
@@ -414,14 +417,7 @@ def commit(request, batch_id):
     parent_attname = model._meta.get_field(target.parent).attname
     body = _body(request)
     files = body.get("files")
-    options = body.get("options") if isinstance(body.get("options"), dict) else {}
-    extra = dict(target.defaults)
-    for key, allowed in target.choices.items():
-        value = options.get(key)
-        if value in (allowed() if callable(allowed) else allowed):
-            extra[key] = value
-            if key in target.mirror:
-                extra[target.mirror[key]] = value
+    extra = {**target.defaults, **_chosen_options(target, body.get("options"))}
     parsed = []
     for item in (files if isinstance(files, list) else [])[:100]:
         if not isinstance(item, dict):
@@ -462,6 +458,7 @@ def commit(request, batch_id):
                 obj.source_name = name[:200]
                 obj.original = key
                 obj.save()
+                created_row = False
             else:
                 obj = model(**{parent_attname: parent_value}, **extra)
                 obj.sort_order = batch.base_sort_order + index
@@ -471,9 +468,50 @@ def commit(request, batch_id):
                     obj.source_name = name[:200]
                 obj.original = key
                 obj.save()
-            UploadBatchFile.objects.create(batch=batch, client_id=client_id, object_id=obj.pk)
+                created_row = True
+            UploadBatchFile.objects.create(batch=batch, client_id=client_id, object_id=obj.pk, created=created_row)
             created.append(client_id)
     return JsonResponse({"created": created, "skipped": skipped, "errors": errors})
+
+
+def _chosen_options(target: Target, options) -> dict:
+    """The uploader's picks that are allowed values, with their mirrored fields."""
+    options = options if isinstance(options, dict) else {}
+    chosen = {}
+    for key, allowed in target.choices.items():
+        value = options.get(key)
+        if value in (allowed() if callable(allowed) else allowed):
+            chosen[key] = value
+            if key in target.mirror:
+                chosen[target.mirror[key]] = value
+    return chosen
+
+
+@staff_member_required
+@require_POST
+def apply_options(request, batch_id):
+    """
+    A choice picked after uploading (e.g. the "Requested" tag) applies to the
+    photos this batch created — the same as picking it first. Rows that
+    replaced an existing photo keep their own tag, as they do at upload, and
+    the target's `retag_exclude` rows (already acted on) are left alone.
+    """
+    from django.utils import timezone
+
+    batch = UploadBatch.objects.filter(pk=batch_id).first()
+    if batch is None:
+        return _error("Batch not found", 404)
+    target = _target(_target_key(batch), request.user, perm="change")
+    chosen = _chosen_options(target, _body(request).get("options"))
+    if not chosen:
+        return JsonResponse({"updated": 0})
+    model = target.model_class
+    if any(f.name == "updated_at" for f in model._meta.get_fields()):
+        chosen["updated_at"] = timezone.now()
+    rows = model.objects.filter(pk__in=batch.files.filter(created=True).values("object_id"))
+    if target.retag_exclude:
+        rows = rows.exclude(**target.retag_exclude)
+    return JsonResponse({"updated": rows.update(**chosen)})
 
 
 def _matching_row(target: Target, model, parent_attname: str, parent_id, name: str):
@@ -653,6 +691,7 @@ urlpatterns = [
     path("grid/", grid, name="admin-upload-grid"),
     path("delete/", delete_selected, name="admin-upload-delete"),
     path("<uuid:batch_id>/commit/", commit, name="admin-upload-commit"),
+    path("<uuid:batch_id>/options/", apply_options, name="admin-upload-options"),
     path("<uuid:batch_id>/status/", status, name="admin-upload-status"),
     path("<uuid:batch_id>/retry/", retry_failed, name="admin-upload-retry"),
 ]

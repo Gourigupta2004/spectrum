@@ -215,6 +215,9 @@ class UploadBatchFile(models.Model):
     batch = models.ForeignKey(UploadBatch, related_name="files", on_delete=models.CASCADE)
     client_id = models.CharField(max_length=64)
     object_id = models.PositiveBigIntegerField()
+    # False when the file replaced an existing row's photo (same file name),
+    # which keeps that row's own tag; a batch tag picked later skips it.
+    created = models.BooleanField(default=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["batch", "client_id"], name="uniq_batch_client")]

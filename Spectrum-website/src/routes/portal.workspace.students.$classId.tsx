@@ -53,7 +53,8 @@ function ClassRoster() {
       </h1>
       <p className="mt-2 text-sm font-medium text-muted-foreground">{countLine}</p>
 
-      {/* Six across on desktop — compact frames, the photos only rendered
+      {/* Six across on desktop — compact 4:5 frames, short enough that three
+          rows fit on screen at once — the photos only rendered
           smaller (the stored images are untouched; full-size downloads live in
           the admin now, not here). A grid, so every card lines up: this is a
           form to work down, and ragged rows make it hard to keep your place.
@@ -119,7 +120,7 @@ function StudentCard({
       {/* One frame for every student, with the whole photo inside it: a blurred
           copy of the same picture fills the frame, so a photo that is not the
           usual portrait shape sits on its own colours and is never cropped. */}
-      <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden bg-[#14131a]">
+      <div className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-[#14131a]">
         {student.photo ? (
           <>
             <img
@@ -156,7 +157,7 @@ function StudentCard({
           )}
         </AnimatePresence>
       </div>
-      <div className="flex flex-1 items-end p-3">
+      <div className="flex flex-1 items-end p-2.5">
         <input
           data-roster-input
           value={draft}
@@ -170,7 +171,7 @@ function StudentCard({
           }}
           placeholder={placeholder}
           aria-label={`Name for student ${index + 1}`}
-          className="w-full rounded-xl border border-border bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+          className="w-full rounded-xl border border-border bg-background/60 px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
         />
       </div>
     </motion.div>

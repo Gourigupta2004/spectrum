@@ -22,6 +22,8 @@
 .bulk-hint { margin: 12px 0; padding: 12px; border-left: 4px solid #7c4de0; background: rgba(124, 77, 224, .08); }
 .bulk-options { margin: 12px 12px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .bulk-options label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.bulk-options-applied { color: #2fbf8f; font-weight: 600; }
+.bulk-options-applied.is-error { color: #e8503a; }
 .bulk-options-hint { color: var(--body-quiet-color, #666); font-size: 12px; }
 .bulk-thumbs.is-selectable li { position: relative; }
 .bulk-pick { position: absolute; top: 4px; left: 4px; z-index: 1; display: grid; place-items: center; width: 26px; height: 26px;

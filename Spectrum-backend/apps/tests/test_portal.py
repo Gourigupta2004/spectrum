@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from apps.core.models import UploadBatch
 from apps.portal.models import CaptionItem, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student
 
 from .base import SpectrumTestCase, jpeg_bytes
@@ -261,6 +262,33 @@ class CaptionWorkspaceTests(SpectrumTestCase):
         token = self.post("/api/portal/login/", {"username": "dps-newdelhi", "password": "demo"}).json()["access"]
         items = self.client.get("/api/portal/captions/", HTTP_AUTHORIZATION=f"Bearer {token}").json()["items"]
         self.assertEqual([(i["id"], i["event"], i["status"]) for i in items], [(str(item.pk), "", "needs-caption")])
+
+    def test_tag_picked_after_uploading_applies_to_the_batch(self):
+        item = self.upload()  # uploaded with the default tag
+        batch = UploadBatch.objects.get()
+        self.assertEqual(item.status, "needs-caption")
+        url = f"/admin/uploads/{batch.pk}/options/"
+        self.assertEqual(self.post(url, {"options": {"requested": "needs-approval"}}).json(), {"updated": 1})
+        item.refresh_from_db()
+        self.assertEqual((item.status, item.requested), ("needs-approval", "needs-approval"))
+        # Never a tag the institution can't be sent.
+        self.assertEqual(self.post(url, {"options": {"requested": "approved"}}).json(), {"updated": 0})
+        # A photo the institution has already acted on keeps its state.
+        CaptionItem.objects.filter(pk=item.pk).update(status="approved")
+        self.assertEqual(self.post(url, {"options": {"requested": "needs-correction"}}).json(), {"updated": 0})
+        item.refresh_from_db()
+        self.assertEqual(item.status, "approved")
+
+    def test_reupload_in_a_batch_keeps_its_own_tag_when_retagged(self):
+        item = self.upload()
+        CaptionItem.objects.filter(pk=item.pk).update(status="needs-correction", requested="needs-correction")
+        UploadBatch.objects.all().delete()
+        self.upload()  # the same file name again: replaces the photo in place
+        batch = UploadBatch.objects.get()
+        self.assertFalse(batch.files.get().created)
+        self.post(f"/admin/uploads/{batch.pk}/options/", {"options": {"requested": "needs-approval"}})
+        item.refresh_from_db()
+        self.assertEqual(item.status, "needs-correction", "a replaced photo keeps its tag, as at upload")
 
     def test_workspace_is_created_for_event_captions(self):
         item = CaptionItem(event=self.other_event, moment_title="Moment")

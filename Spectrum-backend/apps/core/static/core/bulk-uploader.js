@@ -157,6 +157,9 @@
       filesFromDrop(event.dataTransfer).then(function (files) { self.add(files); });
     });
     this.retryButton.addEventListener("click", function () { self.retryFailed(); });
+    this.root.querySelectorAll(".bulk-option").forEach(function (select) {
+      select.addEventListener("change", function () { self.applyOptions(); });
+    });
     this.bindSelection();
     // "Download photos of [class]": the link follows the picked class. Bound on
     // the grid container, so it survives the grid being refreshed.
@@ -392,6 +395,28 @@
     var options = {};
     this.root.querySelectorAll(".bulk-option").forEach(function (select) { options[select.dataset.key] = select.value; });
     return options;
+  };
+
+  /* A tag picked after uploading applies to what this page already uploaded,
+     the same as picking it first. It waits for saves in flight (they carry the
+     old pick); saves after it read the new pick themselves. */
+  Uploader.prototype.applyOptions = function () {
+    var self = this;
+    var note = this.root.querySelector(".bulk-options-applied");
+    var show = function (text, isError) {
+      if (!note) return;
+      note.textContent = text;
+      note.classList.toggle("is-error", !!isError);
+    };
+    if (!this.batchId) return show("");  // nothing uploaded yet: the pick applies to the next upload
+    var options = this.options();
+    this.committing = this.committing.then(function () {
+      return postJSON(self.prepareUrl.replace(/prepare\/$/, self.batchId + "/options/"), { options: options })
+        .then(function (data) {
+          show(data.updated ? "Applied to " + data.updated + " uploaded photo" + (data.updated === 1 ? "" : "s") + "." : "");
+        })
+        .catch(function (error) { show("Could not apply the tag: " + error.message, true); });
+    });
   };
 
   Uploader.prototype.commit = function (batch, tries) {
