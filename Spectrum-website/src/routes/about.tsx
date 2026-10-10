@@ -17,6 +17,10 @@ export const Route = createFileRoute("/about")({
 
 type TieUp = AboutData["tieUps"][number];
 
+/** The "Our Tie-Ups" section is hidden for the time being. Its content stays in
+    the admin and the code stays here; set this back to true to show it. */
+const SHOW_TIE_UPS = false;
+
 const reveal = {
   initial: { opacity: 0, y: 22 },
   whileInView: { opacity: 1, y: 0 },
@@ -168,25 +172,27 @@ function AboutPage() {
         </section>
       )}
 
-      <div className="relative z-10 mx-auto max-w-5xl px-6">
-        {/* 4 — Our Tie-Ups */}
-        <section className="mt-28">
-          <motion.h2
-            {...reveal}
-            className="text-center font-display text-3xl font-semibold text-foreground md:text-4xl"
-          >
-            <Highlight text={copy.tieupsHeading} />
-          </motion.h2>
-          <motion.p
-            {...reveal}
-            className="mt-3 text-center text-base font-medium text-muted-foreground"
-          >
-            {copy.tieupsSubtitle}
-          </motion.p>
-        </section>
-      </div>
+      {SHOW_TIE_UPS && (
+        <div className="relative z-10 mx-auto max-w-5xl px-6">
+          {/* 4 — Our Tie-Ups */}
+          <section className="mt-28">
+            <motion.h2
+              {...reveal}
+              className="text-center font-display text-3xl font-semibold text-foreground md:text-4xl"
+            >
+              <Highlight text={copy.tieupsHeading} />
+            </motion.h2>
+            <motion.p
+              {...reveal}
+              className="mt-3 text-center text-base font-medium text-muted-foreground"
+            >
+              {copy.tieupsSubtitle}
+            </motion.p>
+          </section>
+        </div>
+      )}
 
-      <TieUpRow tieUps={tieUps} />
+      {SHOW_TIE_UPS && <TieUpRow tieUps={tieUps} />}
 
       {/* 4 — FAQs */}
       <div className="relative z-10 mx-auto max-w-5xl px-6">

@@ -316,11 +316,11 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
     def photo_count(self, obj):
         return obj.photos
 
-    @admin.display(description="For title", ordering="n_caption")
+    @admin.display(description="Titled", ordering="n_caption")
     def needs_caption(self, obj):
         return obj.n_caption
 
-    @admin.display(description="Awaiting institution", ordering="n_waiting")
+    @admin.display(description="Pending", ordering="n_waiting")
     def awaiting(self, obj):
         return obj.n_waiting
 

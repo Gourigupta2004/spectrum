@@ -53,12 +53,12 @@ function ClassRoster() {
       </h1>
       <p className="mt-2 text-sm font-medium text-muted-foreground">{countLine}</p>
 
-      {/* Six across on desktop — compact 7:8 frames, short enough that three
-          rows fit on screen at once — the photos only rendered
+      {/* Six across on desktop — compact square frames, short enough that
+          three rows fit on screen at once — the photos only rendered
           smaller (the stored images are untouched; full-size downloads live in
           the admin now, not here). A grid, so every card lines up: this is a
           form to work down, and ragged rows make it hard to keep your place.
-          The photo inside each frame is shown whole rather than cropped. */}
+          Each photo fills its frame, trimmed from the bottom if need be. */}
       <div className="mt-8 grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {students.map((s, i) => (
           <StudentCard
@@ -117,28 +117,18 @@ function StudentCard({
         named ? "spectrum-border" : "ring-1 ring-border"
       }`}
     >
-      {/* One frame for every student, with the whole photo inside it: a blurred
-          copy of the same picture fills the frame, so a photo that is not the
-          usual portrait shape sits on its own colours and is never cropped. */}
-      <div className="relative aspect-[7/8] w-full shrink-0 overflow-hidden bg-[#14131a]">
+      {/* One square frame for every student, filled by the photo. It is
+          pinned to the top, so a portrait loses a little from the bottom and
+          never the face — that is all a teacher needs to name the student. */}
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-[#14131a]">
         {student.photo ? (
-          <>
-            <img
-              src={student.photo}
-              alt=""
-              aria-hidden
-              loading="lazy"
-              draggable={false}
-              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
-            />
-            <img
-              src={student.photo}
-              alt=""
-              loading="lazy"
-              draggable={false}
-              className="absolute inset-0 h-full w-full object-contain"
-            />
-          </>
+          <img
+            src={student.photo}
+            alt=""
+            loading="lazy"
+            draggable={false}
+            className="absolute inset-0 h-full w-full object-cover object-top"
+          />
         ) : (
           <div className="h-full w-full bg-background/60" />
         )}
