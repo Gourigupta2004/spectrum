@@ -43,21 +43,27 @@ function matches(query: string, e: SpectrumEvent, inst: Institution | undefined)
 function EventsPage() {
   const { institution, q } = Route.useSearch();
   const { copy, types, events, institutions } = Route.useLoaderData();
-  // "All"/"Recent"/"Popular" are fixed; between them one chip per institution
-  // type, straight from the admin (type: prefix keeps ids from colliding).
-  const filters = [
-    { key: "All", label: copy.filterAll },
-    ...types.map((t) => ({ key: `type:${t.id}`, label: t.label })),
-    { key: "Recent", label: copy.filterRecent },
-    { key: "Popular", label: copy.filterPopular },
-  ];
   const [filter, setFilter] = useState("All");
   const [inst, setInst] = useState<string | undefined>(institution);
   const [query, setQuery] = useState(q ?? "");
+  // "All"/"Recent"/"Popular" are fixed; between them one chip per institution
+  // type, straight from the admin (type: prefix keeps ids from colliding).
+  // Within one institution (arrived at from its icon) every chip stays inside
+  // it, and the type chips go: one institution can be a school and a college.
+  const filters = [
+    { key: "All", label: copy.filterAll },
+    ...(inst ? [] : types.map((t) => ({ key: `type:${t.id}`, label: t.label }))),
+    { key: "Recent", label: copy.filterRecent },
+    { key: "Popular", label: copy.filterPopular },
+  ];
   // The URL is the source of truth when it changes (a new search from the
   // homepage, back/forward); typing here refines locally without rewriting it.
   useEffect(() => setQuery(q ?? ""), [q]);
   useEffect(() => setInst(institution), [institution]);
+  // A type chip picked before narrowing to one institution has no chip there.
+  useEffect(() => {
+    if (inst) setFilter((f) => (f.startsWith("type:") ? "All" : f));
+  }, [inst]);
 
   const instObj = institutions.find((i) => i.id === inst);
   const byId = new Map(institutions.map((i) => [i.id, i]));
@@ -103,14 +109,9 @@ function EventsPage() {
             {filters.map((f) => (
               <button
                 key={f.key}
-                onClick={() => {
-                  setFilter(f.key);
-                  if (f.key === "All") setInst(undefined);
-                }}
+                onClick={() => setFilter(f.key)}
                 className={`spectrum-border shrink-0 rounded-full px-5 py-2 text-xs transition-colors ${
-                  filter === f.key && !(f.key === "All" && inst)
-                    ? "bg-violet text-foreground"
-                    : "text-foreground"
+                  filter === f.key ? "bg-violet text-foreground" : "text-foreground"
                 }`}
               >
                 {f.label}
@@ -119,7 +120,8 @@ function EventsPage() {
             {instObj && (
               <button
                 onClick={() => setInst(undefined)}
-                className="spectrum-border shrink-0 rounded-full bg-violet px-5 py-2 text-xs text-foreground"
+                title="Show every institution's events"
+                className="spectrum-border shrink-0 rounded-full bg-background/60 px-5 py-2 text-xs font-semibold text-foreground"
               >
                 {instObj.name} ×
               </button>
