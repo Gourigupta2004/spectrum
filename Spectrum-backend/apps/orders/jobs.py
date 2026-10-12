@@ -39,7 +39,8 @@ def fulfil_order(order_id: str) -> None:
     # sends. Videos are never zipped (they can be huge); each gets its own
     # one-time link in the message.
     photo_count = order.items.filter(photo__isnull=False).count()
-    if not order.zip_file and 0 < photo_count <= settings.ORDER_ZIP_MAX_ITEMS:
+    cap = settings.ORDER_ZIP_MAX_ITEMS
+    if not order.zip_file and photo_count > 0 and (not cap or photo_count <= cap):
         enqueue("orders.build_zip", str(order.pk))
     else:
         send_pending_deliveries(order)
@@ -83,10 +84,11 @@ def send_delivery(delivery_id: int) -> None:
             lines = [f"Hi {order.name}, your memories from {order.event.name} "
                      f"({order.event.institution.name}) are ready."]
             if order.zip_file and photo_count:
-                lines.append(f"Your {photo_count} photo{'s' if photo_count != 1 else ''} (zip): "
+                lines.append(f"Your {photo_count} photo{'s' if photo_count != 1 else ''} (zip, one-time link): "
                              f"{zip_url(order)}")
             for title, url in videos:
                 lines.append(f"{title} (one-time link): {url}")
+            lines.append("Each link works once, so keep the page open until the download finishes.")
             lines.append(f"Order {order.public_id}.")
             body = "\n".join(lines)
             message_id = twilio_send_whatsapp(order.phone, {"1": order.event.name, "2": str(count),

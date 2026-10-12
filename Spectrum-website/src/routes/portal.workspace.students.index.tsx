@@ -128,6 +128,11 @@ function ClassList() {
                   {complete && <Check className="h-3 w-3" />}
                   {done}/{c.size}
                 </span>
+                {c.submitted && (
+                  <span className="absolute bottom-2 left-1/2 z-[2] -translate-x-1/2 rounded-full bg-teal px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-[#10281f]">
+                    Submitted
+                  </span>
+                )}
                 {/* Centred even when a long name wraps to several lines. */}
                 <span className="break-words px-3 text-center font-display text-xl font-bold uppercase leading-tight text-foreground">
                   {c.name}

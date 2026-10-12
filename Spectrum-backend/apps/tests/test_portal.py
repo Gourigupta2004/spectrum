@@ -1,5 +1,7 @@
 import json
 
+from django.utils import timezone
+
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -265,6 +267,37 @@ class AbsenteesAndCommentsTests(SpectrumTestCase):
             self.assertEqual(archive.read("DPS-6C-Photos/comment.txt").decode(), "Two students were on a school trip.\n")
 
 
+class ClassSubmitTests(SpectrumTestCase):
+    """Review and Submit on a class page: records when; names stay editable."""
+
+    login = PortalTests.login
+    api = PortalTests.api
+
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
+        self.token = self.login("dps-newdelhi", "demo")["access"]
+        self.cls = SchoolClass.objects.create(institution=self.institution, name="6C")
+        self.student = Student.objects.create(school_class=self.cls)
+
+    def test_submit_records_when_and_keeps_names_editable(self):
+        self.assertFalse(self.api("get", "/api/portal/classes/").json()["classes"][0]["submitted"])
+        result = self.api("post", "/api/portal/classes/6c/submit/").json()
+        self.assertTrue(result["submittedAt"])
+        self.assertTrue(self.api("get", "/api/portal/classes/").json()["classes"][0]["submitted"])
+        self.assertTrue(self.api("get", "/api/portal/classes/6c/").json()["class"]["submittedAt"])
+        # Still editable after submitting.
+        self.api("put", "/api/portal/classes/6c/names/", {"names": {str(self.student.pk): "Aarav"}})
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.name, "Aarav")
+        # The admin sees when.
+        self.cls.refresh_from_db()
+        self.client.force_login(self.make_staff())
+        listing = self.client.get("/admin/portal/schoolclass/").content.decode()
+        self.assertIn(f"{timezone.localtime(self.cls.submitted_at):%d %b %Y}", listing)
+
+
 class PortalAccessTests(SpectrumTestCase):
     """The email step that unlocks the portal, and the institution check on login."""
 
@@ -374,6 +407,43 @@ class CaptionWorkspaceTests(SpectrumTestCase):
         item.refresh_from_db()
         self.assertEqual(item.status, "needs-approval", "a replaced photo keeps its tag, as at upload")
 
+    def test_clearing_a_submitted_title_in_admin_reopens_it(self):
+        item = self.upload()  # uploaded For Title
+        CaptionItem.objects.filter(pk=item.pk).update(caption="Lamp lighting", status="corrected",
+                                                      action_by="R. Menon", action_by_phone="9876543210")
+        url = f"/admin/portal/captionworkspace/{self.workspace.pk}/change/"
+        form = {
+            "notes": "", "_save": "1",
+            "items-TOTAL_FORMS": "1", "items-INITIAL_FORMS": "1", "items-MIN_NUM_FORMS": "0", "items-MAX_NUM_FORMS": "1000",
+            "items-0-id": str(item.pk), "items-0-workspace": str(self.workspace.pk),
+            "items-0-moment_title": item.moment_title, "items-0-caption": "",
+            "items-0-requested": "needs-caption",  # unchanged: it was always For Title
+        }
+        self.assertEqual(self.client.post(url, form).status_code, 302)
+        item.refresh_from_db()
+        self.assertEqual((item.status, item.caption, item.action_by), ("needs-caption", "", ""))
+        # And the teacher can write it again.
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
+        token = self.post("/api/portal/login/", {"username": "dps-newdelhi", "password": "demo"}).json()["access"]
+        again = self.client.post(f"/api/portal/captions/{item.pk}/resolve/", json.dumps(
+            {"text": "Chief guest lights the lamp", "actionBy": "S. Rao", "actionByPhone": "9876500000"}),
+            content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {token}")
+        self.assertEqual(again.json()["status"], "corrected")
+
+    def test_editing_a_submitted_title_keeps_it_submitted(self):
+        item = self.upload()
+        CaptionItem.objects.filter(pk=item.pk).update(caption="Lamp lightng", status="corrected")
+        form = {
+            "notes": "", "_save": "1",
+            "items-TOTAL_FORMS": "1", "items-INITIAL_FORMS": "1", "items-MIN_NUM_FORMS": "0", "items-MAX_NUM_FORMS": "1000",
+            "items-0-id": str(item.pk), "items-0-workspace": str(self.workspace.pk),
+            "items-0-moment_title": item.moment_title, "items-0-caption": "Lamp lighting",
+            "items-0-requested": "needs-caption",
+        }
+        self.client.post(f"/admin/portal/captionworkspace/{self.workspace.pk}/change/", form)
+        item.refresh_from_db()
+        self.assertEqual((item.status, item.caption), ("corrected", "Lamp lighting"), "a typo fix doesn't reopen it")
+
     def test_workspace_is_created_for_event_captions(self):
         item = CaptionItem(event=self.other_event, moment_title="Moment")
         item.save()
@@ -450,7 +520,11 @@ class PortalAdminTests(SpectrumTestCase):
         office.refresh_from_db()
         principal = PortalAccessEmail.objects.get(email="principal@dps.edu")
         self.assertEqual((office.username, principal.username), ("dps-office", "dps-principal"))
-        self.assertNotIn("Lotus-Garden-42", office.password)
+        self.assertNotIn("Lotus-Garden-42", office.password)  # sign-in checks a hash...
+        self.assertNotIn("Lotus-Garden-42", office.password_encrypted)  # ...and the readable copy is encrypted
+        self.assertEqual(office.visible_password, "Lotus-Garden-42")
+        page = self.client.get(url).content.decode()
+        self.assertIn('value="Lotus-Garden-42"', page, "the team can read the password on the institution page")
         self.assertTrue(office.check_password("Lotus-Garden-42"))
         self.assertTrue(principal.check_password("Banyan-Tree-77"))
         version = office.token_version
@@ -510,12 +584,22 @@ class PortalAdminTests(SpectrumTestCase):
         PortalAccessEmail.objects.create(institution=self.other, email="head@doon.edu")
         listing = self.client.get("/admin/portal/portalaccessemail/").content.decode()
         self.assertIn("dps-newdelhi", listing)
-        self.assertIn("Not set", listing)  # Doon's email has no password yet
+        self.assertIn(">demo<", listing, "the password is shown in the list")
         self.assertNotIn(row.password, listing, "the hash is never shown")
         page = self.client.get(f"/admin/portal/portalaccessemail/{row.pk}/change/").content.decode()
         self.assertIn('value="dps-newdelhi"', page)
-        self.assertIn('name="new_password"', page)
+        self.assertIn('name="new_password" value="demo"', page)
         self.assertNotIn(row.password, page)
+
+    def test_passwords_set_before_they_were_readable_say_so(self):
+        row = give_portal_login(self.institution, "dps-newdelhi", "demo", email="principal@dps.edu")
+        PortalAccessEmail.objects.filter(pk=row.pk).update(password_encrypted="")  # an old, hash-only row
+        listing = self.client.get("/admin/portal/portalaccessemail/").content.decode()
+        self.assertIn("hidden", listing)
+        page = self.client.get(f"/admin/portal/portalaccessemail/{row.pk}/change/").content.decode()
+        self.assertIn("Hidden — type a new one", page)
+        row.refresh_from_db()
+        self.assertTrue(row.check_password("demo"), "it still signs in")
 
     def test_event_videos_and_types_in_the_admin(self):
         index = self.client.get("/admin/").content.decode()

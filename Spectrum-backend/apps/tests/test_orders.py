@@ -77,11 +77,20 @@ class OrderTests(SpectrumTestCase):
         self.assertIn(video_path, body)
         self.assertIn("one-time", body)
 
-        # The video link works exactly once.
-        first = self.client.get(video_path)
+        # Opening the link (as an email scanner or chat preview would) only shows
+        # the page; pressing Download takes the file, exactly once.
+        for _ in range(2):
+            page = self.client.get(video_path)
+            self.assertEqual(page.status_code, 200)
+            self.assertNotIn("Content-Disposition", page)
+            self.assertIn("Your download is ready", page.content.decode())
+        first = self.client.post(video_path)
         self.assertEqual(first.status_code, 200)
         self.assertIn(".mp4", first["Content-Disposition"])
-        self.assertEqual(self.client.get(video_path).status_code, 410)
+        self.assertEqual(self.client.post(video_path).status_code, 410)
+        used = self.client.get(video_path)
+        self.assertEqual(used.status_code, 410)
+        self.assertIn("already been used", used.content.decode())
 
     def test_whatsapp_requires_valid_phone(self):
         response = self.create(phone="12", idempotencyKey="key-3-aaaaaaaaaaaaaaaa")
@@ -122,10 +131,28 @@ class OrderTests(SpectrumTestCase):
         self.assertTrue(db_order.zip_file)
         zip_path = f"/api/downloads/{db_order.download_token}/zip/"
         self.assertIn(zip_path, mail.outbox[0].body)
-        file_response = self.client.get(zip_path)
+        self.assertIn("one-time", mail.outbox[0].body)
+        page = self.client.get(zip_path)
+        self.assertNotIn("Content-Disposition", page)
+        self.assertIn("2 photos from Annual Day", page.content.decode())
+        file_response = self.client.post(zip_path)
         self.assertEqual(file_response.status_code, 200)
         self.assertIn("attachment", file_response["Content-Disposition"])
+        self.assertEqual(self.client.post(zip_path).status_code, 410, "the zip link is one-time too")
         self.assertEqual(self.client.get("/api/downloads/not-a-token/zip/").status_code, 404)
+
+        # A download that broke halfway: the team issues fresh links, the old ones die.
+        from apps.orders.services import reissue_download_links
+
+        old_token = db_order.download_token
+        with self.captureOnCommitCallbacks(execute=True):
+            reissue_download_links(db_order)
+        db_order.refresh_from_db()
+        self.assertNotEqual(db_order.download_token, old_token)
+        self.assertEqual(self.client.post(zip_path).status_code, 404, "the old link no longer works")
+        new_path = f"/api/downloads/{db_order.download_token}/zip/"
+        self.assertIn(new_path, mail.outbox[-1].body, "the new link is sent again")
+        self.assertEqual(self.client.post(new_path).status_code, 200)
 
     def test_webhook_is_verified_and_deduplicated(self):
         order = self.create(bundle=True, idempotencyKey="key-9-aaaaaaaaaaaaaaaa").json()

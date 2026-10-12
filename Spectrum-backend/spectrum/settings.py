@@ -213,7 +213,12 @@ TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_FROM = env("TWILIO_WHATSAPP_FROM")  # e.g. +14155238886
 TWILIO_CONTENT_SID = env("TWILIO_CONTENT_SID")  # approved template; blank sends plain text (sandbox)
-ORDER_ZIP_MAX_ITEMS = env_int("ORDER_ZIP_MAX_ITEMS", 400)
+# 0 = no cap: a full album always gets its zip, however many photos it has.
+ORDER_ZIP_MAX_ITEMS = env_int("ORDER_ZIP_MAX_ITEMS", 0)
+# How long the storage link behind a one-time download stays valid once the
+# buyer has pressed Download: long enough for a multi-GB file to finish (and
+# for the browser to resume it after a blip) in that same download.
+DOWNLOAD_URL_EXPIRE = env_int("DOWNLOAD_URL_EXPIRE", 6 * 3600)
 ORDER_ZIP_KEEP_DAYS = env_int("ORDER_ZIP_KEEP_DAYS", 30)
 # Large temporary files (order zips) go on disk here, never in /tmp, which may be RAM.
 WORK_DIR = Path(env("WORK_DIR", str(BASE_DIR / "var" / "tmp")))

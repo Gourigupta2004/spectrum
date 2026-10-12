@@ -265,10 +265,11 @@ def classes(request):
     rows = (  # school order: Nursery, LKG, UKG, 1A … 12C (SchoolClass.sort_key)
         SchoolClass.objects.filter(institution=institution)
         .annotate(size=Count("students"), named=Count("students", filter=~Q(students__name="")))
-        .values_list("slug", "name", "group", "size", "named")
+        .values_list("slug", "name", "group", "size", "named", "submitted_at")
     )
-    items = [{"id": slug, "name": name, "group": group, "size": size, "namedCount": named}
-             for slug, name, group, size, named in rows]
+    items = [{"id": slug, "name": name, "group": group, "size": size, "namedCount": named,
+              "submitted": submitted_at is not None}
+             for slug, name, group, size, named, submitted_at in rows]
     return {
         "classes": items,
         "totals": {"students": sum(i["size"] for i in items), "named": sum(i["namedCount"] for i in items)},
@@ -297,9 +298,25 @@ def class_detail(request, slug):
     students = [student_dict(*row) for row in rows]
     return {
         "class": {"id": cls.slug, "name": cls.name, "group": cls.group, "size": len(students),
-                  "namedCount": sum(1 for s in students if s["name"]), "comment": cls.comment},
+                  "namedCount": sum(1 for s in students if s["name"]), "comment": cls.comment,
+                  **submission_dict(cls)},
         "students": students,
     }
+
+
+def submission_dict(cls) -> dict:
+    return {"submittedAt": date_label(cls.submitted_at) if cls.submitted_at else ""}
+
+
+@api(methods=("POST",))
+def class_submit(request, slug):
+    """The teacher's Review and Submit: records when. Names stay editable, and
+    submitting again updates it."""
+    member = require_member(request)
+    cls = scoped_class(member, request, slug)
+    cls.submitted_at = timezone.now()
+    cls.save(update_fields=["submitted_at"])
+    return submission_dict(cls)
 
 
 MAX_ABSENTEE_FILES = 20

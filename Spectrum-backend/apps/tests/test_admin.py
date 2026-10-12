@@ -109,3 +109,23 @@ class WordingAndHeadingTests(SpectrumTestCase):
         html = self.client.get(f"/admin/catalog/event/{self.event.pk}/change/").content.decode()
         self.assertIn(".change-form fieldset .fieldset-heading", html)
         self.assertIn("text-transform: uppercase", html)
+
+
+class EventDeleteConfirmationTests(SpectrumTestCase):
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+
+    def test_confirmation_lists_events_not_their_photos(self):
+        for i in range(3):
+            self.photo(self.event, f"Photo {i}")
+        page = self.client.get(f"/admin/catalog/event/{self.event.pk}/delete/").content.decode()
+        self.assertIn("Annual Day", page)
+        self.assertNotIn("Photo 1", page, "photos aren't listed one by one")
+        self.assertIn("All photos: 3", page.replace("\n", " ").replace("</li>", "").replace("<li>", ""))
+        bulk = self.client.post("/admin/catalog/event/", {"action": "delete_selected",
+                                                          "_selected_action": [self.event.pk, self.other_event.pk]})
+        html = bulk.content.decode()
+        self.assertIn("Founder", html)
+        self.assertNotIn("Photo 1", html)

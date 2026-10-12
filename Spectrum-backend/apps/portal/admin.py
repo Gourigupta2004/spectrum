@@ -11,7 +11,7 @@ from django.utils import timezone
 from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, thumb_html
 from apps.core.models import ImageStatus
 
-from .forms import AccessEmailForm, password_status
+from .forms import AccessEmailForm, password_display, password_status
 from .models import (
     SPECTRUM_PORTAL_CODENAME, CaptionItem, CaptionStatus, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student,
     natural_key,
@@ -89,13 +89,14 @@ def class_photos_zip(request, classes):
 class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
     # Listed in school order (Nursery, LKG, UKG, 1A … 12C), from the names.
     bulk_upload_targets = ("portal.student",)
-    list_display = ("name", "institution", "group", "student_count", "named_count", "has_comment")
+    list_display = ("name", "institution", "group", "student_count", "named_count", "submitted", "has_comment")
     list_editable = ("group",)
-    list_filter = ("institution", "group")
+    list_filter = ("institution", "group", ("submitted_at", admin.EmptyFieldListFilter))
     list_select_related = ("institution",)
     search_fields = ("name", "institution__name")
     prepopulated_fields = {"slug": ("name",)}
-    fields = ("institution", "name", "slug", "group", "comment")
+    fields = ("institution", "name", "slug", "group", "comment", "submitted_at")
+    readonly_fields = ("submitted_at",)
     autocomplete_fields = ("institution",)
     actions = ["download_photos"]
 
@@ -114,6 +115,14 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
     @admin.display(description="Named", ordering="named")
     def named_count(self, obj):
         return obj.named
+
+    @admin.display(description="Names submitted", ordering="submitted_at")
+    def submitted(self, obj):
+        if not obj.submitted_at:
+            return "—"
+        from django.utils import timezone as tz
+
+        return f"{tz.localtime(obj.submitted_at):%d %b %Y, %H:%M}"
 
     @admin.display(description="Comment", boolean=True)
     def has_comment(self, obj):
@@ -143,7 +152,10 @@ class CaptionItemForm(forms.ModelForm):
     """
     Re-tagging an item sends it back to the institution in that state: change
     "Requested" from For Title to For Approval once the title is written and
-    the teacher sees it under Pending again. Approved items stay approved.
+    the teacher sees it under Pending again. Clearing the title of a submitted
+    item reopens it the same way — it was uploaded For Title, so picking that
+    tag again isn't a change by itself — and the teacher can write it afresh.
+    Approved items stay approved.
     """
 
     class Meta:
@@ -152,9 +164,15 @@ class CaptionItemForm(forms.ModelForm):
 
     def save(self, commit=True):
         item = super().save(commit=False)
-        if "requested" in self.changed_data and item.status != CaptionStatus.APPROVED:
+        retagged = "requested" in self.changed_data
+        cleared = ("caption" in self.changed_data and not item.caption.strip()
+                   and item.status == CaptionStatus.CORRECTED)
+        if (retagged or cleared) and item.status != CaptionStatus.APPROVED:
             item.status = item.requested
             item.updated_at = timezone.now()
+            if item.status in (CaptionStatus.NEEDS_CAPTION, CaptionStatus.NEEDS_APPROVAL):
+                # Back with the institution: the previous teacher's details no longer apply.
+                item.action_by = item.action_by_phone = ""
         if commit:
             item.save()
             self.save_m2m()
@@ -347,11 +365,10 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
 @admin.register(PortalAccessEmail)
 class PortalAccessEmailAdmin(admin.ModelAdmin):
     """Every sign-in: an email that unlocks an institution's portal, with the
-    username and password that sign in through it. The password is stored
-    hashed, so it can be replaced here but never shown."""
+    username and password that sign in through it, readable by the team."""
 
     form = AccessEmailForm
-    list_display = ("email", "institution", "username", "password_set", "note", "created_at")
+    list_display = ("email", "institution", "username", "password_shown", "note", "created_at")
     list_filter = ("institution",)
     list_select_related = ("institution",)
     search_fields = ("email", "username", "note", "institution__name")
@@ -363,6 +380,10 @@ class PortalAccessEmailAdmin(admin.ModelAdmin):
     @admin.display(description="Password set?")
     def password_set(self, obj):
         return password_status(obj)
+
+    @admin.display(description="Password")
+    def password_shown(self, obj):
+        return password_display(obj)
 
     @admin.action(description="Sign out of the portal everywhere")
     def sign_out_everywhere(self, request, queryset):

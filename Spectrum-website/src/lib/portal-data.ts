@@ -286,15 +286,17 @@ export function useClassList(): { classes: ClassSummary[]; loading: boolean; err
       ).then((r) => r.classes.map((c) => ({ ...c, named: c.namedCount }))),
     enabled: hasApi && signedIn(),
   });
+  const submissions = useStore(demoSubmissions);
   const demo = useMemo(
     () =>
       demoClasses.map((c) => ({
         ...c,
+        submitted: Boolean(submissions[c.id]),
         named: Object.entries(names).filter(
           ([k, v]) => k.startsWith(`${c.id}-`) && v.trim().length > 0,
         ).length,
       })),
-    [names],
+    [names, submissions],
   );
   if (!hasApi) return { classes: demo, loading: false, error: "" };
   return {
@@ -336,9 +338,11 @@ export function useRoster(classId: string): Roster {
 
 /** Local previews of absentee photos just uploaded, shown until the server's web copy is ready. */
 export const absenteePreviews = createStore<Record<string, string>>({});
-/** Demo mode only: absentees and comments added in this browser session. */
+/** Demo mode only: absentees, comments and submissions made in this browser session. */
 const demoAbsentees = createStore<Record<string, Student[]>>({});
 const demoComments = createStore<Record<string, string>>({});
+export type Submission = { submittedAt: string };
+const demoSubmissions = createStore<Record<string, Submission>>({});
 
 type RosterData = { class: SchoolClass; students: Student[] };
 
@@ -351,6 +355,7 @@ type RosterData = { class: SchoolClass; students: Student[] };
 export function useClassExtras(classId: string) {
   const client = useQueryClient();
   const demoComment = useStore(demoComments)[classId] ?? "";
+  const demoSubmission = useStore(demoSubmissions)[classId];
   const cached = client.getQueryData<RosterData>(keys.roster(classId));
 
   const patchRoster = useCallback(
@@ -415,10 +420,37 @@ export function useClassExtras(classId: string) {
     [classId, patchRoster],
   );
 
+  /** Review and Submit. Unsent names go first, so what is submitted is what was reviewed. */
+  const submitClass = useCallback(
+    async (flushNames: () => Promise<void>) => {
+      if (!hasApi) {
+        demoSubmissions.set((prev) => ({ ...prev, [classId]: { submittedAt: todayLabel() } }));
+        return;
+      }
+      await flushNames();
+      const result = await portalFetch<Submission>(
+        `/api/portal/classes/${encodeURIComponent(classId)}/submit/`,
+        { method: "POST" },
+      );
+      patchRoster((data) => ({ ...data, class: { ...data.class, ...result, submitted: true } }));
+      client.invalidateQueries({ queryKey: keys.classes() });
+    },
+    [classId, client, patchRoster],
+  );
+
+  const live = cached?.class;
+  const submission: Submission | null = hasApi
+    ? live?.submittedAt
+      ? { submittedAt: live.submittedAt }
+      : null
+    : (demoSubmission ?? null);
+
   return {
-    comment: hasApi ? (cached?.class.comment ?? "") : demoComment,
+    comment: hasApi ? (live?.comment ?? "") : demoComment,
+    submission,
     addAbsentees,
     saveComment,
+    submitClass,
   };
 }
 

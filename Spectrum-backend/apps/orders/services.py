@@ -143,3 +143,23 @@ def verify_twilio_signature(url: str, params: dict[str, str], signature: str) ->
     payload = url + "".join(f"{key}{params[key]}" for key in sorted(params))
     digest = hmac.new(settings.TWILIO_AUTH_TOKEN.encode(), payload.encode(), hashlib.sha1).digest()
     return hmac.compare_digest(base64.b64encode(digest).decode(), signature or "")
+
+
+def reissue_download_links(order: Order) -> None:
+    """New one-time links for a paid order — after a download that broke
+    halfway — and the message sent again. The old links stop working: the
+    order's token changes, and every link is unused again."""
+    from .models import Delivery, download_token
+
+    with transaction.atomic():
+        Order.objects.filter(pk=order.pk).update(download_token=download_token(), zip_used_at=None)
+        order.items.filter(video__isnull=False).update(video_used_at=None)
+        channels = ([Delivery.WHATSAPP] if order.deliver_whatsapp else []) + (
+            [Delivery.EMAIL] if order.deliver_email else [])
+        ids = []
+        for channel in channels:
+            delivery, _ = Delivery.objects.get_or_create(order=order, channel=channel)
+            Delivery.objects.filter(pk=delivery.pk).update(status=Delivery.PENDING, attempts=0, last_error="")
+            ids.append(delivery.pk)
+    for pk in ids:
+        enqueue("orders.send_delivery", pk)

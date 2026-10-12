@@ -11,6 +11,9 @@ export type SchoolClass = {
   size: number;
   /** The institution's comment for this class (Add Comments). */
   comment?: string;
+  /** Set once a teacher has used Review and Submit (names stay editable). */
+  submitted?: boolean;
+  submittedAt?: string;
 };
 
 export const classGroups = ["All", "Primary", "Middle", "Senior"] as const;

@@ -37,6 +37,8 @@ class Order(models.Model):
     idempotency_key = models.CharField(max_length=64, unique=True, null=True, blank=True)
     download_token = models.CharField(max_length=64, unique=True, default=download_token, editable=False)
     zip_file = models.FileField(storage=private_storage, max_length=255, blank=True, editable=False)
+    zip_used_at = models.DateTimeField(null=True, blank=True, editable=False,
+                                       help_text="The photos zip link is one-time; set when the download is taken.")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)

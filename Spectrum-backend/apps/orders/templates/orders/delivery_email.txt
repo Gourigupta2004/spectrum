@@ -2,7 +2,7 @@ Hi {{ order.name }},
 
 Your memories from {{ event.name }} ({{ event.institution.name }}) are ready.
 {% if zip_url %}
-Your {{ photo_count }} photo{{ photo_count|pluralize }} in one file:
+Your {{ photo_count }} photo{{ photo_count|pluralize }} in one file — one-time download link (it works once, so save the file when you use it):
 {{ zip_url }}
 {% endif %}{% for title, url in videos %}
 {{ title }} — one-time download link (it works once, so save the file when you use it):

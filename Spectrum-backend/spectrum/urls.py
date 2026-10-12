@@ -30,6 +30,7 @@ api = [
     path("portal/classes/<slug:slug>/names/", portal.class_names),
     path("portal/classes/<slug:slug>/absentees/", portal.class_absentees),
     path("portal/classes/<slug:slug>/comment/", portal.class_comment),
+    path("portal/classes/<slug:slug>/submit/", portal.class_submit),
     path("orders/", orders.create_order),
     path("orders/<uuid:order_id>/", orders.order_status),
     path("orders/<uuid:order_id>/verify/", orders.verify_order),

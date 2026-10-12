@@ -253,7 +253,7 @@ def _serve_private(name: str, filename: str):
     storage = private_storage()
     if hasattr(storage, "bucket_name"):
         url = storage.url(name, parameters={"ResponseContentDisposition": f'attachment; filename="{filename}"'},
-                          expire=settings.PRIVATE_URL_EXPIRE)
+                          expire=settings.DOWNLOAD_URL_EXPIRE)
         return HttpResponseRedirect(url)
     if settings.PRIVATE_ACCEL_PREFIX:
         # nginx streams the file itself; the Django thread is freed immediately.
@@ -265,40 +265,95 @@ def _serve_private(name: str, filename: str):
     return FileResponse(storage.open(name, "rb"), as_attachment=True, filename=filename)
 
 
+SUPPORT_EMAIL = "support@spectrum.in"
+
+
+def _page(request, heading: str, body: str, *, status: int = 200, order=None, title: str = "", size: str = "",
+          button: bool = False):
+    """The small page every download link opens. Only its button (a POST)
+    takes the download: email scanners and chat link previews open links on
+    their own, and must never use up a one-time link."""
+    from django.shortcuts import render
+
+    return render(request, "orders/download_page.html", {
+        "heading": heading, "body": body, "order": order, "title": title, "size": size, "button": button,
+        "support_email": SUPPORT_EMAIL,
+    }, status=status)
+
+
+def _human_size(name: str) -> str:
+    try:
+        size = private_storage().size(name)
+    except Exception:  # a missing file or a storage hiccup: the page still works
+        return ""
+    for unit in ("bytes", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.0f} {unit}" if unit in ("bytes", "KB") else f"{size:.1f} {unit}"
+        size /= 1024
+    return ""
+
+
+def _one_time(request, order, *, claim, used: bool, title: str, source: str, filename: str):
+    """GET shows the page with a Download button; POST claims the link (once,
+    atomically) and hands over the file."""
+    if request.method == "POST":
+        if not claim():
+            return _used_page(request, order)
+        return _serve_private(source, filename)
+    if used:
+        return _used_page(request, order)
+    return _page(request, "Your download is ready",
+                 "This link works once. Press Download when you're ready, and keep this page open until the "
+                 "file has finished saving.", order=order, title=title, size=_human_size(source), button=True)
+
+
+def _used_page(request, order):
+    return _page(request, "This link has already been used",
+                 f"Each download link works once. If your download didn't finish, write to {SUPPORT_EMAIL} with "
+                 f"order {order.public_id} and we'll send you a new link.", status=410, order=order)
+
+
+@csrf_exempt  # the link's own token is the credential; there is no session to forge
 def download_photo(request, token, item_id):
     try:
         order = _paid_order(token)
     except ApiError:
-        return HttpResponse("This download link is not valid.", status=404)
+        return _page(request, "This download link is not valid", "Please check the link in your message.", status=404)
     item = (order.items.select_related("photo", "video")
             .only("pk", "video_used_at", "photo__title", "photo__original", "video__title", "video__video")
             .filter(pk=item_id).first())
     if item is None:
-        return HttpResponse("Not found", status=404)
-    if item.video_id:
-        # Video links are one-time: claim the link atomically before serving, so
-        # a second visit (or a shared link) gets a clear message instead of the file.
-        if request.method != "HEAD":
-            claimed = order.items.filter(pk=item.pk, video_used_at__isnull=True).update(
-                video_used_at=timezone.now())
-            if not claimed:
-                return HttpResponse("This video link has already been used. Contact support@spectrum.in.",
-                                    status=410)
-        source, fallback = item.video.video, "video"
-    else:
-        source, fallback = item.photo.original, "photo"
+        return _page(request, "This download link is not valid", "Please check the link in your message.", status=404)
+    source = item.video.video if item.video_id else item.photo.original
     if not source:
-        return HttpResponse("Not found", status=404)
+        return _page(request, "This file isn't available", f"Please write to {SUPPORT_EMAIL} with order "
+                     f"{order.public_id}.", status=404, order=order)
     ext = os.path.splitext(source.name)[1] or (".mp4" if item.video_id else ".jpg")
-    filename = f"{slugify(item.media.title) or fallback}-{item.pk}{ext}"
-    return _serve_private(source.name, filename)
+    filename = f"{slugify(item.media.title) or ('video' if item.video_id else 'photo')}-{item.pk}{ext}"
+    if not item.video_id:  # single photos aren't one-time links
+        return _serve_private(source.name, filename)
+
+    def claim():
+        return order.items.filter(pk=item.pk, video_used_at__isnull=True).update(video_used_at=timezone.now())
+
+    return _one_time(request, order, claim=claim, used=item.video_used_at is not None,
+                     title=item.video.title or "Event video", source=source.name, filename=filename)
 
 
+@csrf_exempt
 def download_zip(request, token):
     try:
         order = _paid_order(token)
     except ApiError:
-        return HttpResponse("This download link is not valid.", status=404)
+        return _page(request, "This download link is not valid", "Please check the link in your message.", status=404)
     if not order.zip_file:
-        return HttpResponse("The zip file is still being prepared.", status=404)
-    return _serve_private(order.zip_file.name, f"{slugify(order.event.name)}-{order.public_id}.zip")
+        return _page(request, "Your photos are still being prepared",
+                     "Please open this link again in a few minutes.", status=404, order=order)
+
+    def claim():
+        return Order.objects.filter(pk=order.pk, zip_used_at__isnull=True).update(zip_used_at=timezone.now())
+
+    count = order.items.filter(photo__isnull=False).count()
+    return _one_time(request, order, claim=claim, used=order.zip_used_at is not None,
+                     title=f"{count} photo{'s' if count != 1 else ''} from {order.event.name}",
+                     source=order.zip_file.name, filename=f"{slugify(order.event.name)}-{order.public_id}.zip")

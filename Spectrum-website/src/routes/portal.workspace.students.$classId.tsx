@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, MessageSquarePlus, UserPlus, X } from "lucide-react";
+import { Check, Eye, MessageSquarePlus, Send, UserPlus, X } from "lucide-react";
 import { classLabel, type Student } from "@/lib/student-data";
 import { absenteePreviews, useClassExtras, useRoster, useStudentNames } from "@/lib/portal-data";
 import { useStore } from "@/lib/portal-store";
@@ -31,8 +31,21 @@ function ClassRoster() {
   const { classId } = Route.useParams();
   const copy = usePortalCopy();
   const { cls, students, loading } = useRoster(classId);
-  const { names, commit } = useStudentNames(classId, students);
-  const { comment, addAbsentees, saveComment } = useClassExtras(classId);
+  const { names, commit, flush } = useStudentNames(classId, students);
+  const { comment, submission, addAbsentees, saveComment, submitClass } = useClassExtras(classId);
+  // Review and Submit: "Review" takes the teacher up to the names (outlined, to
+  // read them through) and becomes "Reviewed"; pressing that unlocks Submit.
+  // Changing a name goes back to the start.
+  const [phase, setPhase] = useState<"edit" | "reviewing" | "reviewed">("edit");
+  const gridRef = useRef<HTMLDivElement>(null);
+  const changeName = (studentId: string, value: string) => {
+    commit(studentId, value);
+    setPhase("edit"); // a changed name hasn't been reviewed
+  };
+  const review = () => {
+    setPhase("reviewing");
+    gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const previews = useStore(absenteePreviews);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
@@ -135,18 +148,38 @@ function ClassRoster() {
           the admin now, not here). A grid, so every card lines up: this is a
           form to work down, and ragged rows make it hard to keep your place.
           Each photo fills its frame, trimmed from the bottom if need be. */}
-      <div className="mt-8 grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      {submission && (
+        <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-teal/50 bg-teal/10 px-3.5 py-1.5 text-xs font-semibold text-teal">
+          <Check className="h-3.5 w-3.5" /> Submitted on {submission.submittedAt}
+        </p>
+      )}
+      <div
+        ref={gridRef}
+        className="mt-8 grid scroll-mt-28 grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+      >
         {students.map((s, i) => (
           <StudentCard
             key={s.id}
             student={s.photo || !previews[s.id] ? s : { ...s, photo: previews[s.id]! }}
             index={i}
             committed={names[s.id] ?? ""}
-            onCommit={commit}
+            onCommit={changeName}
+            reviewing={phase !== "edit"}
             placeholder={copy.studentPlaceholder}
           />
         ))}
       </div>
+
+      <SubmitPanel
+        phase={phase}
+        total={students.length}
+        onReview={review}
+        onReviewed={() => setPhase("reviewed")}
+        onSubmit={async () => {
+          await submitClass(() => flush());
+          setPhase("edit");
+        }}
+      />
 
       <CommentBox
         open={commenting}
@@ -170,12 +203,15 @@ function StudentCard({
   index,
   committed,
   onCommit,
+  reviewing,
   placeholder,
 }: {
   student: Student;
   index: number;
   committed: string;
   onCommit: (studentId: string, value: string) => void;
+  /** After Review: the name box is outlined so the names are easy to read through. */
+  reviewing: boolean;
   placeholder: string;
 }) {
   // Local draft while typing; the store only learns about it on blur or Enter.
@@ -245,10 +281,97 @@ function StudentCard({
           }}
           placeholder={placeholder}
           aria-label={`Name for student ${index + 1}`}
-          className="w-full rounded-xl border border-border bg-background/60 px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet"
+          className={`w-full rounded-xl border bg-background/60 px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet ${
+            reviewing ? "border-transparent ring-1 ring-violet/70" : "border-border"
+          }`}
         />
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * Review and Submit for the class: two buttons at the foot of the page.
+ *   Review          -> takes the teacher up to the names; the button now reads "Reviewed"
+ *   Reviewed        -> they've read them through; Submit becomes clickable
+ *   Reviewed (inactive) + Submit -> records that the class is done
+ * Names stay editable afterwards, and the class can be submitted again.
+ */
+function SubmitPanel({
+  phase,
+  total,
+  onReview,
+  onReviewed,
+  onSubmit,
+}: {
+  phase: "edit" | "reviewing" | "reviewed";
+  total: number;
+  onReview: () => void;
+  onReviewed: () => void;
+  onSubmit: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await onSubmit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not submit. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-10">
+      {/* Each takes half the width of the photo grid above. */}
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        {phase === "reviewed" ? (
+          <button
+            disabled
+            className="w-full cursor-default rounded-2xl border border-teal/40 py-4 text-base font-semibold text-teal opacity-60"
+          >
+            <span className="inline-flex items-center justify-center gap-2">Reviewed</span>
+          </button>
+        ) : (
+          <button
+            onClick={phase === "edit" ? onReview : onReviewed}
+            disabled={total === 0}
+            className={`w-full rounded-2xl border border-violet py-4 text-base font-semibold text-foreground transition-colors hover:bg-violet/20 disabled:cursor-not-allowed disabled:opacity-40 ${
+              phase === "reviewing" ? "bg-violet/20" : ""
+            }`}
+          >
+            <span className="inline-flex items-center justify-center gap-2">
+              {phase === "edit" ? (
+                <>
+                  <Eye className="h-5 w-5" /> Review
+                </>
+              ) : (
+                <>Reviewed</>
+              )}
+            </span>
+          </button>
+        )}
+        <button
+          disabled={phase !== "reviewed" || busy}
+          onClick={() => void submit()}
+          title={phase === "reviewed" ? undefined : "Review the names first"}
+          className="spectrum-fill w-full rounded-2xl py-4 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <span className="inline-flex items-center justify-center gap-2">
+            <Send className="h-5 w-5" /> {busy ? "Submitting…" : "Submit"}
+          </span>
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="mt-3 text-center text-xs font-medium text-[#ff9b6a]">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

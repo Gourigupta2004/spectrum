@@ -52,6 +52,7 @@ Without `VITE_API_URL` the website keeps using its built-in demo data.
 - **Photos keep their proportions.** Galleries, the caption workspace and student rosters show every photo at the size it was uploaded in; nothing is cropped to fit a frame. `manage.py crop_to_frame` is the one-off that cut the photos already on the site to the frames they used to display in (gallery 4:5, caption cards 4:3, students 3:4), so existing pages look as they did. It keeps every uncropped file in place and prints where.
 - Gallery previews carry a large diagonal "Preview Only" watermark. Photos processed before this wording changed keep their old mark until you select them and run **Re-make image variants**.
   - Hero slides: Home page. Tie-up photos: About page.
+- **Deliveries** send links, never files, so file size doesn't matter: each video gets its own link and all the photos go in one zip (any number of photos). Every link is **one-time** — it opens a page whose Download button takes the file once, so email scanners and chat link previews can't use it up. If a buyer's download broke halfway, select the order under **Inbox › Orders** and run **Issue fresh one-time links and resend them** (the old links stop working). The order page shows whether each link has been used; it doesn't link to them, so the team can't use one up by accident.
 - Uploaded originals stay private. The site only gets resized WebP copies; gallery previews are watermarked.
 
 ## Background worker

@@ -10,7 +10,8 @@
           <strong style="color:#F6F4F1">{{ event.name }}</strong> ({{ event.institution.name }}) are ready.
         </p>
         {% if zip_url %}
-        <a href="{{ zip_url }}" style="display:inline-block;background:#7C4DE0;color:#fff;text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:bold">Download your {{ photo_count }} photo{{ photo_count|pluralize }}</a>
+        <a href="{{ zip_url }}" style="display:inline-block;background:#7C4DE0;color:#fff;text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:bold">Download your {{ photo_count }} photo{{ photo_count|pluralize }}</a><br>
+        <span style="color:#C3BEC9;font-size:12px">One-time link: it works once, so save the file when you use it.</span>
         {% endif %}
         {% for title, url in videos %}
         <p style="margin:20px 0 0">

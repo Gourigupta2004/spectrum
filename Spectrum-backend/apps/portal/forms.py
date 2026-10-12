@@ -9,27 +9,38 @@ class AccessEmailForm(forms.ModelForm):
     """
     One institution sign-in: the email, its username and its password. The
     username and password are optional (an email alone unlocks the Portal
-    link, but signing in then needs both). The password is stored hashed: it
-    can be set or replaced here, never read back.
+    link, but signing in then needs both). The password is shown as it was set,
+    so the team can read it out to the institution; editing it sets a new one.
     """
 
     new_password = forms.CharField(
         label="Password", required=False, strip=False,
-        widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "new-password", "size": 18}),
-        help_text="Type one to set or change it; leave blank to keep the current one. A new password signs this "
-                  "sign-in out of the portal on every device.")
+        widget=forms.TextInput(attrs={"autocomplete": "off", "size": 18, "spellcheck": "false"}),
+        help_text="Shown as set. Change it to set a new password (that signs this sign-in out of the portal on "
+                  "every device); leave it as it is to keep it.")
 
     class Meta:
         model = PortalAccessEmail
         fields = ("institution", "email", "username", "new_password", "note")
         widgets = {"username": forms.TextInput(attrs={"size": 18, "autocomplete": "off"})}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields["new_password"]
+        field.initial = self.instance.visible_password if self.instance.pk else ""
+        if self.instance.pk and self.instance.password and not field.initial:
+            # Set before passwords were kept readable: it can only be replaced.
+            field.widget.attrs["placeholder"] = "Hidden — type a new one"
+
+    def _password_changed(self) -> bool:
+        return "new_password" in self.changed_data and bool(self.cleaned_data.get("new_password"))
+
     def clean_username(self):
         return (self.cleaned_data.get("username") or "").strip()
 
     def clean_new_password(self):
         password = self.cleaned_data.get("new_password")
-        if password:
+        if password and password != self.fields["new_password"].initial:
             validate_password(password)
         return password
 
@@ -54,7 +65,7 @@ class AccessEmailForm(forms.ModelForm):
 
     def save(self, commit=True):
         row = super().save(commit=False)
-        if self.cleaned_data.get("new_password"):
+        if self._password_changed():
             row.set_password(self.cleaned_data["new_password"])
         elif not row.username:
             row.password = ""  # no username, no sign-in: nothing to keep a password for
@@ -64,6 +75,17 @@ class AccessEmailForm(forms.ModelForm):
 
 
 def password_status(row) -> str:
+    quiet = '<span style="color:var(--body-quiet-color,#666)">{}</span>'
     if not (row and row.pk and row.password):
-        return format_html('<span style="color:var(--body-quiet-color,#666)">{}</span>', "Not set")
+        return format_html(quiet, "Not set")
+    if not row.visible_password:
+        return format_html(quiet, "Set (hidden — set again to show)")
     return "Set"
+
+
+def password_display(row) -> str:
+    """The password for list pages; legacy hidden ones say so."""
+    if not (row and row.pk and row.password):
+        return "—"
+    return row.visible_password or format_html('<span style="color:var(--body-quiet-color,#666)">{}</span>',
+                                               "hidden")

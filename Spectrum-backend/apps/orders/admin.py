@@ -54,7 +54,7 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ("public_id", "name", "email", "phone", "razorpay_order_id", "payments__razorpay_payment_id")
     date_hierarchy = "created_at"
     inlines = [PaymentInline, DeliveryInline, ItemInline]
-    actions = ["resend_whatsapp", "resend_email", "refulfil"]
+    actions = ["resend_whatsapp", "resend_email", "reissue_links", "refulfil"]
     readonly_fields = ("public_id", "event", "kind", "rupees", "status", "name", "email", "phone",
                        "deliver_whatsapp", "deliver_email", "razorpay_order_id", "download_link", "created_at",
                        "paid_at", "delivered_at")
@@ -73,16 +73,23 @@ class OrderAdmin(admin.ModelAdmin):
 
     @admin.display(description="Download links")
     def download_link(self, obj):
+        """Whether each one-time link has been used. Deliberately not clickable:
+        opening the buyer's link here would use it up."""
         if obj.status not in (Order.PAID, Order.DELIVERED):
             return "Available after payment"
-        from .views import video_links, zip_url
+        from django.utils import timezone
 
-        links = []
+        def state(used_at):
+            return f"used {timezone.localtime(used_at):%d %b %Y, %H:%M}" if used_at else "not used yet"
+
+        rows = []
         if obj.zip_file:
-            links.append(format_html('<a href="{}" target="_blank" rel="noopener">Photos zip</a>', zip_url(obj)))
-        for title, url in video_links(obj):
-            links.append(format_html('<a href="{}" target="_blank" rel="noopener">{} (one-time)</a>', url, title))
-        return format_html(" · ".join(["{}"] * len(links)), *links) if links else "Preparing…"
+            rows.append(("Photos zip", state(obj.zip_used_at)))
+        for item in obj.items.filter(video__isnull=False).select_related("video"):
+            rows.append((item.video.title or "Event video", state(item.video_used_at)))
+        if not rows:
+            return "Preparing…"
+        return format_html("<br>".join(["{}: {}"] * len(rows)), *[part for row in rows for part in row])
 
     def _resend(self, request, queryset, channel):
         count = 0
@@ -100,6 +107,15 @@ class OrderAdmin(admin.ModelAdmin):
     @admin.action(description="Resend download link by email")
     def resend_email(self, request, queryset):
         self._resend(request, queryset.exclude(email=""), Delivery.EMAIL)
+
+    @admin.action(description="Issue fresh one-time links and resend them")
+    def reissue_links(self, request, queryset):
+        from .services import reissue_download_links
+
+        orders = list(queryset.filter(status__in=[Order.PAID, Order.DELIVERED]))
+        for order in orders:
+            reissue_download_links(order)
+        messages.success(request, f"New one-time links sent for {len(orders)} order(s); the old links no longer work.")
 
     @admin.action(description="Re-run fulfilment (items, zip, deliveries)")
     def refulfil(self, request, queryset):
