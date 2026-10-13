@@ -12,13 +12,21 @@ MAX_AGE = 60
 
 def build_events() -> dict:
     page = EventsPage.load()
-    return {"seo": page.seo(), "copy": copy_of(page), "types": kind_list(), "events": event_list(),
+    return {"seo": page.seo(), "copy": copy_of(page), "types": kind_list(), "events": event_list(newest_first=True),
             "institutions": institution_list()}
+
+
+def _today() -> str:
+    # Part of the cache keys: "Recent" depends on today's date, so cached
+    # event lists roll over at midnight instead of lagging up to a day.
+    from django.utils import timezone
+
+    return timezone.localdate().isoformat()
 
 
 @api(max_age=MAX_AGE)
 def events(request):
-    return cached_bytes("events", build_events)
+    return cached_bytes(f"events:{_today()}", build_events)
 
 
 class _NotFound(Exception):
@@ -53,6 +61,6 @@ class _Safe(dict):
 @api(max_age=MAX_AGE)
 def event_detail(request, slug):
     try:
-        return cached_bytes(f"event:{slug}", lambda: build_event(slug))
+        return cached_bytes(f"event:{slug}:{_today()}", lambda: build_event(slug))
     except _NotFound:
         raise ApiError("Event not found", status=404)

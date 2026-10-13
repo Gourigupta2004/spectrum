@@ -23,6 +23,20 @@ def video_upload_to(instance, filename):
     return f"catalog/eventvideo/videos/{uuid.uuid4().hex}{ext}"
 
 
+# Events dated within this many months of today are tagged Recent on their own.
+RECENT_MONTHS = 2
+
+
+def months_before(day, months: int):
+    """The same day `months` calendar months earlier (the month's last day
+    when it is shorter: 31 Dec -> 31 Oct, 30 Apr -> 28/29 Feb)."""
+    import calendar
+
+    month_index = day.year * 12 + day.month - 1 - months
+    year, month = divmod(month_index, 12)
+    return day.replace(year=year, month=month + 1, day=min(day.day, calendar.monthrange(year, month + 1)[1]))
+
+
 class InstitutionKind(models.Model):
     """A type of institution — School, College… Add a row here to introduce a new one."""
 
@@ -74,7 +88,10 @@ class Event(ProcessedImage):
         "not for sale", default=False,
         help_text="The gallery shows as usual, but checkout only says these photographs aren't for sale "
                   "(Gallery & checkout pages › Not for sale message), and no order can be placed.")
-    is_recent = models.BooleanField("tag: recent", default=False)
+    is_recent = models.BooleanField(
+        "tag: recent", default=False,
+        help_text=f"Events dated within the last {RECENT_MONTHS} months are tagged Recent automatically; tick this "
+                  "to tag an older one too.")
     is_popular = models.BooleanField("tag: popular", default=False)
     is_published = models.BooleanField("published", default=True)
     sort_order = models.PositiveIntegerField("order", default=0)
@@ -94,8 +111,15 @@ class Event(ProcessedImage):
         return f"{self.date:%B} {self.date.day}, {self.date.year}" if self.date else ""
 
     @property
+    def is_recent_by_date(self) -> bool:
+        from django.utils import timezone
+
+        return bool(self.date and self.date >= months_before(timezone.localdate(), RECENT_MONTHS))
+
+    @property
     def tags(self) -> list[str]:
-        return [tag for tag, on in (("recent", self.is_recent), ("popular", self.is_popular)) if on]
+        recent = self.is_recent or self.is_recent_by_date
+        return [tag for tag, on in (("recent", recent), ("popular", self.is_popular)) if on]
 
 
 class EventPhoto(ProcessedImage):

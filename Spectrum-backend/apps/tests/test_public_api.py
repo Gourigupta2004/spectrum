@@ -49,3 +49,43 @@ class PublicApiTests(SpectrumTestCase):
             content_type="application/json")
         self.assertEqual(good.status_code, 201)
         self.assertEqual(Enquiry.objects.get().service, "Other: Drone")
+
+
+class EventOrderAndRecentTests(SpectrumTestCase):
+    """The All Events page: newest first, and Recent on its own for the last two months."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+
+    def test_newest_first_and_recent_by_date(self):
+        import datetime
+
+        from django.utils import timezone
+
+        from apps.catalog.models import Event
+
+        today = timezone.localdate()
+        Event.objects.filter(pk=self.event.pk).update(date=today - datetime.timedelta(days=200), sort_order=0,
+                                                      is_recent=False)
+        Event.objects.filter(pk=self.other_event.pk).update(date=today - datetime.timedelta(days=10), sort_order=9)
+        Event.objects.create(slug="undated", name="Undated", institution=self.institution)
+        Event.objects.create(slug="flagged", name="Flagged", institution=self.other, sort_order=0,
+                             date=today - datetime.timedelta(days=400), is_recent=True)
+        events = self.client.get("/api/events/").json()["events"]
+        self.assertEqual([e["slug"] for e in events], ["founders", "annual-day", "flagged", "undated"],
+                         "newest date first, whatever the admin order; undated last")
+        tags = {e["slug"]: e["tags"] for e in events}
+        self.assertIn("recent", tags["founders"], "dated within two months: Recent on its own")
+        self.assertNotIn("recent", tags["annual-day"])
+        self.assertIn("recent", tags["flagged"], "the tick box still tags older events")
+
+    def test_months_before(self):
+        import datetime
+
+        from apps.catalog.models import months_before
+
+        self.assertEqual(months_before(datetime.date(2026, 10, 13), 2), datetime.date(2026, 8, 13))
+        self.assertEqual(months_before(datetime.date(2026, 12, 31), 2), datetime.date(2026, 10, 31))
+        self.assertEqual(months_before(datetime.date(2026, 4, 30), 2), datetime.date(2026, 2, 28))
+        self.assertEqual(months_before(datetime.date(2026, 1, 15), 2), datetime.date(2025, 11, 15))

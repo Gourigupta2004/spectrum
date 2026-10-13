@@ -14,12 +14,18 @@ def published_events():
     return Event.objects.filter(is_published=True, institution__is_published=True)
 
 
-def event_queryset():
+def event_queryset(newest_first: bool = False):
+    """Published events with their counts. The homepage's featured strip keeps
+    the admin's own order; the All Events page lists newest first — by date,
+    undated events last, then the most recently added."""
+    from django.db.models import F
+
+    ordering = ((F("date").desc(nulls_last=True), "-pk") if newest_first else ("sort_order", "-date", "pk"))
     return (
         published_events()
         .select_related("institution__kind")
         .only(*EVENT_FIELDS)
-        .order_by("sort_order", "-date", "pk")
+        .order_by(*ordering)
         .annotate(photo_count=Count("photos", filter=Q(photos__image_status=ImageStatus.READY), distinct=True),
                   video_count=Count("videos", filter=~Q(videos__video=""), distinct=True))
     )
@@ -44,8 +50,8 @@ def event_dict(event) -> dict:
     }
 
 
-def event_list(limit: int | None = None) -> list[dict]:
-    queryset = event_queryset()
+def event_list(limit: int | None = None, newest_first: bool = False) -> list[dict]:
+    queryset = event_queryset(newest_first)
     if limit:
         queryset = queryset[:limit]
     return [event_dict(event) for event in queryset]

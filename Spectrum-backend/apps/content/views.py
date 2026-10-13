@@ -85,7 +85,10 @@ def build_home() -> dict:
 
 @api(max_age=PAGE_MAX_AGE)
 def home(request):
-    return cached_bytes("home", build_home)
+    from django.utils import timezone
+
+    # The featured events carry the date-based Recent tag: roll over daily.
+    return cached_bytes(f"home:{timezone.localdate().isoformat()}", build_home)
 
 
 def build_about() -> dict:
