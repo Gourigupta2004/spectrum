@@ -284,6 +284,15 @@ def scoped_class(member, request, slug) -> SchoolClass:
     return cls
 
 
+def editable_class(member, request, slug) -> SchoolClass:
+    """The class, if it can still be changed: a submitted class is locked."""
+    cls = scoped_class(member, request, slug)
+    if cls.submitted_at:
+        raise ApiError("This class has been submitted and is locked. Please contact Spectrum to change it.",
+                       status=409)
+    return cls
+
+
 def student_dict(pk, name, web, width, height, absentee) -> dict:
     return {"id": str(pk), "name": name, "photo": storage_url(web), "width": width, "height": height,
             "absentee": absentee}
@@ -310,10 +319,9 @@ def submission_dict(cls) -> dict:
 
 @api(methods=("POST",))
 def class_submit(request, slug):
-    """The teacher's Review and Submit: records when. Names stay editable, and
-    submitting again updates it."""
+    """The teacher's Submit, after Review: records when and locks the class."""
     member = require_member(request)
-    cls = scoped_class(member, request, slug)
+    cls = editable_class(member, request, slug)
     cls.submitted_at = timezone.now()
     cls.save(update_fields=["submitted_at"])
     return submission_dict(cls)
@@ -331,7 +339,7 @@ def class_absentees(request, slug):
 
     member = require_member(request)
     rate_limit(request, "portal-absentees", limit=120, window=600)
-    cls = scoped_class(member, request, slug)
+    cls = editable_class(member, request, slug)
     uploads = request.FILES.getlist("images")[:MAX_ABSENTEE_FILES]
     if not uploads:
         raise ApiError("Choose at least one photo.", field="images")
@@ -354,7 +362,7 @@ def class_absentees(request, slug):
 @api(methods=("PUT", "POST"))
 def class_comment(request, slug):
     member = require_member(request)
-    cls = scoped_class(member, request, slug)
+    cls = editable_class(member, request, slug)
     cls.comment = text(request.json, "comment", 5000)
     cls.save(update_fields=["comment"])
     return {"comment": cls.comment}
@@ -363,7 +371,7 @@ def class_comment(request, slug):
 @api(methods=("PUT", "POST"))
 def class_names(request, slug):
     member = require_member(request)
-    cls = scoped_class(member, request, slug)
+    cls = editable_class(member, request, slug)
     names = request.json.get("names")
     if not isinstance(names, dict):
         raise ApiError("Expected names")

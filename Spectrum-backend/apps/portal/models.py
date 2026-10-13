@@ -237,8 +237,9 @@ class SchoolClass(models.Model):
         "comment from the institution", blank=True,
         help_text="Written by the institution on the website (Add Comments). The photo download puts it in the "
                   "class folder as comment.txt.")
-    # When a teacher last used Review and Submit on the class page. Names stay
-    # editable afterwards; submitting again updates it.
+    # When a teacher submitted the class (Review, an optional Re-edit, then
+    # Submit). From then on the class is locked for the institution — names,
+    # absentees and the comment — until the team unlocks it in the admin.
     submitted_at = models.DateTimeField("names submitted", null=True, blank=True)
 
     class Meta:

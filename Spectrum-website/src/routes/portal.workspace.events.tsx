@@ -492,19 +492,18 @@ function CaptionEditorInner({
    *   caption — first round: the teacher writes the title; saving submits it
    *   approve — an edited photo back for approval: the wording can still be
    *             adjusted here, and approving locks whatever is in the box
-   * Either way the title is reviewed in this same window, in three steps:
-   *   edit     — [Review]             [Save / Approve, dimmed]
-   *   review   — [Keep Edit]          [Reviewed]       (the title is read-only)
-   *   reviewed — [Reviewed, dimmed]   [Save / Approve]
-   * Changing the wording at any point goes back to "edit", so what was
-   * reviewed is exactly what is saved. Saving or approving locks the photo for
-   * every teacher; from then on only the Spectrum team can change it.
+   * Either way the same review journey as Individual Photographs, in this window:
+   *   edit   — write the title; one button: [Review]
+   *   review — the title read-only, to check it; [Re-edit] [Submit]
+   *   reedit — one more chance to change it; one button: [Submit]
+   * Submit locks the photo for every teacher (Submitted, or Approved for an
+   * approval); from then on only the Spectrum team can change it.
    */
   const mode = item.status === "needs-approval" ? "approve" : "caption";
   const [text, setText] = useState(mode === "caption" ? "" : item.caption);
   const [by, setBy] = useState(item.actionBy ?? "");
   const [phone, setPhone] = useState(item.actionByPhone ?? "");
-  const [phase, setPhase] = useState<"edit" | "review" | "reviewed">("edit");
+  const [phase, setPhase] = useState<"edit" | "review" | "reedit">("edit");
   const photoRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const hasText = text.trim().length > 0;
@@ -513,13 +512,8 @@ function CaptionEditorInner({
   const canAct = by.trim().length > 1 && phoneOk;
 
   const byLabel = mode === "caption" ? "Title written by" : "Approved by";
-  const actionLabel = mode === "caption" ? "Save" : "Approve";
-  const changeText = (value: string) => {
-    setText(value);
-    setPhase("edit"); // changed wording hasn't been reviewed
-  };
-  const keepEditing = () => {
-    setPhase("edit");
+  const reedit = () => {
+    setPhase("reedit");
     textRef.current?.focus();
   };
   const submit = () => {
@@ -534,14 +528,12 @@ function CaptionEditorInner({
   };
   const hint =
     phase === "edit"
-      ? `Write the title, then tap Review to check it against the photo — ${actionLabel} unlocks after that.`
-      : phase === "review"
-        ? "Read it against the photo — names, spellings, the moment itself. Keep Edit to change it, or Reviewed if it's right."
-        : !canAct
-          ? `Add your full name and mobile number to ${actionLabel.toLowerCase()}.`
-          : mode === "approve"
-            ? "Approving locks this title."
-            : "Saving submits and locks this title.";
+      ? "Write the title, then tap Review to check it against the photo."
+      : !canAct
+        ? "Add your full name and mobile number to submit."
+        : phase === "review"
+          ? "Re-edit gives you one more chance to change it; Submit locks this title."
+          : "Make your last change, then Submit — this title is locked after that.";
 
   return (
     <motion.div
@@ -655,7 +647,7 @@ function CaptionEditorInner({
               ref={textRef}
               value={text}
               readOnly={phase === "review"}
-              onChange={(e) => changeText(e.target.value)}
+              onChange={(e) => setText(e.target.value)}
               placeholder={
                 mode === "caption"
                   ? "Write the title for this photo."
@@ -704,64 +696,35 @@ function CaptionEditorInner({
           </div>
 
           <div>
-            {/* Review in place, then act — see the steps at the top of this
-                component. The right-hand button is always the one to press next. */}
+            {/* Review in place, then act — see the steps at the top of this component. */}
             <div className="flex gap-3">
               {phase === "edit" && (
-                <>
-                  <button
-                    disabled={!hasText}
-                    onClick={() => setPhase("review")}
-                    className="flex-1 rounded-xl border border-violet py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <Eye className="h-4 w-4" /> Review
-                    </span>
-                  </button>
-                  <button
-                    disabled
-                    className="spectrum-fill flex-1 rounded-xl py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {actionLabel}
-                  </button>
-                </>
+                <button
+                  disabled={!hasText}
+                  onClick={() => setPhase("review")}
+                  className="flex-1 rounded-xl border border-violet py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Eye className="h-4 w-4" /> Review
+                  </span>
+                </button>
               )}
               {phase === "review" && (
-                <>
-                  <button
-                    onClick={keepEditing}
-                    className="flex-1 rounded-xl border border-border py-3.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    Keep Edit
-                  </button>
-                  <button
-                    disabled={!hasText}
-                    onClick={() => setPhase("reviewed")}
-                    className="spectrum-fill flex-1 rounded-xl py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Reviewed
-                  </button>
-                </>
+                <button
+                  onClick={reedit}
+                  className="flex-1 rounded-xl border border-violet py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20"
+                >
+                  Re-edit
+                </button>
               )}
-              {phase === "reviewed" && (
-                <>
-                  <button
-                    disabled
-                    aria-label="Reviewed"
-                    className="flex-1 cursor-default rounded-xl border border-teal/40 py-3.5 text-sm font-semibold text-teal opacity-50"
-                  >
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <Check className="h-4 w-4" /> Reviewed
-                    </span>
-                  </button>
-                  <button
-                    disabled={!canAct}
-                    onClick={submit}
-                    className="spectrum-fill flex-1 rounded-xl py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {actionLabel}
-                  </button>
-                </>
+              {phase !== "edit" && (
+                <button
+                  disabled={!canAct || !hasText}
+                  onClick={submit}
+                  className="spectrum-fill flex-1 rounded-xl py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Submit
+                </button>
               )}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">{hint}</p>

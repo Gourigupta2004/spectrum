@@ -268,7 +268,7 @@ class AbsenteesAndCommentsTests(SpectrumTestCase):
 
 
 class ClassSubmitTests(SpectrumTestCase):
-    """Review and Submit on a class page: records when; names stay editable."""
+    """Review and Submit on a class page: Submit locks the class for the institution."""
 
     login = PortalTests.login
     api = PortalTests.api
@@ -281,21 +281,34 @@ class ClassSubmitTests(SpectrumTestCase):
         self.cls = SchoolClass.objects.create(institution=self.institution, name="6C")
         self.student = Student.objects.create(school_class=self.cls)
 
-    def test_submit_records_when_and_keeps_names_editable(self):
+    def test_submit_locks_the_class_until_the_team_unlocks_it(self):
         self.assertFalse(self.api("get", "/api/portal/classes/").json()["classes"][0]["submitted"])
         result = self.api("post", "/api/portal/classes/6c/submit/").json()
         self.assertTrue(result["submittedAt"])
         self.assertTrue(self.api("get", "/api/portal/classes/").json()["classes"][0]["submitted"])
         self.assertTrue(self.api("get", "/api/portal/classes/6c/").json()["class"]["submittedAt"])
-        # Still editable after submitting.
-        self.api("put", "/api/portal/classes/6c/names/", {"names": {str(self.student.pk): "Aarav"}})
+        # Locked: names, comment, absentees and a second submit are all refused.
+        names = self.api("put", "/api/portal/classes/6c/names/", {"names": {str(self.student.pk): "Aarav"}})
+        self.assertEqual(names.status_code, 409)
+        self.assertIn("locked", names.json()["error"])
+        self.assertEqual(self.api("put", "/api/portal/classes/6c/comment/", {"comment": "x"}).status_code, 409)
+        absent = self.client.post("/api/portal/classes/6c/absentees/",
+                                  {"images": [SimpleUploadedFile("a.jpg", jpeg_bytes(), content_type="image/jpeg")]},
+                                  HTTP_AUTHORIZATION=f"Bearer {self.token}")
+        self.assertEqual(absent.status_code, 409)
+        self.assertEqual(self.api("post", "/api/portal/classes/6c/submit/").status_code, 409)
         self.student.refresh_from_db()
-        self.assertEqual(self.student.name, "Aarav")
-        # The admin sees when.
+        self.assertEqual(self.student.name, "")
+        # The admin sees when, and can unlock it.
         self.cls.refresh_from_db()
         self.client.force_login(self.make_staff())
         listing = self.client.get("/admin/portal/schoolclass/").content.decode()
         self.assertIn(f"{timezone.localtime(self.cls.submitted_at):%d %b %Y}", listing)
+        self.client.post("/admin/portal/schoolclass/", {"action": "unlock_for_institution",
+                                                         "_selected_action": [self.cls.pk]})
+        self.client.logout()
+        self.assertEqual(self.api("put", "/api/portal/classes/6c/names/",
+                                  {"names": {str(self.student.pk): "Aarav"}}).status_code, 200)
 
 
 class PortalAccessTests(SpectrumTestCase):

@@ -98,11 +98,16 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
     fields = ("institution", "name", "slug", "group", "comment", "submitted_at")
     readonly_fields = ("submitted_at",)
     autocomplete_fields = ("institution",)
-    actions = ["download_photos"]
+    actions = ["download_photos", "unlock_for_institution"]
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
             size=Count("students"), named=Count("students", filter=~Q(students__name="")))
+
+    @admin.action(description="Unlock for the institution (undo Submit)")
+    def unlock_for_institution(self, request, queryset):
+        count = queryset.exclude(submitted_at=None).update(submitted_at=None)
+        messages.success(request, f"Unlocked {count} class(es): the institution can edit and submit them again.")
 
     @admin.action(description="Download photos — folder of originals, named after the students")
     def download_photos(self, request, queryset):
