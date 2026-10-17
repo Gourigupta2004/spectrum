@@ -46,6 +46,37 @@ def fulfil_order(order_id: str) -> None:
         send_pending_deliveries(order)
 
 
+def whatsapp_body(order) -> str:
+    """The WhatsApp text with the order's one-time links: sent as is when no
+    approved template is set, and what staff paste when sending by hand."""
+    from .views import video_links, zip_url
+
+    photo_count = order.items.filter(photo__isnull=False).count()
+    lines = [f"Hi {order.name}, your memories from {order.event.name} "
+             f"({order.event.institution.name}) are ready."]
+    if order.zip_file and photo_count:
+        lines.append(f"Your {photo_count} photo{'s' if photo_count != 1 else ''} (zip, one-time link): "
+                     f"{zip_url(order)}")
+    for title, url in video_links(order):
+        lines.append(f"{title} (one-time link): {url}")
+    lines.append("Each link works once, so keep the page open until the download finishes.")
+    lines.append(f"Order {order.public_id}.")
+    return "\n".join(lines)
+
+
+def mark_whatsapp_sent(order, message_id: str = "") -> None:
+    """Record the WhatsApp delivery as sent, and the order as delivered once
+    every channel has gone out."""
+    from .models import Delivery, Order
+
+    delivery, _ = Delivery.objects.get_or_create(order=order, channel=Delivery.WHATSAPP)
+    Delivery.objects.filter(pk=delivery.pk).update(
+        status=Delivery.SENT, attempts=delivery.attempts + 1, sent_at=timezone.now(), last_error="",
+        provider_message_id=message_id)
+    if not order.deliveries.exclude(status__in=[Delivery.SENT, Delivery.DELIVERED]).exists():
+        Order.objects.filter(pk=order.pk, status=Order.PAID).update(status=Order.DELIVERED, delivered_at=timezone.now())
+
+
 def send_pending_deliveries(order) -> None:
     from .models import Delivery
 
@@ -81,18 +112,8 @@ def send_delivery(delivery_id: int) -> None:
             message.send()
             message_id = ""
         else:
-            lines = [f"Hi {order.name}, your memories from {order.event.name} "
-                     f"({order.event.institution.name}) are ready."]
-            if order.zip_file and photo_count:
-                lines.append(f"Your {photo_count} photo{'s' if photo_count != 1 else ''} (zip, one-time link): "
-                             f"{zip_url(order)}")
-            for title, url in videos:
-                lines.append(f"{title} (one-time link): {url}")
-            lines.append("Each link works once, so keep the page open until the download finishes.")
-            lines.append(f"Order {order.public_id}.")
-            body = "\n".join(lines)
             message_id = twilio_send_whatsapp(order.phone, {"1": order.event.name, "2": str(count),
-                                                            "3": file_link}, body)
+                                                            "3": file_link}, whatsapp_body(order))
     except Exception as exc:
         attempts = delivery.attempts + 1
         failed = attempts >= 3

@@ -54,7 +54,7 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ("public_id", "name", "email", "phone", "razorpay_order_id", "payments__razorpay_payment_id")
     date_hierarchy = "created_at"
     inlines = [PaymentInline, DeliveryInline, ItemInline]
-    actions = ["resend_whatsapp", "resend_email", "reissue_links", "refulfil"]
+    actions = ["resend_whatsapp", "send_whatsapp_by_hand", "resend_email", "reissue_links", "refulfil"]
     readonly_fields = ("public_id", "event", "kind", "rupees", "status", "name", "email", "phone",
                        "deliver_whatsapp", "deliver_email", "razorpay_order_id", "download_link", "created_at",
                        "paid_at", "delivered_at")
@@ -103,6 +103,40 @@ class OrderAdmin(admin.ModelAdmin):
     @admin.action(description="Resend download link on WhatsApp")
     def resend_whatsapp(self, request, queryset):
         self._resend(request, queryset.exclude(phone=""), Delivery.WHATSAPP)
+
+    @admin.action(description="Send on WhatsApp by hand (from your own phone)")
+    def send_whatsapp_by_hand(self, request, queryset):
+        """A page with each order's message and a wa.me button that opens the
+        chat with it typed in; ticked orders are then marked sent. Opening a
+        download link only shows its page, so link previews use nothing up."""
+        from urllib.parse import quote
+
+        from django.template.response import TemplateResponse
+
+        from .jobs import mark_whatsapp_sent, whatsapp_body
+
+        orders = list(queryset.filter(status__in=[Order.PAID, Order.DELIVERED]).exclude(phone="")
+                      .select_related("event__institution"))
+        if request.POST.get("confirm"):
+            sent = set(request.POST.getlist("sent"))
+            marked = [order for order in orders if str(order.pk) in sent]
+            for order in marked:
+                mark_whatsapp_sent(order, "manual")
+            messages.success(request, f"Marked {len(marked)} order(s) as sent on WhatsApp.")
+            return None
+        if not orders:
+            messages.warning(request, "None of the selected orders is paid with a WhatsApp number.")
+            return None
+        rows = []
+        for order in orders:
+            body = whatsapp_body(order)
+            rows.append({"order": order, "body": body, "has_link": "/api/downloads/" in body,
+                         "wa_link": f"https://wa.me/{order.phone.lstrip('+')}?text={quote(body, safe='')}",
+                         "delivery": order.deliveries.filter(channel=Delivery.WHATSAPP).first()})
+        return TemplateResponse(request, "admin/orders/whatsapp_by_hand.html", {
+            **self.admin_site.each_context(request), "title": "Send on WhatsApp by hand", "opts": self.model._meta,
+            "rows": rows, "action": "send_whatsapp_by_hand", "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+        })
 
     @admin.action(description="Resend download link by email")
     def resend_email(self, request, queryset):

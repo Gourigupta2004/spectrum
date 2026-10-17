@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:orders_order_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<p>Press <b>Open in WhatsApp</b> for each buyer: the chat opens with the message typed in, ready to send from
+  your own WhatsApp. The order is ticked as you go; untick any you didn't send, then press
+  <b>Mark ticked as sent</b> at the bottom.</p>
+
+<form method="post">{% csrf_token %}
+  {% for row in rows %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ row.order.pk }}">
+    <fieldset class="module" style="padding:12px 16px;margin-bottom:16px">
+      <h2 style="margin:-12px -16px 12px">{{ row.order.public_id }} · {{ row.order.name }} · {{ row.order.phone }}</h2>
+      {% if row.delivery %}
+        <p>WhatsApp delivery so far: <b>{{ row.delivery.get_status_display }}</b>{% if row.delivery.last_error %}
+          ({{ row.delivery.last_error|truncatechars:120 }}){% endif %}</p>
+      {% endif %}
+      {% if not row.has_link %}
+        <p style="color:#e8503a"><b>No download link yet</b> — the photos may still be being prepared. Try again in a
+          few minutes, or use “Re-run fulfilment”.</p>
+      {% endif %}
+      <pre style="white-space:pre-wrap;background:var(--darkened-bg);padding:10px;border-radius:4px">{{ row.body }}</pre>
+      <p style="display:flex;gap:16px;align-items:center">
+        <a class="button" href="{{ row.wa_link }}" target="_blank" rel="noopener"
+           onclick="document.getElementById('sent-{{ row.order.pk }}').checked = true">Open in WhatsApp</a>
+        <label><input type="checkbox" name="sent" value="{{ row.order.pk }}" id="sent-{{ row.order.pk }}"> Sent</label>
+      </p>
+    </fieldset>
+  {% endfor %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="confirm" value="1">
+  <input type="submit" class="default" value="Mark ticked as sent">
+  <a href="{% url 'admin:orders_order_changelist' %}" class="button cancel-link">Back to orders</a>
+</form>
+{% endblock %}

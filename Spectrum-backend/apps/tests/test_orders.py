@@ -187,6 +187,38 @@ class OrderHardeningTests(OrderTests):
     def test_bad_photo_ids_are_a_400(self):
         self.assertEqual(self.create(photoIds={"a": 1}, idempotencyKey="k-bad-aaaaaaaaaaaaaaaa").status_code, 400)
 
+    def test_whatsapp_by_hand_shows_the_message_and_marks_it_sent(self):
+        from urllib.parse import quote
+
+        order = self.create(phone="98765 43210", email="").json()
+        with mock.patch("apps.orders.services.twilio_send_whatsapp", side_effect=RuntimeError("no sender")), \
+                self.captureOnCommitCallbacks(execute=True):
+            try:
+                self.client.post(f"/api/orders/{order['id']}/verify/", json.dumps({
+                    "razorpayOrderId": "order_RZP1", "razorpayPaymentId": "pay_1",
+                    "razorpaySignature": sign("secret", b"order_RZP1|pay_1")}), content_type="application/json")
+            except RuntimeError:
+                pass  # eager jobs re-raise the failed send
+        db_order = Order.objects.get()
+        self.assertEqual(db_order.status, Order.PAID)
+        self.assertNotEqual(Delivery.objects.get().status, Delivery.SENT)
+
+        self.client.force_login(self.make_staff())
+        url = "/admin/orders/order/"
+        page = self.client.post(url, {"action": "send_whatsapp_by_hand", "_selected_action": [str(db_order.pk)]})
+        self.assertEqual(page.status_code, 200)
+        zip_path = f"/api/downloads/{db_order.download_token}/zip/"
+        self.assertContains(page, "https://wa.me/919876543210?text=")
+        self.assertContains(page, quote(zip_path, safe=""))
+        self.assertIsNone(Order.objects.get().zip_used_at, "showing the message uses nothing up")
+
+        done = self.client.post(url, {"action": "send_whatsapp_by_hand", "_selected_action": [str(db_order.pk)],
+                                      "confirm": "1", "sent": [str(db_order.pk)]})
+        self.assertEqual(done.status_code, 302)
+        delivery = Delivery.objects.get()
+        self.assertEqual((delivery.status, delivery.provider_message_id), (Delivery.SENT, "manual"))
+        self.assertEqual(Order.objects.get().status, Order.DELIVERED)
+
     def test_twilio_callback_without_sid_changes_nothing(self):
         from apps.orders import views
 
