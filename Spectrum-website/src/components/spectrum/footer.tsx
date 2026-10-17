@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Instagram, Youtube, Facebook, Mail, Phone } from "lucide-react";
+import { Instagram, Youtube, Facebook, Mail } from "lucide-react";
 import { useSite } from "@/lib/use-site";
 
 export function Footer() {
@@ -68,10 +68,7 @@ export function Footer() {
           </h3>
           <ul className="mt-5 space-y-3 text-sm text-muted-foreground">
             <li className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-teal" /> support@spectrum.in
-            </li>
-            <li className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-teal" /> +91 98100 44120
+              <Mail className="h-4 w-4 text-teal" /> spectrum.support2026@gmail.com
             </li>
           </ul>
           <div className="mt-6 flex gap-3">
