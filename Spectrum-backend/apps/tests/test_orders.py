@@ -187,11 +187,12 @@ class OrderHardeningTests(OrderTests):
     def test_bad_photo_ids_are_a_400(self):
         self.assertEqual(self.create(photoIds={"a": 1}, idempotencyKey="k-bad-aaaaaaaaaaaaaaaa").status_code, 400)
 
-    def test_whatsapp_by_hand_shows_the_message_and_marks_it_sent(self):
-        from urllib.parse import quote
-
-        order = self.create(phone="98765 43210", email="").json()
+    def pay_with_sends_failing(self, **overrides):
+        """A paid order whose WhatsApp and email sends both fail, as before a
+        WhatsApp sender or mailbox is set up."""
+        order = self.create(**overrides).json()
         with mock.patch("apps.orders.services.twilio_send_whatsapp", side_effect=RuntimeError("no sender")), \
+                mock.patch("apps.orders.jobs.EmailMultiAlternatives.send", side_effect=RuntimeError("no mailbox")), \
                 self.captureOnCommitCallbacks(execute=True):
             try:
                 self.client.post(f"/api/orders/{order['id']}/verify/", json.dumps({
@@ -201,23 +202,43 @@ class OrderHardeningTests(OrderTests):
                 pass  # eager jobs re-raise the failed send
         db_order = Order.objects.get()
         self.assertEqual(db_order.status, Order.PAID)
-        self.assertNotEqual(Delivery.objects.get().status, Delivery.SENT)
-
         self.client.force_login(self.make_staff())
-        url = "/admin/orders/order/"
-        page = self.client.post(url, {"action": "send_whatsapp_by_hand", "_selected_action": [str(db_order.pk)]})
-        self.assertEqual(page.status_code, 200)
-        zip_path = f"/api/downloads/{db_order.download_token}/zip/"
-        self.assertContains(page, "https://wa.me/919876543210?text=")
-        self.assertContains(page, quote(zip_path, safe=""))
-        self.assertIsNone(Order.objects.get().zip_used_at, "showing the message uses nothing up")
+        return db_order
 
-        done = self.client.post(url, {"action": "send_whatsapp_by_hand", "_selected_action": [str(db_order.pk)],
-                                      "confirm": "1", "sent": [str(db_order.pk)]})
-        self.assertEqual(done.status_code, 302)
-        delivery = Delivery.objects.get()
-        self.assertEqual((delivery.status, delivery.provider_message_id), (Delivery.SENT, "manual"))
+    def by_hand(self, action, order, **extra):
+        return self.client.post("/admin/orders/order/", {"action": action, "_selected_action": [str(order.pk)], **extra})
+
+    def test_sending_by_hand_shows_each_message_and_marks_it_sent(self):
+        from urllib.parse import quote
+
+        db_order = self.pay_with_sends_failing(phone="98765 43210")
+        zip_path = quote(f"/api/downloads/{db_order.download_token}/zip/", safe="")
+
+        page = self.by_hand("send_whatsapp_by_hand", db_order)
+        self.assertContains(page, "https://web.whatsapp.com/send?phone=919876543210&amp;text=")
+        self.assertContains(page, "https://wa.me/919876543210?text=")
+        self.assertContains(page, zip_path)
+        self.assertIsNone(Order.objects.get().zip_used_at, "showing the message uses nothing up")
+        self.assertEqual(self.by_hand("send_whatsapp_by_hand", db_order, confirm="1",
+                                      sent=[str(db_order.pk)]).status_code, 302)
+        whatsapp = Delivery.objects.get(channel=Delivery.WHATSAPP)
+        self.assertEqual((whatsapp.status, whatsapp.provider_message_id), (Delivery.SENT, "manual"))
+        self.assertEqual(Order.objects.get().status, Order.PAID, "the email hasn't gone yet")
+
+        page = self.by_hand("send_email_by_hand", db_order)
+        self.assertContains(page, "Your memories from Annual Day are ready")
+        self.assertContains(page, "https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=asha%40example.com")
+        self.assertContains(page, "mailto:asha@example.com?subject=")
+        self.assertContains(page, zip_path)
+        self.by_hand("send_email_by_hand", db_order, confirm="1", sent=[str(db_order.pk)])
+        self.assertEqual(Delivery.objects.get(channel=Delivery.EMAIL).status, Delivery.SENT)
         self.assertEqual(Order.objects.get().status, Order.DELIVERED)
+
+    def test_mark_delivered_closes_the_order_and_its_failed_sends(self):
+        db_order = self.pay_with_sends_failing(phone="98765 43210")
+        self.assertEqual(self.by_hand("mark_delivered", db_order).status_code, 302)
+        self.assertEqual(Order.objects.get().status, Order.DELIVERED)
+        self.assertEqual(set(Delivery.objects.values_list("status", flat=True)), {Delivery.SENT})
 
     def test_twilio_callback_without_sid_changes_nothing(self):
         from apps.orders import views

@@ -64,12 +64,30 @@ def whatsapp_body(order) -> str:
     return "\n".join(lines)
 
 
-def mark_whatsapp_sent(order, message_id: str = "") -> None:
-    """Record the WhatsApp delivery as sent, and the order as delivered once
+def email_context(order) -> dict:
+    from .views import video_links, zip_url
+
+    return {"order": order, "event": order.event, "count": order.items.count(),
+            "photo_count": order.items.filter(photo__isnull=False).count(),
+            "zip_url": zip_url(order) if order.zip_file else "", "videos": video_links(order)}
+
+
+def email_subject(order) -> str:
+    return f"Your memories from {order.event.name} are ready"
+
+
+def email_body(order) -> str:
+    """The plain-text delivery email: sent with its HTML twin, and what staff
+    paste when sending by hand."""
+    return render_to_string("orders/delivery_email.txt", email_context(order))
+
+
+def mark_sent(order, channel: str, message_id: str = "") -> None:
+    """Record one channel's delivery as sent, and the order as delivered once
     every channel has gone out."""
     from .models import Delivery, Order
 
-    delivery, _ = Delivery.objects.get_or_create(order=order, channel=Delivery.WHATSAPP)
+    delivery, _ = Delivery.objects.get_or_create(order=order, channel=channel)
     Delivery.objects.filter(pk=delivery.pk).update(
         status=Delivery.SENT, attempts=delivery.attempts + 1, sent_at=timezone.now(), last_error="",
         provider_message_id=message_id)
@@ -86,7 +104,7 @@ def send_pending_deliveries(order) -> None:
 
 @job("orders.send_delivery")
 def send_delivery(delivery_id: int) -> None:
-    from .models import Delivery, Order
+    from .models import Delivery
     from .services import twilio_send_whatsapp
     from .views import video_links, zip_url
 
@@ -94,16 +112,11 @@ def send_delivery(delivery_id: int) -> None:
     if delivery.status in (Delivery.SENT, Delivery.DELIVERED):
         return
     order = delivery.order
-    photo_count = order.items.filter(photo__isnull=False).count()
-    videos = video_links(order)
-    file_link = zip_url(order) if order.zip_file else (videos[0][1] if videos else "")
-    count = order.items.count()
-    context = {"order": order, "event": order.event, "count": count, "photo_count": photo_count,
-               "zip_url": zip_url(order) if order.zip_file else "", "videos": videos}
     try:
         if delivery.channel == Delivery.EMAIL:
+            context = email_context(order)
             message = EmailMultiAlternatives(
-                subject=f"Your memories from {order.event.name} are ready",
+                subject=email_subject(order),
                 body=render_to_string("orders/delivery_email.txt", context),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[order.email],
@@ -112,7 +125,9 @@ def send_delivery(delivery_id: int) -> None:
             message.send()
             message_id = ""
         else:
-            message_id = twilio_send_whatsapp(order.phone, {"1": order.event.name, "2": str(count),
+            videos = video_links(order)
+            file_link = zip_url(order) if order.zip_file else (videos[0][1] if videos else "")
+            message_id = twilio_send_whatsapp(order.phone, {"1": order.event.name, "2": str(order.items.count()),
                                                             "3": file_link}, whatsapp_body(order))
     except Exception as exc:
         attempts = delivery.attempts + 1
@@ -123,11 +138,7 @@ def send_delivery(delivery_id: int) -> None:
             log.error("Delivery %s failed permanently: %s", delivery, exc)
             return
         raise
-    Delivery.objects.filter(pk=delivery.pk).update(
-        status=Delivery.SENT, attempts=delivery.attempts + 1, sent_at=timezone.now(), last_error="",
-        provider_message_id=message_id)
-    if not order.deliveries.exclude(status__in=[Delivery.SENT, Delivery.DELIVERED]).exists():
-        Order.objects.filter(pk=order.pk, status=Order.PAID).update(status=Order.DELIVERED, delivered_at=timezone.now())
+    mark_sent(order, delivery.channel, message_id)
 
 
 @job("orders.build_zip")

@@ -54,7 +54,8 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ("public_id", "name", "email", "phone", "razorpay_order_id", "payments__razorpay_payment_id")
     date_hierarchy = "created_at"
     inlines = [PaymentInline, DeliveryInline, ItemInline]
-    actions = ["resend_whatsapp", "send_whatsapp_by_hand", "resend_email", "reissue_links", "refulfil"]
+    actions = ["send_whatsapp_by_hand", "send_email_by_hand", "mark_delivered", "resend_whatsapp", "resend_email",
+               "reissue_links", "refulfil"]
     readonly_fields = ("public_id", "event", "kind", "rupees", "status", "name", "email", "phone",
                        "deliver_whatsapp", "deliver_email", "razorpay_order_id", "download_link", "created_at",
                        "paid_at", "delivered_at")
@@ -104,39 +105,78 @@ class OrderAdmin(admin.ModelAdmin):
     def resend_whatsapp(self, request, queryset):
         self._resend(request, queryset.exclude(phone=""), Delivery.WHATSAPP)
 
-    @admin.action(description="Send on WhatsApp by hand (from your own phone)")
-    def send_whatsapp_by_hand(self, request, queryset):
-        """A page with each order's message and a wa.me button that opens the
-        chat with it typed in; ticked orders are then marked sent. Opening a
-        download link only shows its page, so link previews use nothing up."""
-        from urllib.parse import quote
+    def _by_hand(self, request, queryset, channel):
+        """A page with each order's message and buttons that open it ready to
+        send from staff's own WhatsApp or mailbox; ticked orders are then marked
+        sent. Opening a download link only shows its page, so link previews and
+        mail scanners use nothing up."""
+        from urllib.parse import quote, urlencode
 
         from django.template.response import TemplateResponse
 
-        from .jobs import mark_whatsapp_sent, whatsapp_body
+        from .jobs import email_body, email_subject, mark_sent, whatsapp_body
 
-        orders = list(queryset.filter(status__in=[Order.PAID, Order.DELIVERED]).exclude(phone="")
+        whatsapp = channel == Delivery.WHATSAPP
+        contact = "phone" if whatsapp else "email"
+        label = "WhatsApp" if whatsapp else "email"
+        orders = list(queryset.filter(status__in=[Order.PAID, Order.DELIVERED]).exclude(**{contact: ""})
                       .select_related("event__institution"))
         if request.POST.get("confirm"):
             sent = set(request.POST.getlist("sent"))
             marked = [order for order in orders if str(order.pk) in sent]
             for order in marked:
-                mark_whatsapp_sent(order, "manual")
-            messages.success(request, f"Marked {len(marked)} order(s) as sent on WhatsApp.")
+                mark_sent(order, channel, "manual")
+            messages.success(request, f"Marked {len(marked)} order(s) as sent by {label}.")
             return None
         if not orders:
-            messages.warning(request, "None of the selected orders is paid with a WhatsApp number.")
+            messages.warning(request, f"None of the selected orders is paid with {'a WhatsApp number' if whatsapp else 'an email address'}.")
             return None
         rows = []
         for order in orders:
-            body = whatsapp_body(order)
-            rows.append({"order": order, "body": body, "has_link": "/api/downloads/" in body,
-                         "wa_link": f"https://wa.me/{order.phone.lstrip('+')}?text={quote(body, safe='')}",
-                         "delivery": order.deliveries.filter(channel=Delivery.WHATSAPP).first()})
-        return TemplateResponse(request, "admin/orders/whatsapp_by_hand.html", {
-            **self.admin_site.each_context(request), "title": "Send on WhatsApp by hand", "opts": self.model._meta,
-            "rows": rows, "action": "send_whatsapp_by_hand", "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+            if whatsapp:
+                body, subject = whatsapp_body(order), ""
+                phone, text = order.phone.lstrip("+"), quote(body, safe="")
+                buttons = [("Open in WhatsApp Web", f"https://web.whatsapp.com/send?phone={phone}&text={text}"),
+                           ("Open in WhatsApp app", f"https://wa.me/{phone}?text={text}")]
+            else:
+                body, subject = email_body(order), email_subject(order)
+                buttons = [("Open in Gmail", "https://mail.google.com/mail/?" + urlencode(
+                               {"view": "cm", "fs": "1", "to": order.email, "su": subject, "body": body}, quote_via=quote)),
+                           ("Open in mail app", f"mailto:{quote(order.email, safe='@')}?"
+                                                + urlencode({"subject": subject, "body": body}, quote_via=quote))]
+            rows.append({"order": order, "to": getattr(order, contact), "subject": subject, "body": body,
+                         "buttons": buttons, "has_link": "/api/downloads/" in body,
+                         "delivery": order.deliveries.filter(channel=channel).first()})
+        return TemplateResponse(request, "admin/orders/send_by_hand.html", {
+            **self.admin_site.each_context(request), "title": f"Send by {label} by hand", "opts": self.model._meta,
+            "rows": rows, "label": label, "action": f"send_{channel}_by_hand",
+            "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
         })
+
+    @admin.action(description="Send on WhatsApp by hand (from your own WhatsApp)")
+    def send_whatsapp_by_hand(self, request, queryset):
+        return self._by_hand(request, queryset, Delivery.WHATSAPP)
+
+    @admin.action(description="Send by email by hand (from your own mailbox)")
+    def send_email_by_hand(self, request, queryset):
+        return self._by_hand(request, queryset, Delivery.EMAIL)
+
+    @admin.action(description="Mark as delivered (links sent some other way)")
+    def mark_delivered(self, request, queryset):
+        """Closes paid orders: any delivery not yet out is recorded as sent by
+        hand, so the worker never sends it again and it leaves the failed queue."""
+        from django.utils import timezone
+
+        from .jobs import mark_sent
+
+        orders = list(queryset.filter(status=Order.PAID))
+        for order in orders:
+            for channel in order.deliveries.exclude(status__in=[Delivery.SENT, Delivery.DELIVERED]).values_list(
+                    "channel", flat=True):
+                mark_sent(order, channel, "manual")
+            Order.objects.filter(pk=order.pk, status=Order.PAID).update(status=Order.DELIVERED,
+                                                                         delivered_at=timezone.now())
+        messages.success(request, f"Marked {len(orders)} order(s) as delivered.")
 
     @admin.action(description="Resend download link by email")
     def resend_email(self, request, queryset):

@@ -11,27 +11,30 @@
 {% endblock %}
 
 {% block content %}
-<p>Press <b>Open in WhatsApp</b> for each buyer: the chat opens with the message typed in, ready to send from
-  your own WhatsApp. The order is ticked as you go; untick any you didn't send, then press
+<p>For each buyer, press one of the <b>Open in…</b> buttons: the message opens typed in and addressed, ready to send
+  from your own {{ label }}. The order is ticked as you go; untick any you didn't send, then press
   <b>Mark ticked as sent</b> at the bottom.</p>
 
 <form method="post">{% csrf_token %}
   {% for row in rows %}
     <input type="hidden" name="{{ action_checkbox_name }}" value="{{ row.order.pk }}">
     <fieldset class="module" style="padding:12px 16px;margin-bottom:16px">
-      <h2 style="margin:-12px -16px 12px">{{ row.order.public_id }} · {{ row.order.name }} · {{ row.order.phone }}</h2>
+      <h2 style="margin:-12px -16px 12px">{{ row.order.public_id }} · {{ row.order.name }} · {{ row.to }}</h2>
       {% if row.delivery %}
-        <p>WhatsApp delivery so far: <b>{{ row.delivery.get_status_display }}</b>{% if row.delivery.last_error %}
+        <p>{{ label|capfirst }} delivery so far: <b>{{ row.delivery.get_status_display }}</b>{% if row.delivery.last_error %}
           ({{ row.delivery.last_error|truncatechars:120 }}){% endif %}</p>
       {% endif %}
       {% if not row.has_link %}
         <p style="color:#e8503a"><b>No download link yet</b> — the photos may still be being prepared. Try again in a
           few minutes, or use “Re-run fulfilment”.</p>
       {% endif %}
+      {% if row.subject %}<p>Subject: <b>{{ row.subject }}</b></p>{% endif %}
       <pre style="white-space:pre-wrap;background:var(--darkened-bg);padding:10px;border-radius:4px">{{ row.body }}</pre>
-      <p style="display:flex;gap:16px;align-items:center">
-        <a class="button" href="{{ row.wa_link }}" target="_blank" rel="noopener"
-           onclick="document.getElementById('sent-{{ row.order.pk }}').checked = true">Open in WhatsApp</a>
+      <p style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+        {% for text, url in row.buttons %}
+          <a class="button" href="{{ url }}" target="_blank" rel="noopener"
+             onclick="document.getElementById('sent-{{ row.order.pk }}').checked = true">{{ text }}</a>
+        {% endfor %}
         <label><input type="checkbox" name="sent" value="{{ row.order.pk }}" id="sent-{{ row.order.pk }}"> Sent</label>
       </p>
     </fieldset>
