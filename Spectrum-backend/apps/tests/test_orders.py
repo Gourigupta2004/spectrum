@@ -240,6 +240,30 @@ class OrderHardeningTests(OrderTests):
         self.assertEqual(Order.objects.get().status, Order.DELIVERED)
         self.assertEqual(set(Delivery.objects.values_list("status", flat=True)), {Delivery.SENT})
 
+    @override_settings(TWILIO_ACCOUNT_SID="AC1", TWILIO_AUTH_TOKEN="t", TWILIO_WHATSAPP_FROM="+919667041123",
+                       TWILIO_CONTENT_SID="HX1")
+    def test_whatsapp_template_gets_the_same_details_as_the_plain_message(self):
+        from urllib.parse import parse_qs
+
+        order = self.create(phone="98765 43210", email="").json()
+        sent = []
+
+        def twilio(url, *, data, **kwargs):
+            sent.append(parse_qs(data.decode()))
+            return {"sid": "SM1"}
+
+        with mock.patch("apps.orders.services._request", side_effect=twilio), \
+                self.captureOnCommitCallbacks(execute=True):
+            self.client.post(f"/api/orders/{order['id']}/verify/", json.dumps({
+                "razorpayOrderId": "order_RZP1", "razorpayPaymentId": "pay_1",
+                "razorpaySignature": sign("secret", b"order_RZP1|pay_1")}), content_type="application/json")
+        db_order = Order.objects.get()
+        self.assertEqual(db_order.status, Order.DELIVERED)
+        self.assertEqual(sent[0]["ContentSid"], ["HX1"])
+        self.assertEqual(json.loads(sent[0]["ContentVariables"][0]), {
+            "1": "Asha", "2": f"Annual Day ({db_order.event.institution.name})", "3": "2 photos (zip)",
+            "4": f"http://localhost:8000/api/downloads/{db_order.download_token}/zip/", "5": db_order.public_id})
+
     def test_twilio_callback_without_sid_changes_nothing(self):
         from apps.orders import views
 

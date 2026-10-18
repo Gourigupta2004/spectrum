@@ -82,6 +82,25 @@ def email_body(order) -> str:
     return render_to_string("orders/delivery_email.txt", email_context(order))
 
 
+def whatsapp_variables(order) -> dict[str, str]:
+    """Values for the approved WhatsApp template, which mirrors whatsapp_body:
+    {{1}} name, {{2}} event (institution), {{3}} what the link holds,
+    {{4}} the one-time link, {{5}} order number. A template carries a single
+    link: the photos zip, or else the first video."""
+    from .views import video_links, zip_url
+
+    photo_count = order.items.filter(photo__isnull=False).count()
+    videos = video_links(order)
+    if order.zip_file and photo_count:
+        what, link = f"{photo_count} photo{'s' if photo_count != 1 else ''} (zip)", zip_url(order)
+    elif videos:
+        what, link = videos[0]
+    else:
+        what, link = "download", ""
+    return {"1": order.name, "2": f"{order.event.name} ({order.event.institution.name})", "3": what,
+            "4": link, "5": order.public_id}
+
+
 def mark_sent(order, channel: str, message_id: str = "") -> None:
     """Record one channel's delivery as sent, and the order as delivered once
     every channel has gone out."""
@@ -106,7 +125,6 @@ def send_pending_deliveries(order) -> None:
 def send_delivery(delivery_id: int) -> None:
     from .models import Delivery
     from .services import twilio_send_whatsapp
-    from .views import video_links, zip_url
 
     delivery = Delivery.objects.select_related("order__event__institution").get(pk=delivery_id)
     if delivery.status in (Delivery.SENT, Delivery.DELIVERED):
@@ -125,10 +143,7 @@ def send_delivery(delivery_id: int) -> None:
             message.send()
             message_id = ""
         else:
-            videos = video_links(order)
-            file_link = zip_url(order) if order.zip_file else (videos[0][1] if videos else "")
-            message_id = twilio_send_whatsapp(order.phone, {"1": order.event.name, "2": str(order.items.count()),
-                                                            "3": file_link}, whatsapp_body(order))
+            message_id = twilio_send_whatsapp(order.phone, whatsapp_variables(order), whatsapp_body(order))
     except Exception as exc:
         attempts = delivery.attempts + 1
         failed = attempts >= 3
