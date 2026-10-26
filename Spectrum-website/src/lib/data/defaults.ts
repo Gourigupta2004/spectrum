@@ -97,8 +97,6 @@ export const galleryCopy = {
   selectionMany: "{count} photos selected · ₹{price}",
   selectionMixed: "{photos} photos + {videos} videos · ₹{price}",
   videosHeading: "Event Videos",
-  filterPhotos: "Photos",
-  filterVideos: "Videos",
   bundleSelected: "Full album selected · {photos} photos · ₹{price}",
   bundleButton: "Full Album Bundle — Save {savings}% · ₹{price} for all {photos} photos",
   bundleButtonNoSaving: "Full Album Bundle — ₹{price} for all {photos} photos",

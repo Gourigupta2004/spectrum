@@ -132,7 +132,7 @@ class GalleryPageAdmin(SingletonAdmin):
         ("Gallery", {"fields": ("seo_title_template", "seo_description_template", "back_label", "watermark_text",
                                 "select_label", "selected_label")}),
         ("Selection bar", {"fields": ("selection_one", "selection_many", "selection_mixed", "videos_heading",
-                                      "filter_photos", "filter_videos", "bundle_selected", "bundle_button",
+                                      "bundle_selected", "bundle_button",
                                       "bundle_button_no_saving", "pay_cta")}),
         ("Checkout", {"fields": ("summary_heading", "bundle_line", "total_label", "name_placeholder",
                                  "whatsapp_placeholder", "whatsapp_hint", "email_placeholder", "email_hint",

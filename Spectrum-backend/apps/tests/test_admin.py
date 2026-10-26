@@ -129,3 +129,49 @@ class EventDeleteConfirmationTests(SpectrumTestCase):
         html = bulk.content.decode()
         self.assertIn("Founder", html)
         self.assertNotIn("Photo 1", html)
+
+
+class VideoUploadProgressTests(SpectrumTestCase):
+    """The event page sends a chosen video with a progress bar: its script
+    posts the form itself and is told where to go next."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+        self.url = reverse("admin:catalog_event_change", args=[self.event.pk])
+
+    def form(self, **extra):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return {
+            "name": "Annual Day", "slug": "annual-day", "institution": self.institution.pk,
+            "price_per_photo": 29, "price_per_video": 199, "bundle_price": 299, "is_published": "on",
+            "sort_order": 0, "videos-TOTAL_FORMS": 1, "videos-INITIAL_FORMS": 0, "videos-MIN_NUM_FORMS": 0,
+            "videos-MAX_NUM_FORMS": 1000, "videos-0-title": "Highlights", "videos-0-sort_order": 0,
+            "videos-0-video": SimpleUploadedFile("highlights.mp4", b"fake-video-bytes", content_type="video/mp4"),
+            "_continue": "Save and continue editing", **extra,
+        }
+
+    def test_event_page_loads_the_progress_script(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn("core/save-progress.js", html)
+        self.assertIn("core/save-progress.css", html)
+
+    def test_save_from_the_script_answers_with_the_next_page_and_keeps_the_message(self):
+        response = self.client.post(self.url, self.form(), HTTP_X_UPLOAD_PROGRESS="1")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"redirect": self.url})
+        self.assertEqual(self.event.videos.get().title, "Highlights")
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("was changed successfully", page)
+
+    def test_plain_save_still_redirects(self):
+        response = self.client.post(self.url, self.form())
+        self.assertRedirects(response, self.url)
+
+    def test_form_errors_come_back_as_the_page(self):
+        response = self.client.post(self.url, self.form(name=""), HTTP_X_UPLOAD_PROGRESS="1")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/html", response["Content-Type"])
+        self.assertFalse(self.event.videos.exists())
