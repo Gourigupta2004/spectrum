@@ -4,7 +4,6 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.db import models
-from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.html import format_html
@@ -138,23 +137,6 @@ class BulkUploadMixin:
             request.POST = request.POST.copy()
             request.POST["_continue"] = "1"
         return super().response_add(request, obj, post_url_continue)
-
-
-class UploadProgressMixin:
-    """Save shows a progress bar while the form's files go up (event videos run
-    to gigabytes). The script posts the form itself; a successful save answers
-    it with the page to go to instead of the redirect, so the "saved" message
-    is shown there rather than used up by the script's request."""
-
-    @property
-    def media(self):
-        return super().media + forms.Media(js=["core/save-progress.js"], css={"all": ["core/save-progress.css"]})
-
-    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
-        response = super().changeform_view(request, object_id, form_url, extra_context)
-        if request.headers.get("X-Upload-Progress") and isinstance(response, HttpResponseRedirect):
-            return JsonResponse({"redirect": response.url})
-        return response
 
 
 class SingletonAdmin(admin.ModelAdmin):

@@ -215,10 +215,17 @@ def remove_uncommitted_uploads(batch) -> None:
     """Files uploaded from a tab that closed before saving are deleted with their batch."""
     from spectrum.storages import private_storage
 
+    from apps.catalog import video_uploads
+
     from .uploads import TARGETS
 
-    target = TARGETS.get(batch.target)
-    if target is None or not batch.prepared_keys:
+    if not batch.prepared_keys:
         return
-    used = set(target.model_class.objects.filter(original__in=batch.prepared_keys).values_list("original", flat=True))
+    if batch.target == video_uploads.BATCH_TARGET:
+        model, field = apps.get_model("catalog.EventVideo"), "video"
+    elif batch.target in TARGETS:
+        model, field = TARGETS[batch.target].model_class, "original"
+    else:
+        return
+    used = set(model.objects.filter(**{f"{field}__in": batch.prepared_keys}).values_list(field, flat=True))
     delete_files(private_storage(), [key for key in batch.prepared_keys if key not in used])

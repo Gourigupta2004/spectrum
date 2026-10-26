@@ -42,6 +42,7 @@ api = [
 
 urlpatterns = [
     path("api/", include(api)),
+    path("admin/uploads/video/", include("apps.catalog.video_uploads")),
     path("admin/uploads/", include("apps.core.uploads")),
     path("admin/", admin.site.urls),
 ]

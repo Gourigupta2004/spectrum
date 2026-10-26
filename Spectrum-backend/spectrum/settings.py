@@ -191,6 +191,8 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 UPLOAD_MAX_BYTES = env_int("UPLOAD_MAX_BYTES", 40 * 1024 * 1024)
+# Event videos; keep within nginx's client_max_body_size (12g). S3 takes at most 5 GB per upload.
+VIDEO_UPLOAD_MAX_BYTES = env_int("VIDEO_UPLOAD_MAX_BYTES", 12 * 1024 ** 3)
 
 # Background tasks. Eager runs them inline after commit (handy in dev without a worker).
 TASKS_EAGER = env_bool("TASKS_EAGER", DEBUG)

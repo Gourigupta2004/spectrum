@@ -175,3 +175,14 @@ class EventVideo(ProcessedImage):
 
     def __str__(self):
         return self.title or f"Video {self.pk}"
+
+    def save(self, *args, **kwargs):
+        before = type(self).objects.filter(pk=self.pk).values_list("video", flat=True).first() if self.pk else ""
+        super().save(*args, **kwargs)
+        if before and before != self.video.name:
+            # A replaced video is gigabytes nobody can buy any more.
+            from django.db import transaction
+
+            from apps.core.models import delete_files
+
+            transaction.on_commit(lambda: delete_files(private_storage(), [before]))

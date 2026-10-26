@@ -1,0 +1,10 @@
+.video-upload { min-width: 260px; }
+.video-upload-current { margin: 0 0 6px; color: var(--body-quiet-color, #666); font-size: 12px; }
+.video-upload-progress { margin-top: 8px; }
+.video-upload-bar { height: 8px; border-radius: 4px; background: var(--darkened-bg, #eee); overflow: hidden; }
+.video-upload-bar span { display: block; height: 100%; width: 0; transition: width .2s;
+  background: linear-gradient(90deg, #ffc93c, #e8503a, #2fbf8f, #7c4de0); }
+.video-upload-line { margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+.video-upload.is-done .video-upload-line { color: #2fbf8f; font-weight: 600; }
+.video-upload.is-failed .video-upload-line { color: #e8503a; }
+.video-upload.is-failed .video-upload-bar span { background: #e8503a; }

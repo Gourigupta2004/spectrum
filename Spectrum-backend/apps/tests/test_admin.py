@@ -131,9 +131,10 @@ class EventDeleteConfirmationTests(SpectrumTestCase):
         self.assertNotIn("Photo 1", html)
 
 
-class VideoUploadProgressTests(SpectrumTestCase):
-    """The event page sends a chosen video with a progress bar: its script
-    posts the form itself and is told where to go next."""
+
+class VideoUploadTests(SpectrumTestCase):
+    """The event's video field uploads as soon as a file is chosen; Save
+    sends only the upload's token."""
 
     def setUp(self):
         super().setUp()
@@ -141,37 +142,90 @@ class VideoUploadProgressTests(SpectrumTestCase):
         self.client.force_login(self.make_staff())
         self.url = reverse("admin:catalog_event_change", args=[self.event.pk])
 
-    def form(self, **extra):
+    def upload(self, name="highlights.mp4", data=b"fake-video-bytes"):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
+        entry = self.client.post(reverse("admin-video-upload-prepare"), {"name": name, "size": len(data)},
+                                 content_type="application/json").json()
+        self.assertEqual(entry["method"], "POST")
+        sent = self.client.post(entry["uploadUrl"], {"token": entry["token"], "file": SimpleUploadedFile(name, data)})
+        self.assertEqual(sent.json(), {"ok": True})
+        return entry["token"]
+
+    def form(self, video="", initial=0, pk="", **extra):
         return {
             "name": "Annual Day", "slug": "annual-day", "institution": self.institution.pk,
             "price_per_photo": 29, "price_per_video": 199, "bundle_price": 299, "is_published": "on",
-            "sort_order": 0, "videos-TOTAL_FORMS": 1, "videos-INITIAL_FORMS": 0, "videos-MIN_NUM_FORMS": 0,
-            "videos-MAX_NUM_FORMS": 1000, "videos-0-title": "Highlights", "videos-0-sort_order": 0,
-            "videos-0-video": SimpleUploadedFile("highlights.mp4", b"fake-video-bytes", content_type="video/mp4"),
+            "sort_order": 0, "videos-TOTAL_FORMS": 1, "videos-INITIAL_FORMS": initial, "videos-MIN_NUM_FORMS": 0,
+            "videos-MAX_NUM_FORMS": 1000, "videos-0-id": pk, "videos-0-event": self.event.pk,
+            "videos-0-title": "Highlights", "videos-0-sort_order": 0, "videos-0-video": video,
             "_continue": "Save and continue editing", **extra,
         }
 
-    def test_event_page_loads_the_progress_script(self):
+    def test_event_page_has_the_instant_video_uploader(self):
         html = self.client.get(self.url).content.decode()
-        self.assertIn("core/save-progress.js", html)
-        self.assertIn("core/save-progress.css", html)
+        self.assertIn('class="video-upload-input"', html)
+        self.assertIn("catalog/video-upload.js", html)
+        self.assertIn(reverse("admin-video-upload-prepare"), html)
+        self.assertIn("Video file</th>", html.replace("\n", "").replace("  ", ""))
 
-    def test_save_from_the_script_answers_with_the_next_page_and_keeps_the_message(self):
-        response = self.client.post(self.url, self.form(), HTTP_X_UPLOAD_PROGRESS="1")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"redirect": self.url})
-        self.assertEqual(self.event.videos.get().title, "Highlights")
-        page = self.client.get(self.url).content.decode()
-        self.assertIn("was changed successfully", page)
+    def test_prepare_refuses_what_is_not_a_video_or_too_big(self):
+        prepare = reverse("admin-video-upload-prepare")
+        refused = self.client.post(prepare, {"name": "a.jpg", "size": 10}, content_type="application/json")
+        self.assertEqual(refused.status_code, 400)
+        with self.settings(VIDEO_UPLOAD_MAX_BYTES=100):
+            big = self.client.post(prepare, {"name": "a.mp4", "size": 101}, content_type="application/json")
+        self.assertEqual(big.status_code, 400)
 
-    def test_plain_save_still_redirects(self):
-        response = self.client.post(self.url, self.form())
+    def test_saving_with_the_token_attaches_the_uploaded_file(self):
+        from spectrum.storages import private_storage
+
+        token = self.upload()
+        response = self.client.post(self.url, self.form(video=token))
         self.assertRedirects(response, self.url)
+        video = self.event.videos.get()
+        self.assertTrue(video.video.name.startswith("catalog/eventvideo/videos/"))
+        self.assertTrue(video.video.name.endswith(".mp4"))
+        with private_storage().open(video.video.name) as stored:
+            self.assertEqual(stored.read(), b"fake-video-bytes")
 
-    def test_form_errors_come_back_as_the_page(self):
-        response = self.client.post(self.url, self.form(name=""), HTTP_X_UPLOAD_PROGRESS="1")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("text/html", response["Content-Type"])
+    def test_saving_without_a_new_upload_keeps_the_video_and_replacing_deletes_the_old(self):
+        from spectrum.storages import private_storage
+
+        video = self.video(self.event, "Highlights")
+        old = video.video.name
+        self.assertRedirects(self.client.post(self.url, self.form(initial=1, pk=video.pk)), self.url)
+        video.refresh_from_db()
+        self.assertEqual(video.video.name, old)
+
+        token = self.upload()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(self.url, self.form(video=token, initial=1, pk=video.pk))
+        video.refresh_from_db()
+        self.assertNotEqual(video.video.name, old)
+        self.assertFalse(private_storage().exists(old))
+
+    def test_new_row_needs_a_finished_upload_and_a_real_token(self):
+        response = self.client.post(self.url, self.form())
+        self.assertContains(response, "Choose the video file and wait for its upload to finish.")
+        response = self.client.post(self.url, self.form(video="forged"))
+        self.assertContains(response, "This upload has expired.")
         self.assertFalse(self.event.videos.exists())
+
+    def test_housekeeping_deletes_uploads_that_were_never_saved(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.catalog.video_uploads import unsign
+        from apps.core.jobs import housekeeping
+        from apps.core.models import UploadBatch
+        from spectrum.storages import private_storage
+
+        kept = self.upload()
+        dropped = unsign(self.upload())
+        self.client.post(self.url, self.form(video=kept))
+        UploadBatch.objects.update(created_at=timezone.now() - timedelta(days=8))
+        housekeeping()
+        self.assertFalse(private_storage().exists(dropped))
+        self.assertTrue(private_storage().exists(self.event.videos.get().video.name))

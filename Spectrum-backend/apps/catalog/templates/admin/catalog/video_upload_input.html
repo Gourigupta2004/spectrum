@@ -1,0 +1,9 @@
+<div class="video-upload" data-prepare-url="{{ prepare_url }}" data-max-bytes="{{ max_bytes }}">
+  {% if current %}<p class="video-upload-current">Video stored. Choose a file only to replace it.</p>{% endif %}
+  <input type="file" class="video-upload-input" accept="{{ accept }},video/*">
+  <input type="hidden" name="{{ widget.name }}" class="video-upload-token"{% if widget.value != None %} value="{{ widget.value }}"{% endif %}{% include "django/forms/widgets/attrs.html" %}>
+  <div class="video-upload-progress" hidden>
+    <div class="video-upload-bar"><span></span></div>
+    <p class="video-upload-line"></p>
+  </div>
+</div>

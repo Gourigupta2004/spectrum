@@ -1,15 +1,14 @@
 from django.contrib import admin, messages
 from django.db.models import Count, F, Q
 
-from apps.core.admin_tools import (
-    AppendOrderMixin, BulkUploadMixin, CompactDeleteMixin, ImagePreviewMixin, UploadProgressMixin,
-)
+from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, CompactDeleteMixin, ImagePreviewMixin
 from apps.core.models import ImageStatus
 
 from apps.portal.forms import AccessEmailForm, password_status
 from apps.portal.models import PortalAccessEmail
 
 from .models import Event, EventPhoto, EventVideo, Institution, InstitutionKind
+from .video_uploads import EventVideoForm
 
 
 @admin.register(InstitutionKind)
@@ -77,9 +76,11 @@ class InstitutionAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, adm
 
 class EventVideoInline(ImagePreviewMixin, admin.TabularInline):
     """The event's purchasable videos, uploaded and edited only here on the
-    event page (they have no admin list of their own)."""
+    event page (they have no admin list of their own). The video file
+    uploads as soon as it is chosen, with a progress bar in its row."""
 
     model = EventVideo
+    form = EventVideoForm
     extra = 1
     ordering = ("sort_order", "pk")
     fields = ("video", "title", "duration_label", "original", "image_status", "sort_order")
@@ -93,8 +94,7 @@ class EventVideoInline(ImagePreviewMixin, admin.TabularInline):
 
 
 @admin.register(Event)
-class EventAdmin(UploadProgressMixin, CompactDeleteMixin, AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin,
-                 admin.ModelAdmin):
+class EventAdmin(CompactDeleteMixin, AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
     bulk_upload_targets = ("catalog.eventphoto",)
     inlines = (EventVideoInline,)
     list_display = ("thumbnail", "name", "institution", "date", "gallery_count", "video_count", "price_per_photo",
