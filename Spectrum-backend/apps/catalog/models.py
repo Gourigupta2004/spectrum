@@ -152,11 +152,13 @@ class EventPhoto(ProcessedImage):
 class EventVideo(ProcessedImage):
     """
     A purchasable event video. The video file itself stays private until bought;
-    the public only sees the poster image (`original`, watermarked like a photo).
+    the public only sees the poster image (`original`, watermarked like a photo,
+    but saying the video itself can't be previewed).
     """
 
     VARIANTS = {"preview": 1200, "thumb": 400}
     WATERMARKED = frozenset({"preview"})
+    WATERMARK_TEXT = "Video preview not available"
     EXTRA_PRIVATE_FILES = ("video",)  # cleaned from storage with the row, like the original
 
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="videos")

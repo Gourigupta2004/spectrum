@@ -114,11 +114,13 @@ class ProcessedImage(models.Model):
 
     VARIANTS maps a variant field name to its longest edge in pixels. Subclasses may
     add variant fields (EventPhoto adds `preview`) and list watermarked ones in
-    WATERMARKED. The worker fills the variants; web requests never touch Pillow.
+    WATERMARKED, marked with WATERMARK_TEXT. The worker fills the variants; web
+    requests never touch Pillow.
     """
 
     VARIANTS: dict[str, int] = {"web": 1600, "thumb": 400}
     WATERMARKED: frozenset[str] = frozenset()
+    WATERMARK_TEXT = "Preview Only"
 
     original = models.FileField(
         "image",

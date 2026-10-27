@@ -367,7 +367,6 @@ class GalleryPage(SingletonModel):
     selection_many = line("{count} photos selected · ₹{price}")
     selection_mixed = line("{photos} photos + {videos} videos · ₹{price}",
                            help_text="Shown when the selection includes videos.")
-    videos_heading = line("Event Videos", 80, help_text="Heading above the videos; hidden when an event has none.")
     bundle_selected = line("Full album selected · {photos} photos · ₹{price}")
     bundle_button = line("Full Album Bundle — Save {savings}% · ₹{price} for all {photos} photos")
     bundle_button_no_saving = line("Full Album Bundle — ₹{price} for all {photos} photos")

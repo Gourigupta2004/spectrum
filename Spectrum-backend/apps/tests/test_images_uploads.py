@@ -482,3 +482,25 @@ class PhotoProportionTests(SpectrumTestCase):
         out = StringIO()
         call_command("crop_to_frame", model=["catalog.eventphoto"], stdout=out)
         self.assertIn("cropped 0, already 4:5 1", out.getvalue())
+
+
+class VideoPosterWatermarkTests(SpectrumTestCase):
+    def test_video_posters_say_no_preview_and_photos_keep_preview_only(self):
+        from unittest import mock
+
+        from django.core.files.base import ContentFile
+
+        from apps.core import jobs
+
+        self.make_catalog()
+        with mock.patch.object(jobs, "watermark", wraps=jobs.watermark) as mark:
+            with self.captureOnCommitCallbacks(execute=True):
+                video = self.video(self.event)
+                video.original.save("poster.jpg", ContentFile(jpeg_bytes()))
+            with self.captureOnCommitCallbacks(execute=True):
+                self.photo(self.event)
+        texts = [call.args[1] for call in mark.call_args_list]
+        self.assertEqual(texts[0], "Video preview not available")
+        self.assertEqual(set(texts[1:]), {"Preview Only"})
+        video.refresh_from_db()
+        self.assertTrue(video.preview.name)

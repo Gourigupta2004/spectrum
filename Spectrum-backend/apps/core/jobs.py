@@ -96,7 +96,7 @@ def render_variants(obj) -> dict:
     # Largest first, shrinking the same image in place, so only one bitmap is alive.
     for name, size in sizes:
         image.thumbnail((size, size), Image.Resampling.LANCZOS, reducing_gap=3.0)
-        output = watermark(image) if name in obj.WATERMARKED else image
+        output = watermark(image, obj.WATERMARK_TEXT) if name in obj.WATERMARKED else image
         buffer = io.BytesIO()
         output.save(buffer, "WEBP", quality=WEBP_QUALITY, method=4)
         if output is not image:
@@ -119,8 +119,8 @@ FRINGE_ALPHA = 96
 
 def watermark(image, text: str = "Preview Only"):
     """
-    One big "Preview Only" running diagonally across the middle of the photo.
-    Large enough that cropping it out leaves nothing usable, and translucent at
+    One big mark ("Preview Only" unless told otherwise) running diagonally
+    across the middle of the photo. Large enough that cropping it out leaves nothing usable, and translucent at
     the level a watermark normally sits at — around a third — so the photo
     underneath still reads properly.
     """

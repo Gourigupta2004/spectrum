@@ -89,7 +89,7 @@ class EventVideoInline(ImagePreviewMixin, admin.TabularInline):
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == "original":
             kwargs["label"] = "Poster image"
-            kwargs["help_text"] = "Shown in the gallery with the watermark; buyers get the video file."
+            kwargs["help_text"] = "Shown in the gallery, watermarked \"Video preview not available\"; buyers get the video file."
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 

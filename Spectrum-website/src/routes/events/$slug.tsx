@@ -113,53 +113,50 @@ function GalleryPage() {
         {/* Videos always come first, shown by their poster only; buyers get the
             file itself on WhatsApp or email. Photos follow. */}
         {galleryVideos.length > 0 && (
-          <div className="mt-10">
-            <h2 className="font-display text-xl text-foreground">{copy.videosHeading}</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              {galleryVideos.map((v) => {
-                const isSel = selectedVideos.includes(v.id);
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => toggleVideo(v.id)}
-                    className={`group relative block aspect-video w-full overflow-hidden rounded-2xl bg-secondary text-left ${
-                      isSel ? "spectrum-border spectrum-border-thick" : ""
-                    }`}
-                  >
-                    {v.image && (
-                      <img
-                        src={v.image}
-                        alt={v.title}
-                        loading="lazy"
-                        draggable={false}
-                        className="undraggable absolute inset-0 h-full w-full select-none object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                      />
-                    )}
-                    <span className="pointer-events-none absolute inset-0 z-[2] grid place-items-center">
-                      <span className="spectrum-fill grid h-14 w-14 place-items-center rounded-full">
-                        <Play className="ml-0.5 h-6 w-6 fill-current" />
-                      </span>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {galleryVideos.map((v) => {
+              const isSel = selectedVideos.includes(v.id);
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => toggleVideo(v.id)}
+                  className={`group relative block aspect-video w-full overflow-hidden rounded-2xl bg-secondary text-left ${
+                    isSel ? "spectrum-border spectrum-border-thick" : ""
+                  }`}
+                >
+                  {v.image && (
+                    <img
+                      src={v.image}
+                      alt={v.title}
+                      loading="lazy"
+                      draggable={false}
+                      className="undraggable absolute inset-0 h-full w-full select-none object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    />
+                  )}
+                  <span className="pointer-events-none absolute inset-0 z-[2] grid place-items-center">
+                    <span className="spectrum-fill grid h-10 w-10 place-items-center rounded-full">
+                      <Play className="ml-0.5 h-4 w-4 fill-current" />
                     </span>
-                    {isSel && (
-                      <span className="absolute left-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full bg-teal">
-                        <Check className="h-4 w-4 text-[#14231d]" />
-                      </span>
-                    )}
-                    {v.duration && (
-                      <span className="absolute right-3 top-3 z-[3] rounded-full bg-black/60 px-2.5 py-1 text-[0.7rem] font-semibold text-foreground">
-                        {v.duration}
-                      </span>
-                    )}
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-end justify-between gap-3 bg-gradient-to-t from-[#1C1A22] via-[#1C1A22]/60 to-transparent p-4">
-                      <span className="line-clamp-2 min-w-0 font-display text-sm text-foreground">
-                        {v.title}
-                      </span>
-                      <span className="shrink-0 text-sm text-foreground">₹{VIDEO_PRICE}</span>
+                  </span>
+                  {isSel && (
+                    <span className="absolute left-3 top-3 z-[3] grid h-7 w-7 place-items-center rounded-full bg-teal">
+                      <Check className="h-4 w-4 text-[#14231d]" />
                     </span>
-                  </button>
-                );
-              })}
-            </div>
+                  )}
+                  {v.duration && (
+                    <span className="absolute right-3 top-3 z-[3] rounded-full bg-black/60 px-2.5 py-1 text-[0.7rem] font-semibold text-foreground">
+                      {v.duration}
+                    </span>
+                  )}
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-end justify-between gap-3 bg-gradient-to-t from-[#1C1A22] via-[#1C1A22]/60 to-transparent p-4">
+                    <span className="line-clamp-2 min-w-0 font-display text-sm text-foreground">
+                      {v.title}
+                    </span>
+                    <span className="shrink-0 text-sm text-foreground">₹{VIDEO_PRICE}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 

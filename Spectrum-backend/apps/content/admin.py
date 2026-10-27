@@ -131,7 +131,7 @@ class GalleryPageAdmin(SingletonAdmin):
     fieldsets = (
         ("Gallery", {"fields": ("seo_title_template", "seo_description_template", "back_label", "watermark_text",
                                 "select_label", "selected_label")}),
-        ("Selection bar", {"fields": ("selection_one", "selection_many", "selection_mixed", "videos_heading",
+        ("Selection bar", {"fields": ("selection_one", "selection_many", "selection_mixed",
                                       "bundle_selected", "bundle_button",
                                       "bundle_button_no_saving", "pay_cta")}),
         ("Checkout", {"fields": ("summary_heading", "bundle_line", "total_label", "name_placeholder",
