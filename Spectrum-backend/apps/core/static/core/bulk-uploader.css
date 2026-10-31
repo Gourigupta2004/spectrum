@@ -49,4 +49,6 @@
 .bulk-group-more { margin: 6px 12px 0; color: var(--body-quiet-color, #666); font-size: 12px; }
 .bulk-downloadbar { margin: 16px 12px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .bulk-downloadbar label { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.bulk-downloadbar .bulk-delete-group { background: #ba2121; color: #fff; }
+.bulk-downloadbar .bulk-delete-group:disabled { opacity: .45; cursor: not-allowed; }
 .bulk-download-hint { color: var(--body-quiet-color, #666); font-size: 12px; }

@@ -493,6 +493,26 @@ class BulkUploadTests(SpectrumTestCase):
         other = SchoolClass.objects.create(institution=self.other, name="2B")
         self.assertEqual(self.client.get(f"{download}?class={other.pk}").status_code, 302)
 
+    def test_delete_photos_beside_download_removes_the_picked_class(self):
+        from apps.portal.models import CaptionWorkspace, SchoolClass, Student
+
+        self.workspace_students(["2B/a.jpg", "2B/c.jpg", "LKG/k.jpg"])
+        workspace = CaptionWorkspace.for_institution(self.institution.pk)
+        url = f"/admin/portal/captionworkspace/{workspace.pk}/delete-class/"
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        self.assertIn(f'class="button bulk-delete-group" data-url="{url}" disabled', html)
+        two_b = SchoolClass.objects.get(institution=self.institution, name="2B")
+        other = SchoolClass.objects.create(institution=self.other, name="2B")
+        self.assertEqual(self.client.get(url).status_code, 405)  # POST only
+        self.client.post(url, {"group": other.pk})  # never another institution's class
+        self.assertTrue(SchoolClass.objects.filter(pk=other.pk).exists())
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(url, {"group": two_b.pk})
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SchoolClass.objects.filter(pk=two_b.pk).exists())
+        self.assertEqual(list(Student.objects.filter(school_class__institution=self.institution)
+                              .values_list("school_class__name", flat=True)), ["LKG"])
+
     def test_classes_and_students_come_in_order_on_the_portal(self):
         from apps.portal.models import SchoolClass, class_sort_key
 
@@ -502,6 +522,11 @@ class BulkUploadTests(SpectrumTestCase):
         ordered = list(SchoolClass.objects.filter(institution=self.institution).values_list("name", flat=True))
         self.assertEqual(ordered, ["Nursery", "LKG", "UKG", "1A", "2A", "Class 3", "10B", "12C"])
         self.assertLess(class_sort_key("KG"), class_sort_key("1A"))
+        # Short forms and a school code in the name still sort by the class.
+        names = ["G43 12A", "Ukgc", "XII-B", "NUR-B", "G43 1A", "Lkga", "Std. 7", "PRE-NUR A", "Nura", "Staff"]
+        self.assertEqual(sorted(names, key=class_sort_key),
+                         ["PRE-NUR A", "NUR-B", "Nura", "Lkga", "Ukgc", "G43 1A", "Std. 7", "G43 12A", "XII-B",
+                          "Staff"])
         changelist = self.client.get("/admin/portal/schoolclass/").content.decode()
         self.assertLess(changelist.index(">Nursery<"), changelist.index(">12C<"))
 

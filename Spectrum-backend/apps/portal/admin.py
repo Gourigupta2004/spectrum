@@ -256,6 +256,8 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
                  name="portal_captionworkspace_export_titles"),
             path("<path:object_id>/download-students/", self.admin_site.admin_view(self.download_students),
                  name="portal_captionworkspace_download_students"),
+            path("<path:object_id>/delete-class/", self.admin_site.admin_view(self.delete_class),
+                 name="portal_captionworkspace_delete_class"),
             *super().get_urls(),
         ]
 
@@ -302,6 +304,28 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
             classes = classes.filter(pk=int(choice) if choice.isdigit() else 0)
         response = class_photos_zip(request, classes)
         return response or redirect("admin:portal_captionworkspace_change", workspace.pk)
+
+    def delete_class(self, request, object_id):
+        """The class picked under Individual Photographs, with all its photos
+        and names — from the "Delete photos" button beside Download."""
+        from django.http import HttpResponseNotAllowed
+        from django.shortcuts import get_object_or_404, redirect
+
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        if not (request.user.has_perm("portal.delete_schoolclass") and request.user.has_perm("portal.delete_student")):
+            raise PermissionDenied
+        workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
+        pk = request.POST.get("group", "")
+        cls = SchoolClass.objects.filter(institution_id=workspace.institution_id,
+                                         pk=int(pk) if pk.isdigit() else 0).first()
+        if cls is None:
+            messages.warning(request, "That class is no longer there.")
+        else:
+            photos = cls.students.count()
+            cls.delete()  # its students go with it; signals queue the S3 cleanup
+            messages.success(request, f"Deleted class {cls.name} and its {photos} photo(s).")
+        return redirect("admin:portal_captionworkspace_change", workspace.pk)
 
     def delete_photos(self, request, object_id):
         from django.http import HttpResponseNotAllowed

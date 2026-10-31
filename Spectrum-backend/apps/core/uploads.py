@@ -80,6 +80,10 @@ class Target:
     # `(page_parent_id) -> url` of a zip download offered under the grid, with
     # a pick of one group or all; needs view permission on the model.
     download_url: object = None
+    # `(page_parent_id) -> url` that a POST of one group's pk (`group`) sends
+    # to delete that group with its photos, offered beside the download pick
+    # once a group is picked; needs delete permission on both models.
+    delete_group_url: object = None
     # The thumbnail grid gets a tick box per photo and a "Delete selected"
     # button, for admins allowed to delete this model.
     select_delete: bool = False
@@ -211,6 +215,10 @@ def _workspace_download(workspace_id) -> str:
     return reverse("admin:portal_captionworkspace_download_students", args=[workspace_id])
 
 
+def _workspace_delete_class(workspace_id) -> str:
+    return reverse("admin:portal_captionworkspace_delete_class", args=[workspace_id])
+
+
 STUDENT_ORDER = ("sort_key", "sort_order", "pk")  # file-name order, as Student.Meta
 
 
@@ -243,7 +251,7 @@ TARGETS = {
              "with the same name into the same class replaces that photo and keeps the student's name.",
         changelist_query=lambda workspace_id: f"school_class__institution__id__exact={_workspace_institution(workspace_id)}",
         upsert_by_name=True, folders=True, group_by="school_class", grid_ordering=STUDENT_ORDER,
-        download_url=_workspace_download,
+        download_url=_workspace_download, delete_group_url=_workspace_delete_class,
     ),
     "content.heroslide": Target("content.HeroSlide", "page", "caption", "Hero carousel slides"),
     "content.tieup": Target("content.TieUp", "page", "name", "Tie-up photos"),
@@ -643,6 +651,12 @@ def grid_context(target_key: str, parent_id, user=None) -> dict:
     download = ""
     if target.download_url and total and (user is None or user.has_perm(f"{meta.app_label}.view_{meta.model_name}")):
         download = target.download_url(parent_id)
+    delete_group = ""
+    if target.delete_group_url and groups and user is not None:
+        group_meta = meta.get_field(target.group_by).related_model._meta
+        if (user.has_perm(f"{meta.app_label}.delete_{meta.model_name}")
+                and user.has_perm(f"{group_meta.app_label}.delete_{group_meta.model_name}")):
+            delete_group = target.delete_group_url(parent_id)
     return {
         "items": items,
         "groups": groups,
@@ -651,6 +665,7 @@ def grid_context(target_key: str, parent_id, user=None) -> dict:
         "delete_url": reverse("admin-upload-delete") if selectable else "",
         "cover_url": reverse("admin-upload-cover") if can_cover else "",
         "download_url": download,
+        "delete_group_url": delete_group,
         "hidden": max(0, total - GRID_LIMIT) if not groups else 0,
         "changelist_url": (
             f"{changelist}?" + (target.changelist_query(parent_id) if target.changelist_query

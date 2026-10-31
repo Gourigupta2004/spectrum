@@ -168,6 +168,30 @@
       if (!select.classList || !select.classList.contains("bulk-download-class")) return;
       var link = self.grid.querySelector(".bulk-download");
       if (link) link.href = select.dataset.url + "?class=" + encodeURIComponent(select.value);
+      var remove = self.grid.querySelector(".bulk-delete-group");
+      if (remove) remove.disabled = select.value === "all";
+    });
+    // "Delete photos" beside it: the picked class goes, with every photo in
+    // it. Sent from a detached form — this sits inside the admin's own form.
+    this.grid.addEventListener("click", function (event) {
+      var button = event.target.closest && event.target.closest(".bulk-delete-group");
+      if (!button || button.disabled) return;
+      var option = self.grid.querySelector(".bulk-download-class").selectedOptions[0];
+      if (!option || option.value === "all") return;
+      if (!confirm("Delete class " + option.textContent + " and all " + option.dataset.total +
+                   " of its photos, with the students' names? This cannot be undone.")) return;
+      var form = document.createElement("form");
+      form.method = "post";
+      form.action = button.dataset.url;
+      [["csrfmiddlewaretoken", csrf()], ["group", option.value]].forEach(function (pair) {
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = pair[0];
+        input.value = pair[1];
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
     });
   };
 

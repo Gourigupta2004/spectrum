@@ -29,19 +29,36 @@ def padded(value: str) -> str:
     return re.sub(r"\d+", lambda m: m.group().zfill(10), (value or "").strip().lower())[:200]
 
 
-# Pre-primary classes come first, in school order, then numbered classes, then
-# anything else alphabetically.
-PRE_PRIMARY = ("play group", "playgroup", "pre-nursery", "pre nursery", "nursery", "lkg", "ukg", "kg")
-CLASS_PREFIX = re.compile(r"^(class|grade|std\.?|standard)\s*", re.I)
+# Pre-primary classes come first, in school order (play group, pre-nursery,
+# nursery, LKG, UKG), then classes 1 to 12 (also as Roman numerals), then
+# anything else alphabetically. The class is found anywhere in the name, so
+# "NUR-B", "Nursery A", "G43 Lkga", "Class 6C" and "XII-A" all sort by their
+# class; a number glued to letters, like the school code in "G43", never counts.
+WORD_START = r"(?<![a-z0-9])"
+PRE_PRIMARY = tuple(re.compile(WORD_START + pattern) for pattern in (
+    r"play\s*(group|school)|pg(?![a-z])",
+    r"pre[\s.-]*(nur|kg)",
+    r"nur",
+    r"lkg|(jr|junior)\.?\s*kg",
+    r"ukg|(sr|senior)\.?\s*kg",
+    r"kg",
+))
+CLASS_NUMBER = re.compile(WORD_START + r"(\d{1,2})(?!\d)")
+ROMAN = ("i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii")
+CLASS_ROMAN = re.compile(WORD_START + r"(xii|xi|ix|x|viii|vii|vi|iv|v|iii|ii|i)(?![a-z])")
 
 
 def class_sort_key(name: str) -> str:
-    value = CLASS_PREFIX.sub("", (name or "").strip().lower())
-    for rank, word in enumerate(PRE_PRIMARY):
-        if value.startswith(word):
-            # "kg" sits with "lkg"/"ukg": after nursery, before class 1.
-            return f"0{min(rank, 6):02d}{padded(value)}"
-    return f"{1 if value[:1].isdigit() else 2}{padded(value)}"[:200]
+    value = (name or "").strip().lower()
+    for rank, pattern in enumerate(PRE_PRIMARY):
+        if pattern.search(value):
+            return f"0{rank}{padded(value)}"[:200]
+    number = next((int(m.group(1)) for m in CLASS_NUMBER.finditer(value) if 1 <= int(m.group(1)) <= 12), None)
+    if number is None and (roman := CLASS_ROMAN.search(value)):
+        number = ROMAN.index(roman.group(1)) + 1
+    if number is not None:
+        return f"1{number:02d}{padded(value)}"[:200]
+    return f"2{padded(value)}"[:200]
 
 
 class PortalAccessEmail(models.Model):
