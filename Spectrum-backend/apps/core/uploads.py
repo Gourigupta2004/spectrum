@@ -28,7 +28,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from spectrum.storages import private_storage
 
-from .models import IMAGE_EXTENSIONS, ImageStatus, UploadBatch, UploadBatchFile, original_key
+from .models import IMAGE_EXTENSIONS, ImageStatus, UploadBatch, UploadBatchFile, original_key, public_url
 from .tasks import enqueue
 
 TOKEN_SALT = "core.upload"
@@ -83,6 +83,10 @@ class Target:
     # The thumbnail grid gets a tick box per photo and a "Delete selected"
     # button, for admins allowed to delete this model.
     select_delete: bool = False
+    # With `select_delete`, a "Set as cover image" button beside it copies the
+    # one ticked photo into the parent's own image (its `original`), for
+    # admins allowed to change the parent.
+    set_cover: bool = False
 
     @property
     def model_class(self):
@@ -211,7 +215,8 @@ STUDENT_ORDER = ("sort_key", "sort_order", "pk")  # file-name order, as Student.
 
 
 TARGETS = {
-    "catalog.eventphoto": Target("catalog.EventPhoto", "event", "title", "Gallery photos", select_delete=True),
+    "catalog.eventphoto": Target("catalog.EventPhoto", "event", "title", "Gallery photos", select_delete=True,
+                                 set_cover=True),
     # A fresh upload always starts by asking the institution for a title; the
     # uploader's "Requested" tag can switch a batch to For Approval.
     # Re-uploading a file with a name the workspace has seen replaces that
@@ -632,6 +637,9 @@ def grid_context(target_key: str, parent_id, user=None) -> dict:
         total = queryset.count()
     selectable = bool(target.select_delete and user is not None
                       and user.has_perm(f"{meta.app_label}.delete_{meta.model_name}"))
+    parent_meta = meta.get_field(target.parent).related_model._meta
+    can_cover = bool(selectable and target.set_cover
+                     and user.has_perm(f"{parent_meta.app_label}.change_{parent_meta.model_name}"))
     download = ""
     if target.download_url and total and (user is None or user.has_perm(f"{meta.app_label}.view_{meta.model_name}")):
         download = target.download_url(parent_id)
@@ -641,6 +649,7 @@ def grid_context(target_key: str, parent_id, user=None) -> dict:
         "total": total,
         "selectable": selectable,
         "delete_url": reverse("admin-upload-delete") if selectable else "",
+        "cover_url": reverse("admin-upload-cover") if can_cover else "",
         "download_url": download,
         "hidden": max(0, total - GRID_LIMIT) if not groups else 0,
         "changelist_url": (
@@ -687,11 +696,44 @@ def delete_selected(request):
     return render(request, "admin/core/upload_grid.html", context)
 
 
+@staff_member_required
+@require_POST
+def set_cover(request):
+    """Makes the one ticked photo the parent's cover (e.g. the event's image).
+
+    The cover gets its own copy of the original, so deleting the photo later
+    never takes the cover with it; saving the parent then retires the old
+    cover's files and queues the new one's variants, as an upload would."""
+    data = _body(request)
+    key = str(data.get("target", ""))
+    target = _target(key, request.user, perm="view")
+    if not target.set_cover:
+        raise Http404("Not allowed")
+    parent_model = target.model_class._meta.get_field(target.parent).related_model
+    meta = parent_model._meta
+    if not request.user.has_perm(f"{meta.app_label}.change_{meta.model_name}"):
+        raise Http404("Not allowed")
+    parent = parent_model.objects.filter(pk=_int(data.get("parent"), -1)).first()
+    photo = _grid_queryset(target, parent.pk).filter(pk=_int(data.get("id"), -1)).first() if parent else None
+    if photo is None or not photo.original:
+        return _error("Photo not found", 404)
+    storage = private_storage()
+    try:
+        with storage.open(photo.original.name, "rb") as source:
+            parent.original = storage.save(original_key(parent_model, photo.original.name), source)
+    except OSError:
+        return _error("This photo's file is missing from storage. Upload it again.", 409)
+    parent.save()
+    label = getattr(photo, target.name_field) if target.name_field else ""
+    return JsonResponse({"label": label or "the selected photo", "thumb": public_url(photo.thumb)})
+
+
 urlpatterns = [
     path("prepare/", prepare, name="admin-upload-prepare"),
     path("direct/", direct, name="admin-upload-direct"),
     path("grid/", grid, name="admin-upload-grid"),
     path("delete/", delete_selected, name="admin-upload-delete"),
+    path("cover/", set_cover, name="admin-upload-cover"),
     path("<uuid:batch_id>/commit/", commit, name="admin-upload-commit"),
     path("<uuid:batch_id>/options/", apply_options, name="admin-upload-options"),
     path("<uuid:batch_id>/status/", status, name="admin-upload-status"),

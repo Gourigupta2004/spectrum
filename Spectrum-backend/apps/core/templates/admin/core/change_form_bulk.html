@@ -53,7 +53,7 @@
         <ul class="bulk-errors"></ul>
         <button type="button" class="bulk-retry button" hidden>Retry failed</button>
       </div>
-      <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items groups=upload.grid.groups total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url selectable=upload.grid.selectable delete_url=upload.grid.delete_url download_url=upload.grid.download_url %}</div>
+      <div class="bulk-grid">{% include "admin/core/upload_grid.html" with items=upload.grid.items groups=upload.grid.groups total=upload.grid.total hidden=upload.grid.hidden changelist_url=upload.grid.changelist_url selectable=upload.grid.selectable delete_url=upload.grid.delete_url cover_url=upload.grid.cover_url download_url=upload.grid.download_url %}</div>
       {% if upload.target == bulk_tools_target %}{% if bulk_export_url or bulk_delete_all_url %}
         {% comment %}
           Workspace tools, inside the section they act on. This block sits in

@@ -220,6 +220,34 @@
           self.syncSelection();
         });
     });
+    this.grid.addEventListener("click", function (event) {
+      var button = event.target.closest && event.target.closest(".bulk-set-cover");
+      if (!button || button.disabled) return;
+      var ids = boxes().filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+      if (ids.length !== 1) return;
+      var note = button.parentNode.querySelector(".bulk-cover-note");
+      button.disabled = true;
+      button.dataset.busy = "1";
+      button.textContent = "Setting cover…";
+      note.textContent = "";
+      note.classList.remove("is-error");
+      postJSON(button.dataset.url, { target: self.target, parent: self.parentId, id: ids[0] })
+        .then(function (data) {
+          note.textContent = "Cover image set to " + data.label + ".";
+          // The cover field at the top of the page shows the new picture too.
+          var thumb = document.querySelector(".field-original img");
+          if (thumb && data.thumb) thumb.src = data.thumb;
+        })
+        .catch(function (error) {
+          note.textContent = "Could not set the cover: " + error.message;
+          note.classList.add("is-error");
+        })
+        .then(function () {
+          delete button.dataset.busy;
+          button.textContent = "Set as cover image";
+          self.syncSelection();
+        });
+    });
   };
 
   Uploader.prototype.syncSelection = function () {
@@ -234,6 +262,8 @@
     var button = bar.querySelector(".bulk-delete-selected");
     button.disabled = !ticked;
     button.textContent = ticked ? "Delete selected images (" + ticked + ")" : "Delete selected images";
+    var cover = bar.querySelector(".bulk-set-cover");
+    if (cover && !cover.dataset.busy) cover.disabled = ticked !== 1;
   };
 
   Uploader.prototype.add = function (files) {

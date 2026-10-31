@@ -20,6 +20,11 @@
     <label><input type="checkbox" class="bulk-select-all"> Select all{% if hidden %} shown{% endif %}</label>
     <span class="bulk-selected-count">None selected</span>
     <button type="button" class="button bulk-delete-selected" disabled>Delete selected images</button>
+    {% if cover_url %}
+      <button type="button" class="button bulk-set-cover" data-url="{{ cover_url }}" disabled
+              title="Tick one photo to make it the cover image">Set as cover image</button>
+      <span class="bulk-cover-note" aria-live="polite"></span>
+    {% endif %}
   </div>
 {% endif %}
 {% if download_url %}

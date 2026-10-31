@@ -314,6 +314,60 @@ class BulkUploadTests(SpectrumTestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(EventPhoto.objects.filter(pk=photo.pk).exists())
 
+    def test_set_cover_copies_the_ticked_photo_into_the_event(self):
+        from apps.catalog.models import Event
+        from spectrum.storages import private_storage
+
+        photo = self.photo(self.event, "Lamp Lighting")
+        html = self.client.get(f"/admin/catalog/event/{self.event.pk}/change/").content.decode()
+        self.assertIn("Set as cover image", html)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.post("/admin/uploads/cover/", {
+                "target": "catalog.eventphoto", "parent": self.event.pk, "id": photo.pk})
+        self.assertEqual(response.json()["label"], "Lamp Lighting")
+        event = Event.objects.get(pk=self.event.pk)
+        self.assertTrue(event.original.name.startswith("catalog/event/"))
+        self.assertNotEqual(event.original.name, photo.original.name, "the cover is its own copy")
+        self.assertEqual(event.image_status, "ready")
+        storage = private_storage()
+        with storage.open(event.original.name) as cover, storage.open(photo.original.name) as source:
+            self.assertEqual(cover.read(), source.read())
+
+        # A second pick replaces the cover and retires the first copy; the photo keeps its file.
+        first = event.original.name
+        other = self.photo(self.event, "Prize Giving")
+        with self.captureOnCommitCallbacks(execute=True):
+            self.post("/admin/uploads/cover/", {"target": "catalog.eventphoto", "parent": self.event.pk,
+                                                "id": other.pk})
+        self.assertFalse(storage.exists(first))
+        self.assertTrue(storage.exists(photo.original.name))
+
+    def test_set_cover_only_for_the_events_own_photos_and_with_change_permission(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Permission
+
+        theirs = self.photo(self.other_event)
+        response = self.post("/admin/uploads/cover/", {
+            "target": "catalog.eventphoto", "parent": self.event.pk, "id": theirs.pk})
+        self.assertEqual(response.status_code, 404)
+        response = self.post("/admin/uploads/cover/", {
+            "target": "content.heroslide", "parent": 1, "id": 1})
+        self.assertEqual(response.status_code, 404)
+
+        photo = self.photo(self.event)
+        clerk = get_user_model().objects.create_user("clerk", password="pass", is_staff=True)
+        clerk.user_permissions.add(*Permission.objects.filter(
+            codename__in=["view_event", "view_eventphoto", "add_eventphoto", "delete_eventphoto"]))
+        self.client.force_login(clerk)
+        html = self.client.get(f"/admin/catalog/event/{self.event.pk}/change/").content.decode()
+        self.assertIn("Delete selected images", html)
+        self.assertNotIn("Set as cover image", html)
+        response = self.post("/admin/uploads/cover/", {
+            "target": "catalog.eventphoto", "parent": self.event.pk, "id": photo.pk})
+        self.assertEqual(response.status_code, 404)
+        self.event.refresh_from_db()
+        self.assertFalse(self.event.original)
+
     def test_uploaders_live_on_event_and_workspace_pages(self):
         from apps.portal.models import CaptionWorkspace
 
