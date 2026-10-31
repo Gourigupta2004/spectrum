@@ -48,21 +48,28 @@ class ItemInline(ReadOnlyInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("public_id", "event", "kind", "rupees", "status_badge", "name", "phone", "email", "created_at")
-    list_filter = ("status", "kind", "event")
-    list_select_related = ("event",)
-    search_fields = ("public_id", "name", "email", "phone", "razorpay_order_id", "payments__razorpay_payment_id")
+    # The institution is the event's: shown and filtered through it, nothing stored on the order.
+    list_display = ("public_id", "institution", "event", "kind", "rupees", "status_badge", "name", "phone", "email",
+                    "created_at")
+    list_filter = ("status", "kind", "event__institution", "event")
+    list_select_related = ("event__institution",)
+    search_fields = ("public_id", "name", "email", "phone", "razorpay_order_id", "payments__razorpay_payment_id",
+                     "event__institution__name", "event__name")
     date_hierarchy = "created_at"
     inlines = [PaymentInline, DeliveryInline, ItemInline]
     actions = ["send_whatsapp_by_hand", "send_email_by_hand", "mark_delivered", "resend_whatsapp", "resend_email",
                "reissue_links", "refulfil"]
-    readonly_fields = ("public_id", "event", "kind", "rupees", "status", "name", "email", "phone",
+    readonly_fields = ("public_id", "institution", "event", "kind", "rupees", "status", "name", "email", "phone",
                        "deliver_whatsapp", "deliver_email", "razorpay_order_id", "download_link", "created_at",
                        "paid_at", "delivered_at")
     fields = readonly_fields
 
     def has_add_permission(self, request):
         return False
+
+    @admin.display(description="Institution", ordering="event__institution__name")
+    def institution(self, obj):
+        return obj.event.institution
 
     @admin.display(description="Amount", ordering="amount_paise")
     def rupees(self, obj):

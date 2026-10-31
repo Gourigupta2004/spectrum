@@ -317,6 +317,47 @@
     }, Promise.resolve());
   };
 
+  /* Ctrl+V with files copied in the file manager. Copied folders come with
+     their contents where the browser allows it, so they file into classes
+     like a drop. Loose photos pasted into a folder uploader have no folder
+     to name their class, so it is asked for once. */
+  Uploader.prototype.paste = function (data) {
+    var self = this;
+    var loose = Array.prototype.slice.call(data.files || []);
+    // Read now: the clipboard's items are only readable during the event.
+    var reading = filesFromDrop(data);
+    reading.then(function (files) {
+      var images = (files.length ? files : loose).filter(function (file) {
+        return (file.type && file.type.indexOf("image/") === 0) || IMAGE_EXT.test(file.name);
+      });
+      if (!images.length) {
+        self.note(loose.length
+          ? "The browser can't read a pasted folder. Drag the folder in, or use \u201cchoose a folder\u201d."
+          : "Nothing to paste: copy photos (or a folder of photos) first.");
+        return;
+      }
+      if (self.folderInput) {
+        var unfiled = images.filter(function (file) { return !folderOf(file); });
+        if (unfiled.length) {
+          var answer = window.prompt("Which class are these " + unfiled.length + " photo(s) for? e.g. 6C\n\n" +
+            "Leave it empty if each file name starts with its class, like 6C_Aarav.jpg.", "");
+          if (answer === null) return;  // cancelled
+          var name = answer.trim().replace(/[\/\\]+/g, " ");
+          if (name) unfiled.forEach(function (file) { file.relativePath = "/" + name + "/" + file.name; });
+        }
+      }
+      self.add(images);
+    });
+  };
+
+  /* A line under the drop zone, for something that isn't one file's error. */
+  Uploader.prototype.note = function (text) {
+    var li = document.createElement("li");
+    li.textContent = text;
+    this.errors.appendChild(li);
+    this.progress.hidden = false;
+  };
+
   Uploader.prototype.prepare = function (items) {
     var self = this;
     return postJSON(this.prepareUrl, {
@@ -628,11 +669,12 @@
       });
     });
 
+    // Pasted files go to the uploader last pointed at or clicked; text pastes are left alone.
     document.addEventListener("paste", function (event) {
-      var files = Array.prototype.slice.call((event.clipboardData && event.clipboardData.files) || []);
-      if (!files.length || !lastActive) return;
+      var data = event.clipboardData;
+      if (!data || !lastActive || Array.prototype.indexOf.call(data.types || [], "Files") === -1) return;
       event.preventDefault();
-      lastActive.add(files);
+      lastActive.paste(data);
     });
 
     window.addEventListener("beforeunload", function (event) {

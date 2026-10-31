@@ -234,6 +234,20 @@ class OrderHardeningTests(OrderTests):
         self.assertEqual(Delivery.objects.get(channel=Delivery.EMAIL).status, Delivery.SENT)
         self.assertEqual(Order.objects.get().status, Order.DELIVERED)
 
+    def test_order_list_shows_and_filters_by_institution(self):
+        db_order = self.pay_with_sends_failing(phone="98765 43210")
+        items = list(db_order.items.values_list("pk", "photo_id", "video_id", "unit_price_paise"))
+        page = self.client.get("/admin/orders/order/").content.decode()
+        self.assertIn('class="sortable column-institution"', page, "column header")
+        self.assertIn(f'<td class="field-institution">{self.institution.name}</td>', page)
+        filtered = self.client.get(f"/admin/orders/order/?event__institution__id__exact={self.other.pk}")
+        self.assertNotIn(db_order.public_id, filtered.content.decode())
+        self.assertIn(db_order.public_id, self.client.get(
+            f"/admin/orders/order/?q={self.institution.name.split()[0]}").content.decode())
+        self.assertContains(self.client.get(f"/admin/orders/order/{db_order.pk}/change/"), self.institution.name)
+        self.assertEqual(list(db_order.items.values_list("pk", "photo_id", "video_id", "unit_price_paise")), items,
+                         "the order's items are untouched")
+
     def test_mark_delivered_closes_the_order_and_its_failed_sends(self):
         db_order = self.pay_with_sends_failing(phone="98765 43210")
         self.assertEqual(self.by_hand("mark_delivered", db_order).status_code, 302)
