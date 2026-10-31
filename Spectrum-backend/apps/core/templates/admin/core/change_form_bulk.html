@@ -67,7 +67,8 @@
           {% endif %}
           {% if bulk_delete_all_url %}
             <button type="button" class="button" id="bulk-delete-all" style="background:#ba2121;color:#fff"
-                    data-url="{{ bulk_delete_all_url }}" data-count="{{ bulk_delete_all_count }}">
+                    data-url="{{ bulk_delete_all_url }}" data-count="{{ bulk_delete_all_count }}"
+                    data-prefix="{{ bulk_delete_prefix }}">
               Delete all class photographs ({{ bulk_delete_all_count }})
             </button>
           {% endif %}
@@ -109,20 +110,52 @@
   </script>
   {% if bulk_delete_all_url %}
     <script>
-      document.getElementById("bulk-delete-all").addEventListener("click", function () {
-        var count = this.dataset.count;
-        if (!confirm("Delete all " + count + " class photograph(s) in this workspace? Their titles and statuses are deleted with them. Individual photographs are not affected. This cannot be undone.")) return;
-        var form = document.createElement("form");
-        form.method = "post";
-        form.action = this.dataset.url;
-        var token = document.createElement("input");
-        token.type = "hidden";
-        token.name = "csrfmiddlewaretoken";
-        token.value = document.querySelector("input[name=csrfmiddlewaretoken]").value;
-        form.appendChild(token);
-        document.body.appendChild(form);
-        form.submit();
-      });
+      /* With rows ticked in the table's Delete? column the button deletes just
+         those, straight away; with none ticked it clears the whole workspace. */
+      (function () {
+        var button = document.getElementById("bulk-delete-all");
+        var boxes = 'input[name^="' + button.dataset.prefix + '-"][name$="-DELETE"]';
+
+        function ticked() {
+          return Array.prototype.map.call(document.querySelectorAll(boxes + ":checked"), function (box) {
+            var id = document.querySelector('input[name="' + box.name.replace(/-DELETE$/, "-id") + '"]');
+            return id && id.value;
+          }).filter(Boolean);
+        }
+
+        function label() {
+          var ids = ticked();
+          button.textContent = ids.length
+            ? "Delete selected class photographs (" + ids.length + ")"
+            : "Delete all class photographs (" + button.dataset.count + ")";
+        }
+
+        // Also catches the header's tick-all box, whose handler runs first.
+        document.addEventListener("change", label);
+        label();
+
+        button.addEventListener("click", function () {
+          var ids = ticked();
+          var question = ids.length
+            ? "Delete the " + ids.length + " selected class photograph(s)? Their titles and statuses are deleted with them. This cannot be undone."
+            : "Delete all " + button.dataset.count + " class photograph(s) in this workspace? Their titles and statuses are deleted with them. Individual photographs are not affected. This cannot be undone.";
+          if (!confirm(question)) return;
+          var form = document.createElement("form");
+          form.method = "post";
+          form.action = button.dataset.url;
+          function field(name, value) {
+            var input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+          }
+          field("csrfmiddlewaretoken", document.querySelector("input[name=csrfmiddlewaretoken]").value);
+          ids.forEach(function (id) { field("ids", id); });
+          document.body.appendChild(form);
+          form.submit();
+        });
+      })();
     </script>
   {% endif %}
 {% endblock %}

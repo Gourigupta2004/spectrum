@@ -155,12 +155,13 @@ class StudentAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
 
 class CaptionItemForm(forms.ModelForm):
     """
-    Re-tagging an item sends it back to the institution in that state: change
-    "Requested" from For Title to For Approval once the title is written and
-    the teacher sees it under Pending again. Clearing the title of a submitted
-    item reopens it the same way — it was uploaded For Title, so picking that
-    tag again isn't a change by itself — and the teacher can write it afresh.
-    Approved items stay approved.
+    Re-tagging an item sends it back to the institution in that state, even
+    an approved one: change "Requested" from For Title to For Approval once
+    the edited photo carries the title, and the teacher sees it under Pending
+    again — with the title box emptied, as the photo itself now shows it.
+    Clearing the title of a submitted item reopens it the same way — it was
+    uploaded For Title, so picking that tag again isn't a change by itself —
+    and the teacher can write it afresh.
     """
 
     class Meta:
@@ -172,12 +173,13 @@ class CaptionItemForm(forms.ModelForm):
         retagged = "requested" in self.changed_data
         cleared = ("caption" in self.changed_data and not item.caption.strip()
                    and item.status == CaptionStatus.CORRECTED)
-        if (retagged or cleared) and item.status != CaptionStatus.APPROVED:
+        if retagged or cleared:
             item.status = item.requested
             item.updated_at = timezone.now()
-            if item.status in (CaptionStatus.NEEDS_CAPTION, CaptionStatus.NEEDS_APPROVAL):
-                # Back with the institution: the previous teacher's details no longer apply.
-                item.action_by = item.action_by_phone = ""
+            # Back with the institution: the previous teacher's details no longer apply.
+            item.action_by = item.action_by_phone = ""
+            if item.status == CaptionStatus.NEEDS_APPROVAL and "caption" not in self.changed_data:
+                item.caption = ""  # unless a new title was typed in the same save
         if commit:
             item.save()
             self.save_m2m()
@@ -310,8 +312,14 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
         if not request.user.has_perm("portal.delete_captionitem"):
             raise PermissionDenied
         workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
-        count, _ = workspace.items.all().delete()  # signals queue the S3 cleanup
-        messages.success(request, f"Deleted {count} class photograph(s) from {workspace}.")
+        items = workspace.items.all()
+        # Rows ticked in the table's Delete? column narrow it to just those.
+        ids = [int(pk) for pk in request.POST.getlist("ids") if pk.isdigit()]
+        if ids:
+            items = items.filter(pk__in=ids)
+        count, _ = items.delete()  # signals queue the S3 cleanup
+        which = "selected " if ids else ""
+        messages.success(request, f"Deleted {count} {which}class photograph(s) from {workspace}.")
         return redirect("admin:portal_captionworkspace_change", workspace.pk)
 
     def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
@@ -327,6 +335,7 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
                 context["bulk_delete_all_url"] = reverse("admin:portal_captionworkspace_delete_photos",
                                                          args=[obj.pk])
                 context["bulk_delete_all_count"] = count
+                context["bulk_delete_prefix"] = "items"  # the inline formset's prefix (CaptionItem related_name)
         return super().render_change_form(request, context, add, change, form_url, obj)
 
     def get_queryset(self, request):

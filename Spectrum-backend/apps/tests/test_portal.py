@@ -475,10 +475,51 @@ class CaptionWorkspaceTests(SpectrumTestCase):
             "items-0-moment_title": item.moment_title, "items-0-caption": item.caption,
             "items-0-requested": "needs-approval",
         }
+        CaptionItem.objects.filter(pk=item.pk).update(status="corrected", action_by="R. Menon",
+                                                      action_by_phone="9876543210")
         response = self.client.post(url, form)
         self.assertEqual(response.status_code, 302, response.content[:500])
         item.refresh_from_db()
         self.assertEqual((item.status, item.requested), ("needs-approval", "needs-approval"))
+        # The edited photo now carries the title, so the box and the teacher's details are emptied.
+        self.assertEqual((item.caption, item.action_by, item.action_by_phone), ("", "", ""))
+
+    def caption_form(self, item, **fields):
+        return {
+            "notes": "", "_save": "1",
+            "items-TOTAL_FORMS": "1", "items-INITIAL_FORMS": "1", "items-MIN_NUM_FORMS": "0", "items-MAX_NUM_FORMS": "1000",
+            "items-0-id": str(item.pk), "items-0-workspace": str(self.workspace.pk),
+            "items-0-moment_title": item.moment_title, "items-0-caption": item.caption,
+            "items-0-requested": item.requested, **{f"items-0-{k}": v for k, v in fields.items()},
+        }
+
+    def test_a_title_typed_while_retagging_for_approval_is_kept(self):
+        item = self.upload()
+        url = f"/admin/portal/captionworkspace/{self.workspace.pk}/change/"
+        self.client.post(url, self.caption_form(item, caption="New wording", requested="needs-approval"))
+        item.refresh_from_db()
+        self.assertEqual((item.status, item.caption), ("needs-approval", "New wording"))
+
+    def test_retagging_an_approved_item_for_title_unlocks_it(self):
+        item = self.upload()
+        CaptionItem.objects.filter(pk=item.pk).update(
+            caption="Lamp lighting", requested="needs-approval", status="approved", action_by="A. Kapoor",
+            action_by_phone="9876543210")
+        item.refresh_from_db()
+        url = f"/admin/portal/captionworkspace/{self.workspace.pk}/change/"
+        self.client.post(url, self.caption_form(item, caption=""))  # clearing alone: still approved
+        item.refresh_from_db()
+        self.assertEqual((item.status, item.caption), ("approved", ""))
+        self.client.post(url, self.caption_form(item, requested="needs-caption"))
+        item.refresh_from_db()
+        self.assertEqual((item.status, item.requested, item.action_by), ("needs-caption", "needs-caption", ""))
+        # The website no longer shows it locked: the teacher can title it again.
+        give_portal_login(self.institution, "dps-newdelhi", "demo")
+        token = self.post("/api/portal/login/", {"username": "dps-newdelhi", "password": "demo"}).json()["access"]
+        again = self.client.post(f"/api/portal/captions/{item.pk}/resolve/", json.dumps(
+            {"text": "Chief guest lights the lamp", "actionBy": "S. Rao", "actionByPhone": "9876500000"}),
+            content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {token}")
+        self.assertEqual(again.json()["status"], "corrected")
 
 
 class PortalAdminTests(SpectrumTestCase):

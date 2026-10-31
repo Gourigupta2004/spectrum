@@ -268,6 +268,25 @@ class BulkUploadTests(SpectrumTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(CaptionItem.objects.filter(workspace=workspace).count(), 0)
 
+    def test_delete_button_deletes_only_the_ticked_rows(self):
+        from apps.portal.models import CaptionItem, CaptionWorkspace
+
+        workspace = CaptionWorkspace.objects.create(institution=self.institution)
+        for name in ("6A KRM 2683 M.jpg", "6B KRM 2697 M.jpg", "6C KRM 2701 M.jpg"):
+            self.upload_to_workspace(workspace, name)
+        other = CaptionWorkspace.objects.create(institution=self.other)
+        self.upload_to_workspace(other, "7A KRM 1 M.jpg")
+        html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
+        self.assertIn('data-prefix="items"', html)
+        self.assertIn('name="items-0-DELETE"', html, "the ticks the button reads")
+        first, second, third = CaptionItem.objects.filter(workspace=workspace).order_by("pk")
+        stranger = CaptionItem.objects.get(workspace=other)
+        url = f"/admin/portal/captionworkspace/{workspace.pk}/delete-photos/"
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(url, {"ids": [first.pk, third.pk, stranger.pk]})
+        self.assertEqual(list(CaptionItem.objects.filter(workspace=workspace)), [second])
+        self.assertTrue(CaptionItem.objects.filter(pk=stranger.pk).exists(), "only this workspace's rows")
+
     def test_delete_selected_event_photos_from_the_grid(self):
         from apps.portal.models import CaptionWorkspace
 
