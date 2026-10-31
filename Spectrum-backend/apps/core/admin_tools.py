@@ -66,18 +66,6 @@ class AppendOrderMixin:
         return initial
 
 
-class CompactDeleteMixin:
-    """The delete confirmation lists only the rows being deleted, not every
-    photo and video under them. Django's Summary line still counts what goes
-    with them ("All photos: 230"), and anything protected from deletion is
-    still listed, since that blocks the delete."""
-
-    def get_deleted_objects(self, objs, request):
-        deleted, model_count, perms_needed, protected = super().get_deleted_objects(objs, request)
-        # The nested lists under each row are its related objects.
-        return [item for item in deleted if not isinstance(item, list)], model_count, perms_needed, protected
-
-
 class ImagePreviewMixin:
     """Adds a `thumbnail` list column, a thumbnail upload widget, and a Reprocess action."""
 

@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.db.models import Count, F, Q
 
-from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, CompactDeleteMixin, ImagePreviewMixin
+from apps.core.admin_tools import AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin
 from apps.core.models import ImageStatus
 
 from apps.portal.forms import AccessEmailForm, password_status
@@ -94,7 +94,7 @@ class EventVideoInline(ImagePreviewMixin, admin.TabularInline):
 
 
 @admin.register(Event)
-class EventAdmin(CompactDeleteMixin, AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
+class EventAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, admin.ModelAdmin):
     bulk_upload_targets = ("catalog.eventphoto",)
     inlines = (EventVideoInline,)
     list_display = ("thumbnail", "name", "institution", "date", "gallery_count", "video_count", "price_per_photo",

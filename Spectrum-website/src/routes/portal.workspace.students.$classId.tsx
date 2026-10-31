@@ -255,7 +255,7 @@ function WindowBanner({ left, until }: { left: number; until: string }) {
   return (
     <div
       role="status"
-      className="mt-4 flex max-w-4xl flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-5 py-4"
+      className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-5 py-4"
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />

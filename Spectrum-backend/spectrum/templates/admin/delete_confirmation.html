@@ -1,0 +1,20 @@
+{% extends "admin/delete_confirmation.html" %}
+{% load i18n %}
+{% comment %}
+  Django's page, with only the counts of what goes with this object
+  ("Students: 52") instead of a line for every related object.
+{% endcomment %}
+
+{% block delete_confirm %}
+    <p>{% blocktranslate with escaped_object=object %}Are you sure you want to delete the {{ object_name }} "{{ escaped_object }}"? All of the following related items will be deleted:{% endblocktranslate %}</p>
+    {% include "admin/includes/object_delete_summary.html" %}
+    <form method="post">{% csrf_token %}
+    <div>
+    <input type="hidden" name="post" value="yes">
+    {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+    {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+    <input type="submit" value="{% translate 'Yes, I’m sure' %}">
+    <a href="#" class="button cancel-link">{% translate "No, take me back" %}</a>
+    </div>
+    </form>
+{% endblock %}

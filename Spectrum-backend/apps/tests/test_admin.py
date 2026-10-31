@@ -36,6 +36,34 @@ class AdminSmokeTests(SpectrumTestCase):
             self.assertIn(group, index)
 
 
+class DeleteConfirmationTests(SpectrumTestCase):
+    """Delete pages list what goes as counts, never a line per object."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+
+    def test_bulk_and_single_deletes_show_only_counts(self):
+        from apps.portal.models import SchoolClass, Student
+
+        cls = SchoolClass.objects.create(institution=self.institution, name="6C")
+        students = [Student.objects.create(school_class=cls, source_name=f"{i}.jpg") for i in range(3)]
+        page = self.client.post("/admin/portal/student/", {
+            "action": "delete_selected", "_selected_action": [s.pk for s in students]}).content.decode()
+        self.assertIn("Students: 3", page)
+        self.assertNotIn(f"Student {students[0].pk}<", page, "no line per object")
+        self.assertIn('name="post" value="yes"', page)
+        self.client.post("/admin/portal/student/", {
+            "action": "delete_selected", "_selected_action": [s.pk for s in students], "post": "yes"})
+        self.assertFalse(Student.objects.filter(school_class=cls).exists(), "Yes, I'm sure still deletes")
+
+        Student.objects.create(school_class=cls, source_name="x.jpg")
+        page = self.client.get(f"/admin/portal/schoolclass/{cls.pk}/delete/").content.decode()
+        self.assertIn("Students: 1", page)
+        self.assertNotIn('id="deleted-objects"', page)
+
+
 class ActiveFilterChipTests(SpectrumTestCase):
     """Every changelist shows what it is filtered by, beside the search bar."""
 
@@ -127,7 +155,8 @@ class EventDeleteConfirmationTests(SpectrumTestCase):
         bulk = self.client.post("/admin/catalog/event/", {"action": "delete_selected",
                                                           "_selected_action": [self.event.pk, self.other_event.pk]})
         html = bulk.content.decode()
-        self.assertIn("Founder", html)
+        self.assertIn("Events: 2", html, "counts only (spectrum/templates/admin/delete_*)")
+        self.assertNotIn("Founder", html)
         self.assertNotIn("Photo 1", html)
 
 
