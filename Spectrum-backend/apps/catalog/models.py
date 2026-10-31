@@ -2,7 +2,8 @@ import os
 import uuid
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
+from django.utils.text import slugify
 
 from apps.core.models import ProcessedImage
 from spectrum.storages import private_storage, public_storage
@@ -75,7 +76,10 @@ class Institution(ProcessedImage):
 class Event(ProcessedImage):
     VARIANTS = {"web": 1000, "thumb": 400}
 
-    slug = models.SlugField(unique=True, max_length=120)
+    slug = models.SlugField(
+        unique=True, max_length=120, blank=True,
+        help_text="The event's link, spectrumphotographics.in/events/<slug>. Leave blank to make it from the name "
+                  "and the event's number, e.g. prize-distribution-42, so events with the same name never clash.")
     name = models.CharField(max_length=160)
     institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name="events")
     date = models.DateField(null=True, blank=True)
@@ -103,6 +107,22 @@ class Event(ProcessedImage):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.slug:
+            return super().save(*args, **kwargs)
+        # The number isn't known until the row exists: save under a placeholder,
+        # then settle on "<name>-<id>". Slugs already set are never touched.
+        with transaction.atomic():
+            self.slug = f"new-{uuid.uuid4().hex}"
+            super().save(*args, **kwargs)
+            base = slugify(self.name)[:100].strip("-") or "event"
+            slug, n = f"{base}-{self.pk}", 1
+            while Event.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                n += 1
+                slug = f"{base}-{self.pk}-{n}"
+            self.slug = slug
+            Event.objects.filter(pk=self.pk).update(slug=slug)
 
     @property
     def display_date(self) -> str:

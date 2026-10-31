@@ -229,3 +229,51 @@ class VideoUploadTests(SpectrumTestCase):
         housekeeping()
         self.assertFalse(private_storage().exists(dropped))
         self.assertTrue(private_storage().exists(self.event.videos.get().video.name))
+
+
+class EventSlugTests(SpectrumTestCase):
+    """Events with the same name at different schools get different links."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+
+    def add(self, **extra):
+        data = {"name": "Prize Distribution", "slug": "", "institution": self.institution.pk,
+                "price_per_photo": 29, "price_per_video": 199, "bundle_price": 299, "is_published": "on",
+                "sort_order": 0, "videos-TOTAL_FORMS": 0, "videos-INITIAL_FORMS": 0, "videos-MIN_NUM_FORMS": 0,
+                "videos-MAX_NUM_FORMS": 1000, **extra}
+        response = self.client.post(reverse("admin:catalog_event_add"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode()[:3000])
+        from apps.catalog.models import Event
+
+        return Event.objects.latest("pk")
+
+    def test_blank_slug_becomes_name_and_number_so_same_names_never_clash(self):
+        first = self.add()
+        second = self.add(institution=self.other.pk)
+        self.assertEqual(first.slug, f"prize-distribution-{first.pk}")
+        self.assertEqual(second.slug, f"prize-distribution-{second.pk}")
+        self.assertEqual(self.client.get(f"/api/events/{second.slug}/").status_code, 200)
+
+    def test_existing_and_typed_slugs_are_kept(self):
+        self.event.name = "Annual Day 2026"
+        self.event.save()
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.slug, "annual-day", "old links keep working")
+        typed = self.add(slug="dps-prize-day")
+        self.assertEqual(typed.slug, "dps-prize-day")
+
+    def test_a_number_slug_someone_already_took_is_stepped_past(self):
+        from apps.catalog.models import Event
+
+        taken = Event.objects.latest("pk").pk + 1
+        Event.objects.create(slug=f"prize-distribution-{taken}", name="Old", institution=self.other)
+        event = Event.objects.create(name="Prize Distribution", institution=self.institution)
+        self.assertNotEqual(event.slug, f"prize-distribution-{taken}")
+        self.assertTrue(event.slug.startswith(f"prize-distribution-{event.pk}"))
+
+    def test_add_page_no_longer_prefills_the_slug(self):
+        html = self.client.get(reverse("admin:catalog_event_add")).content.decode()
+        self.assertIn('data-prepopulated-fields="[]"', html)

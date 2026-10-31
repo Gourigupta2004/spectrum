@@ -104,7 +104,8 @@ class EventAdmin(CompactDeleteMixin, AppendOrderMixin, BulkUploadMixin, ImagePre
     list_filter = ("is_published", "not_for_sale", "institution", "is_recent", "is_popular")
     list_select_related = ("institution",)
     search_fields = ("name", "slug", "institution__name")
-    prepopulated_fields = {"slug": ("name",)}
+    # No prepopulated slug: a blank one becomes "<name>-<id>" on save, so two
+    # schools can each have a "Prize Distribution".
     autocomplete_fields = ("institution",)
     date_hierarchy = "date"
     actions = ["reprocess_images"]
