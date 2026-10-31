@@ -1,5 +1,5 @@
 """
-Everything on the public site except the footer.
+Everything on the public site: page copy, the navbar and the footer.
 
 Text fields default to the copy the site shipped with, so a fresh database already
 renders the current site. Wrap a word in [brackets] to paint it with the Spectrum
@@ -73,6 +73,20 @@ class SiteSettings(SingletonModel):
     nav_about = line("About Us", 40)
     nav_contact = line("Contact", 40)
     nav_portal = line("Institution Portal", 40, help_text="Navbar link to the institution portal.")
+
+    # Footer. Its quick links reuse the navigation labels above.
+    footer_tagline = line("Imagination That Works", 120, help_text="Under the logo.")
+    footer_description = para("Premium photography and videography for institutions across India.")
+    footer_links_heading = line("Quick Links", 60)
+    footer_contact_heading = line("Contact", 60)
+    footer_email = models.EmailField("email", blank=True, default="spectrum.support2026@gmail.com",
+                                     help_text="Blank hides it.")
+    footer_phone = line("", 40, help_text="Blank hides it.")
+    footer_instagram_url = models.URLField("Instagram link", blank=True, default="", help_text="Blank hides the icon.")
+    footer_youtube_url = models.URLField("YouTube link", blank=True, default="", help_text="Blank hides the icon.")
+    footer_facebook_url = models.URLField("Facebook link", blank=True, default="", help_text="Blank hides the icon.")
+    footer_copyright = line("© {year} Spectrum. All rights reserved.",
+                            help_text="{year} becomes the current year.")
 
     seo_title = line("Spectrum — Every Moment, Yours Forever")
     seo_description = para("Spectrum captures school and college events across India.")

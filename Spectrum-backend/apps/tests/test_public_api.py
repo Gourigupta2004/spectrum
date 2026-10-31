@@ -35,6 +35,22 @@ class PublicApiTests(SpectrumTestCase):
         self.assertEqual(institutions["dps"]["eventCount"], 1)
         self.assertEqual(institutions["dps"]["firstEventSlug"], "annual-day")
 
+    def test_footer_comes_from_site_settings(self):
+        from apps.content.models import SiteSettings
+
+        copy = self.client.get("/api/site/").json()["copy"]
+        self.assertEqual(copy["footerTagline"], "Imagination That Works")
+        self.assertEqual(copy["footerEmail"], "spectrum.support2026@gmail.com")
+        self.assertEqual(copy["footerCopyright"], "© {year} Spectrum. All rights reserved.")
+        self.assertEqual(copy["footerInstagramUrl"], "")
+        site = SiteSettings.load()
+        site.footer_instagram_url = "https://instagram.com/spectrum"
+        site.footer_phone = "+91 98765 43210"
+        site.save()
+        copy = self.client.get("/api/site/").json()["copy"]
+        self.assertEqual(copy["footerInstagramUrl"], "https://instagram.com/spectrum")
+        self.assertEqual(copy["footerPhone"], "+91 98765 43210")
+
     def test_cors_header(self):
         response = self.client.get("/api/site/", HTTP_ORIGIN="http://localhost:8080")
         self.assertEqual(response["Access-Control-Allow-Origin"], "http://localhost:8080")
