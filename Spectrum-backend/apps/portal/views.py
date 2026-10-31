@@ -262,14 +262,13 @@ def caption_resolve(request, item_id):
 def classes(request):
     member = require_member(request)
     institution = acting_institution(member, request)
+    SchoolClass.lock_all_due()
     rows = (  # school order: Nursery, LKG, UKG, 1A … 12C (SchoolClass.sort_key)
         SchoolClass.objects.filter(institution=institution)
         .annotate(size=Count("students"), named=Count("students", filter=~Q(students__name="")))
-        .values_list("slug", "name", "group", "size", "named", "submitted_at")
     )
-    items = [{"id": slug, "name": name, "group": group, "size": size, "namedCount": named,
-              "submitted": submitted_at is not None}
-             for slug, name, group, size, named, submitted_at in rows]
+    items = [{"id": cls.slug, "name": cls.name, "group": cls.group, "size": cls.size, "namedCount": cls.named,
+              **submission_dict(cls)} for cls in rows]
     return {
         "classes": items,
         "totals": {"students": sum(i["size"] for i in items), "named": sum(i["namedCount"] for i in items)},
@@ -285,25 +284,29 @@ def scoped_class(member, request, slug) -> SchoolClass:
 
 
 def editable_class(member, request, slug) -> SchoolClass:
-    """The class, if it can still be changed: a submitted class is locked."""
+    """The class, if it can still be changed: once its window has run out
+    (or the team's lock is on) it is locked."""
     cls = scoped_class(member, request, slug)
+    cls.lock_if_due()
     if cls.submitted_at:
         raise ApiError("This class has been submitted and is locked. Please contact Spectrum to change it.",
                        status=409)
     return cls
 
 
-def student_dict(pk, name, web, width, height, absentee) -> dict:
+def student_dict(pk, name, web, width, height, absentee, submitted_at=None) -> dict:
     return {"id": str(pk), "name": name, "photo": storage_url(web), "width": width, "height": height,
-            "absentee": absentee}
+            "absentee": absentee, "locked": submitted_at is not None}
 
 
 @api()
 def class_detail(request, slug):
     member = require_member(request)
     cls = scoped_class(member, request, slug)
+    cls.lock_if_due()
     # File-name order (numbers numeric), the same order the admin shows; absentees last.
-    rows = Student.objects.filter(school_class=cls).values_list("pk", "name", "web", "width", "height", "is_absentee")
+    rows = Student.objects.filter(school_class=cls).values_list("pk", "name", "web", "width", "height", "is_absentee",
+                                                                "submitted_at")
     students = [student_dict(*row) for row in rows]
     return {
         "class": {"id": cls.slug, "name": cls.name, "group": cls.group, "size": len(students),
@@ -314,17 +317,42 @@ def class_detail(request, slug):
 
 
 def submission_dict(cls) -> dict:
-    return {"submittedAt": date_label(cls.submitted_at) if cls.submitted_at else ""}
+    """
+    Where the class stands: not yet submitted; open, with the time left to
+    finish it (`secondsLeft`, counted on the server so a wrong clock on the
+    teacher's device doesn't matter); or locked (`submittedAt`).
+    """
+    deadline = cls.deadline
+    locked = cls.submitted_at is not None or (deadline is not None and timezone.now() >= deadline)
+    left = None if locked or deadline is None else max(0, int((deadline - timezone.now()).total_seconds()))
+    local = timezone.localtime(deadline) if deadline else None
+    return {
+        "submitted": cls.first_submitted_at is not None or locked,
+        "locked": locked,
+        "submittedAt": date_label(cls.submitted_at or deadline) if locked else "",
+        "secondsLeft": left,
+        "deadlineLabel": f"{date_label(deadline)}, {f'{local:%I:%M %p}'.lstrip('0')}" if local else "",
+        "editHours": settings.CLASS_EDIT_HOURS,
+    }
 
 
 @api(methods=("POST",))
 def class_submit(request, slug):
-    """The teacher's Submit, after Review: records when and locks the class."""
+    """
+    The teacher's Submit, after Review: every photo named so far locks, and
+    the first Submit starts the clock — CLASS_EDIT_HOURS to name the rest, add
+    absentees and comment, after which the whole class locks by itself.
+    """
     member = require_member(request)
     cls = editable_class(member, request, slug)
-    cls.submitted_at = timezone.now()
-    cls.save(update_fields=["submitted_at"])
-    return submission_dict(cls)
+    now = timezone.now()
+    with transaction.atomic():
+        if cls.first_submitted_at is None:
+            cls.first_submitted_at = now
+            cls.save(update_fields=["first_submitted_at"])
+        Student.objects.filter(school_class=cls, submitted_at=None).exclude(name="").update(submitted_at=now)
+    locked = Student.objects.filter(school_class=cls).exclude(submitted_at=None).values_list("pk", flat=True)
+    return {**submission_dict(cls), "lockedIds": [str(pk) for pk in locked]}
 
 
 MAX_ABSENTEE_FILES = 20
@@ -377,7 +405,8 @@ def class_names(request, slug):
         raise ApiError("Expected names")
     wanted = {int(k): str(v or "").strip()[:120] for k, v in list(names.items())[:1000] if str(k).isdigit()}
     changed = []
-    for student in Student.objects.filter(school_class=cls, pk__in=wanted).only("pk", "name"):
+    # A submitted name is locked: changes to it are ignored.
+    for student in Student.objects.filter(school_class=cls, pk__in=wanted, submitted_at=None).only("pk", "name"):
         if student.name != wanted[student.pk]:
             student.name = wanted[student.pk]
             changed.append(student)

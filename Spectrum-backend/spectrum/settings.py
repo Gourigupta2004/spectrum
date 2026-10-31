@@ -200,6 +200,8 @@ TASKS_EAGER = env_bool("TASKS_EAGER", DEBUG)
 # Portal tokens (signed with SECRET_KEY, no extra dependency).
 PORTAL_ACCESS_TTL = env_int("PORTAL_ACCESS_TTL", 30 * 60)
 PORTAL_REFRESH_TTL = env_int("PORTAL_REFRESH_TTL", 14 * 24 * 3600)
+# Hours a class stays open after the teacher's first Submit; then it locks by itself.
+CLASS_EDIT_HOURS = env_int("CLASS_EDIT_HOURS", 48)
 
 # Payments and delivery.
 RAZORPAY_KEY_ID = env("RAZORPAY_KEY_ID")

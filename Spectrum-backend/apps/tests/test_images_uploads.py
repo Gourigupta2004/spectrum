@@ -476,7 +476,7 @@ class BulkUploadTests(SpectrumTestCase):
         section = html[html.index('data-target="portal.workspacestudent"'):]
         titles = [section.index(f'<h3 class="bulk-group-title">{name} ') for name in ("LKG", "2B", "10A")]
         self.assertEqual(titles, sorted(titles), "classes in school order")
-        self.assertIn('<option value="all">All classes</option>', section)
+        self.assertIn('<option value="all" data-total="4">All classes</option>', section)
         download = f"/admin/portal/captionworkspace/{workspace.pk}/download-students/"
         self.assertIn(f'href="{download}?class=all"', section)
 
@@ -500,7 +500,7 @@ class BulkUploadTests(SpectrumTestCase):
         workspace = CaptionWorkspace.for_institution(self.institution.pk)
         url = f"/admin/portal/captionworkspace/{workspace.pk}/delete-class/"
         html = self.client.get(f"/admin/portal/captionworkspace/{workspace.pk}/change/").content.decode()
-        self.assertIn(f'class="button bulk-delete-group" data-url="{url}" disabled', html)
+        self.assertIn(f'class="button bulk-delete-group" data-url="{url}"\n', html)
         two_b = SchoolClass.objects.get(institution=self.institution, name="2B")
         other = SchoolClass.objects.create(institution=self.other, name="2B")
         self.assertEqual(self.client.get(url).status_code, 405)  # POST only
@@ -512,6 +512,13 @@ class BulkUploadTests(SpectrumTestCase):
         self.assertFalse(SchoolClass.objects.filter(pk=two_b.pk).exists())
         self.assertEqual(list(Student.objects.filter(school_class__institution=self.institution)
                               .values_list("school_class__name", flat=True)), ["LKG"])
+        # "All classes" deletes every class of this institution, and only this one's.
+        self.workspace_students(["6C/x.jpg"])
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(url, {"group": "all"})
+        self.assertFalse(SchoolClass.objects.filter(institution=self.institution).exists())
+        self.assertFalse(Student.objects.filter(school_class__institution=self.institution).exists())
+        self.assertTrue(SchoolClass.objects.filter(pk=other.pk).exists())
 
     def test_classes_and_students_come_in_order_on_the_portal(self):
         from apps.portal.models import SchoolClass, class_sort_key

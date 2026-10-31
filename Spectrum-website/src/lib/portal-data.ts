@@ -16,6 +16,7 @@ import { authStore, portalFetch } from "./portal-session";
 import { captionStore, createStore, namesStore, useStore } from "./portal-store";
 import {
   classes as demoClasses,
+  DEFAULT_EDIT_HOURS,
   findClass,
   studentsOf,
   totalStudents,
@@ -276,6 +277,32 @@ export function useWorkspaceSummary(): { pending: number; named: number; total: 
 
 /* ------------------------------------------------------------------ classes & students */
 
+/**
+ * The server counts the time left (`secondsLeft`), so a wrong clock on the
+ * teacher's device can't stretch or shorten it; this pins it to this device's
+ * clock as the data arrives, for the countdown to tick from.
+ */
+function withDeadline<T extends SchoolClass>(cls: T): T {
+  return cls.secondsLeft == null
+    ? { ...cls, deadlineAt: undefined }
+    : { ...cls, deadlineAt: Date.now() + cls.secondsLeft * 1000 };
+}
+
+/** Demo mode only: a class's window, as the server would report it. */
+function demoState(cls: SchoolClass, window: DemoWindow | undefined): SchoolClass {
+  if (!window) return { ...cls, editHours: DEFAULT_EDIT_HOURS };
+  const locked = Date.now() >= window.deadlineAt;
+  return {
+    ...cls,
+    submitted: true,
+    locked,
+    submittedAt: locked ? new Date(window.deadlineAt).toDateString() : "",
+    deadlineAt: locked ? undefined : window.deadlineAt,
+    deadlineLabel: new Date(window.deadlineAt).toLocaleString(),
+    editHours: DEFAULT_EDIT_HOURS,
+  };
+}
+
 export function useClassList(): { classes: ClassSummary[]; loading: boolean; error: string } {
   const names = useStore(namesStore);
   const query = useQuery({
@@ -283,20 +310,19 @@ export function useClassList(): { classes: ClassSummary[]; loading: boolean; err
     queryFn: () =>
       portalFetch<{ classes: (SchoolClass & { namedCount: number })[] }>(
         "/api/portal/classes/",
-      ).then((r) => r.classes.map((c) => ({ ...c, named: c.namedCount }))),
+      ).then((r) => r.classes.map((c) => withDeadline({ ...c, named: c.namedCount }))),
     enabled: hasApi && signedIn(),
   });
-  const submissions = useStore(demoSubmissions);
+  const windows = useStore(demoWindows);
   const demo = useMemo(
     () =>
       demoClasses.map((c) => ({
-        ...c,
-        submitted: Boolean(submissions[c.id]),
+        ...demoState(c, windows[c.id]),
         named: Object.entries(names).filter(
           ([k, v]) => k.startsWith(`${c.id}-`) && v.trim().length > 0,
         ).length,
       })),
-    [names, submissions],
+    [names, windows],
   );
   if (!hasApi) return { classes: demo, loading: false, error: "" };
   return {
@@ -306,31 +332,53 @@ export function useClassList(): { classes: ClassSummary[]; loading: boolean; err
   };
 }
 
-type Roster = { cls: SchoolClass | undefined; students: Student[]; loading: boolean };
+type Roster = {
+  cls: SchoolClass | undefined;
+  students: Student[];
+  loading: boolean;
+  /** Fetch the class again, e.g. when its countdown reaches zero. */
+  refresh: () => void;
+};
 
 export function useRoster(classId: string): Roster {
+  const client = useQueryClient();
   const query = useQuery({
     queryKey: keys.roster(classId),
     queryFn: () =>
       portalFetch<{ class: SchoolClass; students: Student[] }>(
         `/api/portal/classes/${encodeURIComponent(classId)}/`,
-      ),
+      ).then((data) => ({ ...data, class: withDeadline(data.class) })),
     enabled: hasApi && signedIn(),
     retry: (count, error) =>
       !(error instanceof Error && /not found/i.test(error.message)) && count < 2,
     staleTime: Infinity, // names are kept locally while the page is open
   });
   const demoAdded = useStore(demoAbsentees)[classId];
-  const demoCls = useMemo(() => (hasApi ? undefined : findClass(classId)), [classId]);
-  const demoStudents = useMemo(
-    () => (demoCls ? [...studentsOf(demoCls.id), ...(demoAdded ?? [])] : []),
-    [demoCls, demoAdded],
-  );
-  if (!hasApi) return { cls: demoCls, students: demoStudents, loading: false };
+  const demoWindow = useStore(demoWindows)[classId];
+  const [demoTick, setDemoTick] = useState(0);
+  const demoCls = useMemo(() => {
+    const cls = hasApi ? undefined : findClass(classId);
+    return cls && demoState(cls, demoWindow);
+    // demoTick: re-read the clock when the countdown runs out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId, demoWindow, demoTick]);
+  const demoStudents = useMemo(() => {
+    if (!demoCls) return [];
+    const locked = new Set(demoWindow?.locked ?? []);
+    return [...studentsOf(demoCls.id), ...(demoAdded ?? [])].map((s) =>
+      locked.has(s.id) ? { ...s, locked: true } : s,
+    );
+  }, [demoCls, demoAdded, demoWindow]);
+  const refresh = useCallback(() => {
+    if (hasApi) void client.invalidateQueries({ queryKey: keys.roster(classId) });
+    else setDemoTick((n) => n + 1);
+  }, [client, classId]);
+  if (!hasApi) return { cls: demoCls, students: demoStudents, loading: false, refresh };
   return {
     cls: query.data?.class,
     students: query.data?.students ?? NO_STUDENTS,
     loading: query.isPending,
+    refresh,
   };
 }
 
@@ -341,8 +389,8 @@ export const absenteePreviews = createStore<Record<string, string>>({});
 /** Demo mode only: absentees, comments and submissions made in this browser session. */
 const demoAbsentees = createStore<Record<string, Student[]>>({});
 const demoComments = createStore<Record<string, string>>({});
-export type Submission = { submittedAt: string };
-const demoSubmissions = createStore<Record<string, Submission>>({});
+type DemoWindow = { deadlineAt: number; locked: string[] };
+const demoWindows = createStore<Record<string, DemoWindow>>({});
 
 type RosterData = { class: SchoolClass; students: Student[] };
 
@@ -355,7 +403,6 @@ type RosterData = { class: SchoolClass; students: Student[] };
 export function useClassExtras(classId: string) {
   const client = useQueryClient();
   const demoComment = useStore(demoComments)[classId] ?? "";
-  const demoSubmission = useStore(demoSubmissions)[classId];
   const cached = client.getQueryData<RosterData>(keys.roster(classId));
 
   const patchRoster = useCallback(
@@ -420,34 +467,46 @@ export function useClassExtras(classId: string) {
     [classId, patchRoster],
   );
 
-  /** Review and Submit. Unsent names go first, so what is submitted is what was reviewed. */
+  /**
+   * Review and Submit. Unsent names go first, so what is submitted is what was
+   * reviewed. Every photo named so far locks; the first Submit starts the
+   * clock to finish the rest.
+   */
   const submitClass = useCallback(
     async (flushNames: () => Promise<void>) => {
       if (!hasApi) {
-        demoSubmissions.set((prev) => ({ ...prev, [classId]: { submittedAt: todayLabel() } }));
+        const named = Object.entries(namesStore.get())
+          .filter(([id, name]) => id.startsWith(`${classId}-`) && name.trim())
+          .map(([id]) => id);
+        demoWindows.set((prev) => ({
+          ...prev,
+          [classId]: {
+            deadlineAt: prev[classId]?.deadlineAt ?? Date.now() + DEFAULT_EDIT_HOURS * 3_600_000,
+            locked: named,
+          },
+        }));
         return;
       }
       await flushNames();
-      const result = await portalFetch<Submission>(
+      const result = await portalFetch<SchoolClass & { lockedIds: string[] }>(
         `/api/portal/classes/${encodeURIComponent(classId)}/submit/`,
         { method: "POST" },
       );
-      patchRoster((data) => ({ ...data, class: { ...data.class, ...result, submitted: true } }));
+      const { lockedIds, ...state } = result;
+      const locked = new Set(lockedIds);
+      patchRoster((data) => ({
+        class: withDeadline({ ...data.class, ...state }),
+        students: data.students.map((s) => (locked.has(s.id) ? { ...s, locked: true } : s)),
+      }));
       client.invalidateQueries({ queryKey: keys.classes() });
     },
     [classId, client, patchRoster],
   );
 
   const live = cached?.class;
-  const submission: Submission | null = hasApi
-    ? live?.submittedAt
-      ? { submittedAt: live.submittedAt }
-      : null
-    : (demoSubmission ?? null);
 
   return {
     comment: hasApi ? (live?.comment ?? "") : demoComment,
-    submission,
     addAbsentees,
     saveComment,
     submitClass,

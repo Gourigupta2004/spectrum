@@ -32,14 +32,14 @@
   <div class="bulk-downloadbar">
     <label>Download photos of
       <select class="bulk-download-class" data-url="{{ download_url }}" aria-label="Class to download">
-        <option value="all">All classes</option>
+        <option value="all" data-total="{{ total }}">All classes</option>
         {% for group in groups %}<option value="{{ group.pk }}" data-total="{{ group.total }}">{{ group.name }}</option>{% endfor %}
       </select>
     </label>
     <a href="{{ download_url }}?class=all" class="button bulk-download">Download</a>
     {% if delete_group_url %}
-      <button type="button" class="button bulk-delete-group" data-url="{{ delete_group_url }}" disabled
-              title="Pick a class to delete it with all its photos">Delete photos</button>
+      <button type="button" class="button bulk-delete-group" data-url="{{ delete_group_url }}"
+              title="Deletes the picked class — or every class — with all its photos">Delete photos</button>
     {% endif %}
     <span class="bulk-download-hint">A .zip of the original photos, one folder per class, each file named after its student — or "Unnamed" and its uploaded file name until the student is named.</span>
   </div>

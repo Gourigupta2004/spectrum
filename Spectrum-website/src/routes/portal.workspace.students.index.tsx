@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Check } from "lucide-react";
+import { Check, Clock, Lock } from "lucide-react";
 import { classGroups, type ClassGroup } from "@/lib/student-data";
 import { useClassList } from "@/lib/portal-data";
 import { usePortalMember } from "@/lib/portal-session";
@@ -51,12 +51,29 @@ const tintFor = (i: number): string => {
   ].join(", ");
 };
 
+/** "18h left", "42m left": the time a class has left to finish, roughly. */
+function timeLeft(ms: number): string {
+  const hours = Math.floor(ms / 3_600_000);
+  return hours ? `${hours}h left` : `${Math.max(1, Math.ceil(ms / 60_000))}m left`;
+}
+
+/** The current time, refreshed every minute, so the "time left" badges move. */
+function useMinute(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
+}
+
 function ClassList() {
   const copy = usePortalCopy();
   const { institution } = usePortalMember();
   const { classes, loading, error } = useClassList();
   const openGuidelines = useOpenRosterGuidelines();
   const [group, setGroup] = useState<ClassGroup>("All");
+  const now = useMinute();
 
   const list = useMemo(
     () => (group === "All" ? classes : classes.filter((c) => c.group === group)),
@@ -104,6 +121,37 @@ function ClassList() {
         {list.map((c, i) => {
           const done = c.named;
           const complete = c.size > 0 && done === c.size;
+          // Locked once its time to finish runs out: it shows as locked and doesn't open.
+          const locked = Boolean(c.locked) || (c.deadlineAt !== undefined && now >= c.deadlineAt);
+          const tileClass =
+            "spectrum-border glass relative grid aspect-square place-items-center overflow-hidden rounded-2xl";
+          const content = (
+            <>
+              <span
+                className={`absolute right-2 top-2 z-[2] inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.72rem] font-semibold sm:text-[0.6rem] ${
+                  complete ? "bg-teal text-[#10281f]" : "bg-background/80 text-muted-foreground"
+                }`}
+              >
+                {complete && <Check className="h-3 w-3" />}
+                {done}/{c.size}
+              </span>
+              {locked ? (
+                <span className="absolute bottom-2 left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-teal px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-[#10281f]">
+                  <Lock className="h-3 w-3" /> Locked
+                </span>
+              ) : (
+                c.deadlineAt !== undefined && (
+                  <span className="absolute bottom-2 left-1/2 z-[2] inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-amber-300 px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-[#2a1f05]">
+                    <Clock className="h-3 w-3" /> {timeLeft(c.deadlineAt - now)}
+                  </span>
+                )
+              )}
+              {/* Centred even when a long name wraps to several lines. */}
+              <span className="break-words px-3 text-center font-display text-xl font-bold uppercase leading-tight text-foreground">
+                {c.name}
+              </span>
+            </>
+          );
           return (
             <motion.div
               key={c.id}
@@ -112,32 +160,27 @@ function ClassList() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, delay: Math.min(i, 12) * 0.02 }}
             >
-              <Link
-                to="/portal/workspace/students/$classId"
-                params={{ classId: c.id }}
-                /* `glass` supplies the backdrop blur; the tinted background is
-                   inline because the utility's own background would otherwise win. */
-                className="spectrum-border glass relative grid aspect-square place-items-center overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-18px_rgba(124,77,224,0.6)]"
-                style={{ background: tintFor(i) }}
-              >
-                <span
-                  className={`absolute right-2 top-2 z-[2] inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.72rem] font-semibold sm:text-[0.6rem] ${
-                    complete ? "bg-teal text-[#10281f]" : "bg-background/80 text-muted-foreground"
-                  }`}
+              {locked ? (
+                <div
+                  aria-disabled="true"
+                  title={`Locked${c.submittedAt ? ` on ${c.submittedAt}` : ""}. Please contact Spectrum to change it.`}
+                  className={`${tileClass} cursor-not-allowed opacity-60`}
+                  style={{ background: tintFor(i) }}
                 >
-                  {complete && <Check className="h-3 w-3" />}
-                  {done}/{c.size}
-                </span>
-                {c.submitted && (
-                  <span className="absolute bottom-2 left-1/2 z-[2] -translate-x-1/2 rounded-full bg-teal px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-[#10281f]">
-                    Submitted
-                  </span>
-                )}
-                {/* Centred even when a long name wraps to several lines. */}
-                <span className="break-words px-3 text-center font-display text-xl font-bold uppercase leading-tight text-foreground">
-                  {c.name}
-                </span>
-              </Link>
+                  {content}
+                </div>
+              ) : (
+                <Link
+                  to="/portal/workspace/students/$classId"
+                  params={{ classId: c.id }}
+                  /* `glass` supplies the backdrop blur; the tinted background is
+                     inline because the utility's own background would otherwise win. */
+                  className={`${tileClass} transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-18px_rgba(124,77,224,0.6)]`}
+                  style={{ background: tintFor(i) }}
+                >
+                  {content}
+                </Link>
+              )}
             </motion.div>
           );
         })}

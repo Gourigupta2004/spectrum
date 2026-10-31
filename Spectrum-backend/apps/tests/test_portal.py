@@ -1,5 +1,7 @@
 import json
+from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 
 from django.contrib.auth import get_user_model
@@ -268,7 +270,11 @@ class AbsenteesAndCommentsTests(SpectrumTestCase):
 
 
 class ClassSubmitTests(SpectrumTestCase):
-    """Review and Submit on a class page: Submit locks the class for the institution."""
+    """
+    Review and Submit on a class page: each Submit locks the names given so
+    far; the first one starts CLASS_EDIT_HOURS to finish the rest, after which
+    the whole class locks by itself.
+    """
 
     login = PortalTests.login
     api = PortalTests.api
@@ -279,36 +285,102 @@ class ClassSubmitTests(SpectrumTestCase):
         give_portal_login(self.institution, "dps-newdelhi", "demo")
         self.token = self.login("dps-newdelhi", "demo")["access"]
         self.cls = SchoolClass.objects.create(institution=self.institution, name="6C")
-        self.student = Student.objects.create(school_class=self.cls)
+        self.student = Student.objects.create(school_class=self.cls, source_name="1.jpg")
+        self.second = Student.objects.create(school_class=self.cls, source_name="2.jpg")
 
-    def test_submit_locks_the_class_until_the_team_unlocks_it(self):
-        self.assertFalse(self.api("get", "/api/portal/classes/").json()["classes"][0]["submitted"])
+    def name(self, student, value):
+        return self.api("put", "/api/portal/classes/6c/names/", {"names": {str(student.pk): value}})
+
+    def add_absentee(self):
+        return self.client.post("/api/portal/classes/6c/absentees/",
+                                {"images": [SimpleUploadedFile("a.jpg", jpeg_bytes(), content_type="image/jpeg")]},
+                                HTTP_AUTHORIZATION=f"Bearer {self.token}")
+
+    def detail(self):
+        return self.api("get", "/api/portal/classes/6c/").json()
+
+    def run_out_the_clock(self):
+        SchoolClass.objects.filter(pk=self.cls.pk).update(
+            first_submitted_at=timezone.now() - timedelta(hours=settings.CLASS_EDIT_HOURS, minutes=1))
+
+    def test_first_submit_locks_given_names_and_opens_the_window(self):
+        before = self.api("get", "/api/portal/classes/").json()["classes"][0]
+        self.assertEqual((before["submitted"], before["locked"], before["secondsLeft"]), (False, False, None))
+
+        self.name(self.student, "Aarav")
         result = self.api("post", "/api/portal/classes/6c/submit/").json()
-        self.assertTrue(result["submittedAt"])
-        self.assertTrue(self.api("get", "/api/portal/classes/").json()["classes"][0]["submitted"])
-        self.assertTrue(self.api("get", "/api/portal/classes/6c/").json()["class"]["submittedAt"])
-        # Locked: names, comment, absentees and a second submit are all refused.
-        names = self.api("put", "/api/portal/classes/6c/names/", {"names": {str(self.student.pk): "Aarav"}})
+        self.assertEqual(result["lockedIds"], [str(self.student.pk)])
+        self.assertFalse(result["locked"])
+        self.assertAlmostEqual(result["secondsLeft"], settings.CLASS_EDIT_HOURS * 3600, delta=60)
+        self.assertTrue(result["deadlineLabel"])
+        locks = {s["id"]: s["locked"] for s in self.detail()["students"]}
+        self.assertEqual(locks, {str(self.student.pk): True, str(self.second.pk): False})
+
+        # Next day: the submitted name can't change, the rest can, and so can absentees and the comment.
+        self.assertEqual(self.name(self.student, "Someone else").json()["updated"], 0)
+        self.assertEqual(self.name(self.second, "Diya").json()["updated"], 1)
+        self.assertEqual(self.add_absentee().status_code, 200)
+        self.assertEqual(self.api("put", "/api/portal/classes/6c/comment/", {"comment": "x"}).status_code, 200)
+        first = SchoolClass.objects.get(pk=self.cls.pk).first_submitted_at
+        self.api("post", "/api/portal/classes/6c/submit/")
+        self.assertEqual(SchoolClass.objects.get(pk=self.cls.pk).first_submitted_at, first,
+                         "later Submits don't restart the clock")
+        self.student.refresh_from_db()
+        self.second.refresh_from_db()
+        self.assertEqual((self.student.name, self.second.name), ("Aarav", "Diya"))
+        self.assertTrue(self.second.submitted_at)
+        absentee = Student.objects.get(school_class=self.cls, is_absentee=True)
+        self.assertIsNone(absentee.submitted_at, "an unnamed absentee stays open")
+
+    def test_the_class_locks_by_itself_when_the_window_runs_out(self):
+        self.api("post", "/api/portal/classes/6c/submit/")
+        self.run_out_the_clock()
+        listed = self.api("get", "/api/portal/classes/").json()["classes"][0]
+        self.assertEqual((listed["locked"], listed["secondsLeft"]), (True, None))
+        self.assertTrue(listed["submittedAt"])
+        self.cls.refresh_from_db()
+        self.assertEqual(self.cls.submitted_at, self.cls.deadline, "recorded as submitted at the deadline")
+        # Locked: names, comment, absentees and a further submit are all refused.
+        names = self.name(self.second, "Aarav")
         self.assertEqual(names.status_code, 409)
         self.assertIn("locked", names.json()["error"])
         self.assertEqual(self.api("put", "/api/portal/classes/6c/comment/", {"comment": "x"}).status_code, 409)
-        absent = self.client.post("/api/portal/classes/6c/absentees/",
-                                  {"images": [SimpleUploadedFile("a.jpg", jpeg_bytes(), content_type="image/jpeg")]},
-                                  HTTP_AUTHORIZATION=f"Bearer {self.token}")
-        self.assertEqual(absent.status_code, 409)
+        self.assertEqual(self.add_absentee().status_code, 409)
         self.assertEqual(self.api("post", "/api/portal/classes/6c/submit/").status_code, 409)
-        self.student.refresh_from_db()
-        self.assertEqual(self.student.name, "")
-        # The admin sees when, and can unlock it.
+        self.second.refresh_from_db()
+        self.assertEqual(self.second.name, "")
+
+    def test_housekeeping_records_the_automatic_submit(self):
+        from apps.core.jobs import housekeeping
+
+        self.api("post", "/api/portal/classes/6c/submit/")
+        self.run_out_the_clock()
+        housekeeping()
+        self.cls.refresh_from_db()
+        self.assertEqual(self.cls.submitted_at, self.cls.deadline)
+
+    def test_a_class_submitted_before_the_window_existed_stays_locked(self):
+        SchoolClass.objects.filter(pk=self.cls.pk).update(submitted_at=timezone.now())
+        self.assertTrue(self.detail()["class"]["locked"])
+        self.assertEqual(self.name(self.student, "Aarav").status_code, 409)
+
+    def test_the_team_sees_the_window_and_can_unlock_it(self):
+        self.name(self.student, "Aarav")
+        self.api("post", "/api/portal/classes/6c/submit/")
         self.cls.refresh_from_db()
         self.client.force_login(self.make_staff())
         listing = self.client.get("/admin/portal/schoolclass/").content.decode()
-        self.assertIn(f"{timezone.localtime(self.cls.submitted_at):%d %b %Y}", listing)
+        self.assertIn(f"Open until {timezone.localtime(self.cls.deadline):%d %b %Y}", listing)
+        self.run_out_the_clock()
+        self.cls.refresh_from_db()
+        listing = self.client.get("/admin/portal/schoolclass/").content.decode()
+        self.assertIn(f"Locked {timezone.localtime(self.cls.deadline):%d %b %Y}", listing)
         self.client.post("/admin/portal/schoolclass/", {"action": "unlock_for_institution",
                                                          "_selected_action": [self.cls.pk]})
         self.client.logout()
-        self.assertEqual(self.api("put", "/api/portal/classes/6c/names/",
-                                  {"names": {str(self.student.pk): "Aarav"}}).status_code, 200)
+        self.cls.refresh_from_db()
+        self.assertEqual((self.cls.submitted_at, self.cls.first_submitted_at), (None, None))
+        self.assertEqual(self.name(self.student, "Aarav Mehta").json()["updated"], 1, "names reopen too")
 
 
 class PortalAccessTests(SpectrumTestCase):

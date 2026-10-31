@@ -1,5 +1,7 @@
 import re
+from datetime import timedelta
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -254,9 +256,15 @@ class SchoolClass(models.Model):
         "comment from the institution", blank=True,
         help_text="Written by the institution on the website (Add Comments). The photo download puts it in the "
                   "class folder as comment.txt.")
-    # When a teacher submitted the class (Review, an optional Re-edit, then
-    # Submit). From then on the class is locked for the institution — names,
-    # absentees and the comment — until the team unlocks it in the admin.
+    # The teacher's first Submit (Review, an optional Re-edit, then Submit)
+    # opens a window of CLASS_EDIT_HOURS to finish the class: each Submit
+    # locks the photos named so far, and the rest — unnamed photos,
+    # absentees, the comment — stay open until the window ends.
+    first_submitted_at = models.DateTimeField("first submitted", null=True, blank=True)
+    # When the class locked for the institution — names, absentees and the
+    # comment — until the team unlocks it in the admin: the end of that
+    # window, recorded once it has passed (classes submitted before windows
+    # existed locked at their one Submit).
     submitted_at = models.DateTimeField("names submitted", null=True, blank=True)
 
     class Meta:
@@ -274,6 +282,28 @@ class SchoolClass(models.Model):
 
         if not (self.slug or slugify(self.name)):
             raise ValidationError({"name": "Use letters or numbers, e.g. 6C."})
+
+    @property
+    def deadline(self):
+        """When the class locks by itself: CLASS_EDIT_HOURS after the first Submit."""
+        if self.first_submitted_at is None:
+            return None
+        return self.first_submitted_at + timedelta(hours=settings.CLASS_EDIT_HOURS)
+
+    def lock_if_due(self) -> None:
+        """Records the automatic submit once the window has run out."""
+        if self.submitted_at is None and self.deadline and timezone.now() >= self.deadline:
+            self.submitted_at = self.deadline
+            self.save(update_fields=["submitted_at"])
+
+    @classmethod
+    def lock_all_due(cls) -> int:
+        cutoff = timezone.now() - timedelta(hours=settings.CLASS_EDIT_HOURS)
+        due = list(cls.objects.filter(submitted_at=None, first_submitted_at__lte=cutoff))
+        for school_class in due:
+            school_class.submitted_at = school_class.deadline
+        cls.objects.bulk_update(due, ["submitted_at"], batch_size=500)
+        return len(due)
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -309,6 +339,9 @@ class Student(ProcessedImage):
     # class's own photos.
     is_absentee = models.BooleanField("absentee", default=False,
                                       help_text="Added by the institution on the website (Add Absentees).")
+    # Set by the teacher's Submit once the photo has a name: from then on the
+    # name is locked on the website (the team can still edit it here).
+    submitted_at = models.DateTimeField("name submitted", null=True, blank=True)
 
     class Meta:
         # Photos uploaded before file names were kept have no sort key and

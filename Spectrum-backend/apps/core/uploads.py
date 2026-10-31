@@ -80,9 +80,9 @@ class Target:
     # `(page_parent_id) -> url` of a zip download offered under the grid, with
     # a pick of one group or all; needs view permission on the model.
     download_url: object = None
-    # `(page_parent_id) -> url` that a POST of one group's pk (`group`) sends
-    # to delete that group with its photos, offered beside the download pick
-    # once a group is picked; needs delete permission on both models.
+    # `(page_parent_id) -> url` that a POST of one group's pk (`group`), or
+    # "all", sends to delete that group — or every group — with its photos,
+    # offered beside the download pick; needs delete permission on both models.
     delete_group_url: object = None
     # The thumbnail grid gets a tick box per photo and a "Delete selected"
     # button, for admins allowed to delete this model.

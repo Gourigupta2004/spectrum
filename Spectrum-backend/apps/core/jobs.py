@@ -204,6 +204,10 @@ def housekeeping() -> None:
         batch.delete()
     Task.objects.filter(status=Task.FAILED, created_at__lt=now - timedelta(days=30)).delete()
 
+    from apps.portal.models import SchoolClass
+
+    SchoolClass.lock_all_due()  # classes whose time to finish has run out
+
     # A zip is a full copy of an album; after a while buyers use the per-photo links.
     old = Order.objects.exclude(zip_file="").filter(paid_at__lt=now - timedelta(days=settings.ORDER_ZIP_KEEP_DAYS))
     for pk, name in old.values_list("pk", "zip_file")[:200]:

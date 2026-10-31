@@ -168,18 +168,20 @@
       if (!select.classList || !select.classList.contains("bulk-download-class")) return;
       var link = self.grid.querySelector(".bulk-download");
       if (link) link.href = select.dataset.url + "?class=" + encodeURIComponent(select.value);
-      var remove = self.grid.querySelector(".bulk-delete-group");
-      if (remove) remove.disabled = select.value === "all";
     });
     // "Delete photos" beside it: the picked class goes, with every photo in
-    // it. Sent from a detached form — this sits inside the admin's own form.
+    // it — or, on "All classes", every class. Sent from a detached form, as
+    // this sits inside the admin's own form.
     this.grid.addEventListener("click", function (event) {
       var button = event.target.closest && event.target.closest(".bulk-delete-group");
       if (!button || button.disabled) return;
       var option = self.grid.querySelector(".bulk-download-class").selectedOptions[0];
-      if (!option || option.value === "all") return;
-      if (!confirm("Delete class " + option.textContent + " and all " + option.dataset.total +
-                   " of its photos, with the students' names? This cannot be undone.")) return;
+      if (!option) return;
+      var question = option.value === "all"
+        ? "Delete every class and all " + option.dataset.total + " individual photographs, with the students' names? Class photographs are not affected. This cannot be undone."
+        : "Delete class " + option.textContent + " and all " + option.dataset.total +
+          " of its photos, with the students' names? This cannot be undone.";
+      if (!confirm(question)) return;
       var form = document.createElement("form");
       form.method = "post";
       form.action = button.dataset.url;

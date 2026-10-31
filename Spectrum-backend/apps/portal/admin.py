@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
@@ -95,8 +96,8 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
     list_select_related = ("institution",)
     search_fields = ("name", "institution__name")
     prepopulated_fields = {"slug": ("name",)}
-    fields = ("institution", "name", "slug", "group", "comment", "submitted_at")
-    readonly_fields = ("submitted_at",)
+    fields = ("institution", "name", "slug", "group", "comment", "first_submitted_at", "submitted_at")
+    readonly_fields = ("first_submitted_at", "submitted_at")
     autocomplete_fields = ("institution",)
     actions = ["download_photos", "unlock_for_institution"]
 
@@ -106,8 +107,12 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
 
     @admin.action(description="Unlock for the institution (undo Submit)")
     def unlock_for_institution(self, request, queryset):
-        count = queryset.exclude(submitted_at=None).update(submitted_at=None)
-        messages.success(request, f"Unlocked {count} class(es): the institution can edit and submit them again.")
+        """Everything opens again — submitted names too — and the next Submit starts a fresh window."""
+        queryset = queryset.filter(Q(submitted_at__isnull=False) | Q(first_submitted_at__isnull=False))
+        Student.objects.filter(school_class__in=queryset).update(submitted_at=None)
+        count = queryset.update(submitted_at=None, first_submitted_at=None)
+        messages.success(request, f"Unlocked {count} class(es): the institution can edit and submit them again, "
+                                  f"with a fresh {settings.CLASS_EDIT_HOURS} hours from their next Submit.")
 
     @admin.action(description="Download photos — folder of originals, named after the students")
     def download_photos(self, request, queryset):
@@ -123,11 +128,12 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
 
     @admin.display(description="Names submitted", ordering="submitted_at")
     def submitted(self, obj):
-        if not obj.submitted_at:
-            return "—"
-        from django.utils import timezone as tz
-
-        return f"{tz.localtime(obj.submitted_at):%d %b %Y, %H:%M}"
+        obj.lock_if_due()
+        if obj.submitted_at:
+            return f"Locked {timezone.localtime(obj.submitted_at):%d %b %Y, %H:%M}"
+        if obj.deadline:
+            return f"Open until {timezone.localtime(obj.deadline):%d %b %Y, %H:%M}"
+        return "—"
 
     @admin.display(description="Comment", boolean=True)
     def has_comment(self, obj):
@@ -143,8 +149,8 @@ class StudentAdmin(AppendOrderMixin, ImagePreviewMixin, admin.ModelAdmin):
     list_select_related = ("school_class__institution",)
     list_per_page = 100
     search_fields = ("name", "source_name")
-    fields = ("school_class", "name", "original", "source_name", "is_absentee", "sort_order")
-    readonly_fields = ("source_name",)
+    fields = ("school_class", "name", "original", "source_name", "is_absentee", "submitted_at", "sort_order")
+    readonly_fields = ("source_name", "submitted_at")
     ordering = ("school_class__institution", "school_class__sort_key", "school_class", "sort_key", "sort_order", "pk")
     autocomplete_fields = ("school_class",)
     actions = ["reprocess_images"]
@@ -306,8 +312,9 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
         return response or redirect("admin:portal_captionworkspace_change", workspace.pk)
 
     def delete_class(self, request, object_id):
-        """The class picked under Individual Photographs, with all its photos
-        and names — from the "Delete photos" button beside Download."""
+        """The class picked under Individual Photographs — or, on "All
+        classes", every class — with all its photos and names, from the
+        "Delete photos" button beside Download."""
         from django.http import HttpResponseNotAllowed
         from django.shortcuts import get_object_or_404, redirect
 
@@ -316,9 +323,14 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
         if not (request.user.has_perm("portal.delete_schoolclass") and request.user.has_perm("portal.delete_student")):
             raise PermissionDenied
         workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
+        classes = SchoolClass.objects.filter(institution_id=workspace.institution_id)
         pk = request.POST.get("group", "")
-        cls = SchoolClass.objects.filter(institution_id=workspace.institution_id,
-                                         pk=int(pk) if pk.isdigit() else 0).first()
+        if pk == "all":
+            count, photos = classes.count(), Student.objects.filter(school_class__in=classes).count()
+            classes.delete()  # students go with them; signals queue the S3 cleanup
+            messages.success(request, f"Deleted all {count} class(es) and their {photos} photo(s).")
+            return redirect("admin:portal_captionworkspace_change", workspace.pk)
+        cls = classes.filter(pk=int(pk) if pk.isdigit() else 0).first()
         if cls is None:
             messages.warning(request, "That class is no longer there.")
         else:

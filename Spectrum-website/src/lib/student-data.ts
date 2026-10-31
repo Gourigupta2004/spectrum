@@ -11,10 +11,24 @@ export type SchoolClass = {
   size: number;
   /** The institution's comment for this class (Add Comments). */
   comment?: string;
-  /** Set once a teacher has used Review and Submit (names stay editable). */
+  /** Set once a teacher has pressed Submit at least once. */
   submitted?: boolean;
+  /** Locked for good: the time to finish ran out, or the team locked it. */
+  locked?: boolean;
+  /** When it locked, e.g. "November 2, 2026". */
   submittedAt?: string;
+  /** While open after the first Submit: seconds left to finish, counted by the server. */
+  secondsLeft?: number | null;
+  /** That same moment on this device's clock (ms since epoch), set as the data arrives. */
+  deadlineAt?: number | undefined;
+  /** That moment for people, e.g. "November 2, 2026, 2:30 PM". */
+  deadlineLabel?: string;
+  /** How long the first Submit leaves to finish the class. */
+  editHours?: number;
 };
+
+/** Hours a class stays open after its first Submit, when the server doesn't say. */
+export const DEFAULT_EDIT_HOURS = 48;
 
 export const classGroups = ["All", "Primary", "Middle", "Senior"] as const;
 export type ClassGroup = (typeof classGroups)[number];
@@ -59,6 +73,8 @@ export type Student = {
   height?: number | null;
   /** Added by the institution with Add Absentees. */
   absentee?: boolean;
+  /** Named and submitted: the name can no longer change on the website. */
+  locked?: boolean;
 };
 
 /** Passport-style placeholder headshot, rendered as an inline SVG data URI. */
