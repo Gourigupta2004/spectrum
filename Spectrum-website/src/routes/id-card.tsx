@@ -128,9 +128,7 @@ function IdCardPage() {
         >
           <Highlight text={copy.title} />
         </motion.h1>
-        <p className="mt-4 max-w-2xl text-base font-medium text-muted-foreground">
-          {copy.subtitle}
-        </p>
+        <p className="mt-4 text-base font-medium text-muted-foreground">{copy.subtitle}</p>
         <button
           type="button"
           onClick={() => setGuidelines(true)}
