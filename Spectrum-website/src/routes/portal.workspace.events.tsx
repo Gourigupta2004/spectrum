@@ -494,8 +494,7 @@ function CaptionEditorInner({
    *             adjusted here, and approving locks whatever is in the box
    * Either way the same review journey as Individual Photographs, in this window:
    *   edit   — write the title; one button: [Review]
-   *   review — the title read-only, to check it; [Re-edit] [Submit]
-   *   reedit — one more chance to change it; one button: [Submit]
+   *   review — the title outlined to check it, still editable; one button: [Submit]
    * Submit locks the photo for every teacher (Submitted, or Approved for an
    * approval); from then on only the Spectrum team can change it.
    */
@@ -503,19 +502,14 @@ function CaptionEditorInner({
   const [text, setText] = useState(mode === "caption" ? "" : item.caption);
   const [by, setBy] = useState(item.actionBy ?? "");
   const [phone, setPhone] = useState(item.actionByPhone ?? "");
-  const [phase, setPhase] = useState<"edit" | "review" | "reedit">("edit");
+  const [phase, setPhase] = useState<"edit" | "review">("edit");
   const photoRef = useRef<HTMLInputElement>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
   const hasText = text.trim().length > 0;
   // Both the name and a usable mobile number are required before acting.
   const phoneOk = phone.replace(/\D/g, "").length >= 7;
   const canAct = by.trim().length > 1 && phoneOk;
 
   const byLabel = mode === "caption" ? "Title written by" : "Approved by";
-  const reedit = () => {
-    setPhase("reedit");
-    textRef.current?.focus();
-  };
   const submit = () => {
     onResolve(
       item.id,
@@ -531,9 +525,7 @@ function CaptionEditorInner({
       ? "Write the title, then tap Review to check it against the photo."
       : !canAct
         ? "Add your full name and mobile number to submit."
-        : phase === "review"
-          ? "Re-edit gives you one more chance to change it; Submit locks this title."
-          : "Make your last change, then Submit — this title is locked after that.";
+        : "Check it against the photo; you can still change it. Submit locks this title.";
 
   return (
     <motion.div
@@ -629,7 +621,8 @@ function CaptionEditorInner({
           {/* Takes every spare pixel of the column so there is room to write.
               In approve mode the box stays editable: this is the one remaining
               moment the wording can change, and the disclaimer says so. While
-              reviewing it is read-only and outlined, so the eye stays on it. */}
+              reviewing it is outlined, so the eye stays on it, and can still
+              be corrected; only Submit locks it. */}
           <div className="flex flex-1 flex-col">
             <label
               htmlFor="caption-text"
@@ -637,16 +630,14 @@ function CaptionEditorInner({
             >
               {phase === "review" ? "Review the title" : "Title"}
             </label>
-            {mode === "approve" && phase === "edit" && (
+            {mode === "approve" && (
               <p className="mt-2 rounded-xl border border-[#e8503a]/50 bg-[#e8503a]/10 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-[#ff9b6a]">
                 Last chance to edit the title — once approved, it's locked.
               </p>
             )}
             <textarea
               id="caption-text"
-              ref={textRef}
               value={text}
-              readOnly={phase === "review"}
               onChange={(e) => setText(e.target.value)}
               placeholder={
                 mode === "caption"
@@ -710,14 +701,6 @@ function CaptionEditorInner({
                 </button>
               )}
               {phase === "review" && (
-                <button
-                  onClick={reedit}
-                  className="flex-1 rounded-xl border border-violet py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20"
-                >
-                  Re-edit
-                </button>
-              )}
-              {phase !== "edit" && (
                 <button
                   disabled={!canAct || !hasText}
                   onClick={submit}

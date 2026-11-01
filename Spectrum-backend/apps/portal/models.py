@@ -256,7 +256,7 @@ class SchoolClass(models.Model):
         "comment from the institution", blank=True,
         help_text="Written by the institution on the website (Add Comments). The photo download puts it in the "
                   "class folder as comment.txt.")
-    # The teacher's first Submit (Review, an optional Re-edit, then Submit)
+    # The teacher's first Submit (Review, then Submit)
     # opens a window of CLASS_EDIT_HOURS to finish the class: each Submit
     # locks the photos named so far, and the rest — unnamed photos,
     # absentees, the comment — stay open until the window ends.

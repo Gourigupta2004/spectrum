@@ -35,14 +35,12 @@ function ClassRoster() {
   const { comment, addAbsentees, saveComment, submitClass } = useClassExtras(classId);
   // The review journey, the same as for titles:
   //   edit   — name, add absentees, comment; one button: Review
-  //   review — everything read-only to check it; Re-edit or Submit
-  //   reedit — one more chance to change anything; one button: Submit
+  //   review — the names outlined to check them, still editable; one button: Submit
   // Submit locks every photo named so far. The first Submit also starts the
   // clock: until it runs out the rest can still be named, absentees added
   // and the comment changed; then the whole class locks by itself (the
   // Spectrum team can unlock it).
-  const [phase, setPhase] = useState<"edit" | "review" | "reedit">("edit");
-  const frozen = phase === "review"; // nothing can change right now
+  const [phase, setPhase] = useState<"edit" | "review">("edit");
   const left = useCountdown(cls?.deadlineAt, refresh);
   const gridRef = useRef<HTMLDivElement>(null);
   const toNames = () => gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -95,7 +93,7 @@ function ClassRoster() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            disabled={uploading !== null || frozen}
+            disabled={uploading !== null}
             className="spectrum-border inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <UserPlus className="h-4 w-4" />
@@ -104,7 +102,6 @@ function ClassRoster() {
           <button
             type="button"
             onClick={() => setCommenting(true)}
-            disabled={frozen}
             className="spectrum-border inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-violet/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <MessageSquarePlus className="h-4 w-4" /> Add Comments
@@ -172,7 +169,7 @@ function ClassRoster() {
             index={i}
             committed={names[s.id] ?? ""}
             onCommit={commit}
-            readOnly={frozen || Boolean(s.locked)}
+            readOnly={Boolean(s.locked)}
             locked={Boolean(s.locked)}
             lockedTitle={copy.lockedTitle}
             lockedBody="This name has been submitted and locked. Only the Spectrum team can change it now."
@@ -189,13 +186,11 @@ function ClassRoster() {
           setPhase("review");
           toNames();
         }}
-        onReedit={() => {
-          setPhase("reedit");
-          toNames();
-        }}
         onSubmit={async () => {
           await submitClass(() => flush());
           setPhase("edit");
+          // The same smooth scroll as Review, to the top: the time-left banner and the locked names.
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
       />
 
@@ -325,7 +320,7 @@ function StudentCard({
   index: number;
   committed: string;
   onCommit: (studentId: string, value: string) => void;
-  /** While reviewing, or once the name is submitted: the name can't change. */
+  /** Once the name is submitted: it can no longer change. */
   readOnly: boolean;
   /** Named and submitted: a tap explains why it can't be edited. */
   locked: boolean;
@@ -448,22 +443,19 @@ function StudentCard({
 /**
  * The buttons at the foot of the class page, by step:
  *   edit   -> [Review]
- *   review -> [Re-edit] [Submit]
- *   reedit -> [Submit]
+ *   review -> [Submit] (the names stay editable while checking)
  *   done   -> a note; every photo is submitted (absentees can still be added)
  */
 function SubmitPanel({
   phase,
   total,
   onReview,
-  onReedit,
   onSubmit,
 }: {
-  phase: "edit" | "review" | "reedit" | "done";
+  phase: "edit" | "review" | "done";
   /** Photos still open to name. */
   total: number;
   onReview: () => void;
-  onReedit: () => void;
   onSubmit: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -511,15 +503,7 @@ function SubmitPanel({
           </span>
         </button>
       )}
-      {phase === "review" && (
-        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-          <button onClick={onReedit} className={outlined}>
-            Re-edit
-          </button>
-          {submitButton}
-        </div>
-      )}
-      {phase === "reedit" && submitButton}
+      {phase === "review" && submitButton}
       {error && (
         <p role="alert" className="mt-2 text-center text-xs font-medium text-[#ff9b6a]">
           {error}
