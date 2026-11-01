@@ -144,7 +144,7 @@ function IdCardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
-              className="spectrum-border glass mt-14 rounded-3xl bg-surface px-6 py-12 text-center md:px-8 md:py-16"
+              className="spectrum-border glass mt-9 rounded-3xl bg-surface px-6 py-12 text-center md:px-8 md:py-16"
             >
               <span className="spectrum-fill mx-auto grid h-14 w-14 place-items-center rounded-full">
                 <Check className="h-6 w-6" />
@@ -168,7 +168,7 @@ function IdCardPage() {
               key="unavailable"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="spectrum-border glass mt-14 rounded-3xl bg-surface p-8 text-center text-sm font-medium text-muted-foreground"
+              className="spectrum-border glass mt-9 rounded-3xl bg-surface p-8 text-center text-sm font-medium text-muted-foreground"
             >
               {copy.unavailableMessage}
             </motion.p>
@@ -182,7 +182,7 @@ function IdCardPage() {
               exit={{ opacity: 0, y: -12 }}
               transition={{ delay: 0.05 }}
               onSubmit={onSubmit}
-              className="mt-14 grid gap-8 md:grid-cols-2"
+              className="mt-9 grid gap-8 md:grid-cols-2"
             >
               <div className="spectrum-border glass space-y-4 rounded-3xl bg-surface p-6 md:p-8">
                 <input
