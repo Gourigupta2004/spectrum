@@ -524,7 +524,11 @@ def apply_options(request, batch_id):
     rows = model.objects.filter(pk__in=batch.files.filter(created=True).values("object_id"))
     if target.retag_exclude:
         rows = rows.exclude(**target.retag_exclude)
-    return JsonResponse({"updated": rows.update(**chosen)})
+    pks = list(rows.values_list("pk", flat=True))
+    updated = model.objects.filter(pk__in=pks).update(**chosen)
+    if hasattr(model, "refresh_watermarks"):  # a class photograph's mark follows its tag
+        model.refresh_watermarks(pks)
+    return JsonResponse({"updated": updated})
 
 
 def _matching_row(target: Target, model, parent_attname: str, parent_id, name: str):

@@ -114,8 +114,9 @@ class ProcessedImage(models.Model):
 
     VARIANTS maps a variant field name to its longest edge in pixels. Subclasses may
     add variant fields (EventPhoto adds `preview`) and list watermarked ones in
-    WATERMARKED, marked with WATERMARK_TEXT. The worker fills the variants; web
-    requests never touch Pillow.
+    WATERMARKED, marked with WATERMARK_TEXT (or `watermark_text()`, for wording
+    that changes with the row). The worker fills the variants; web requests
+    never touch Pillow.
     """
 
     VARIANTS: dict[str, int] = {"web": 1600, "thumb": 400}
@@ -158,6 +159,10 @@ class ProcessedImage(models.Model):
 
     def variant_names(self) -> list[str]:
         return list(self.VARIANTS)
+
+    def watermark_text(self) -> str:
+        """The mark on the WATERMARKED variants. A subclass may vary it, e.g. by status."""
+        return self.WATERMARK_TEXT
 
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")

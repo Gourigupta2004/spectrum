@@ -58,10 +58,50 @@ def process_image(label: str, pk: int) -> None:
         model.objects.filter(pk=pk).update(image_status=ImageStatus.PENDING, image_error=str(exc)[:1000])
         raise
     old_files = updates.pop("_old_files")
+    text = updates.pop("_watermark")
     model.objects.filter(pk=pk).update(**updates, image_status=ImageStatus.READY, image_error="")
     bump_for(model)
     # Only now that the row points at the new files is it safe to remove the old ones.
     delete_files(public_storage(), old_files)
+    _recheck_watermark(model, pk, text)
+
+
+@job("core.refresh_watermark")
+def refresh_watermark(label: str, pk: int) -> None:
+    """
+    Re-makes a ready image's variants because its watermark wording changed
+    (a class photograph's status). Unlike process_image it never marks the
+    row as processing, so the photo stays listed on the portal meanwhile.
+    """
+    model = apps.get_model(label)
+    obj = model.objects.filter(pk=pk, image_status=ImageStatus.READY).first()
+    if obj is None:
+        return  # still processing: that run checks the wording when it finishes
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        updates = render_variants(obj)
+    except (UnidentifiedImageError, Image.DecompressionBombError, SyntaxError, ValueError, OSError):
+        log.warning("Could not re-watermark %s %s", label, pk, exc_info=True)
+        return
+    old_files = updates.pop("_old_files")
+    text = updates.pop("_watermark")
+    new_files = [updates[name] for name in obj.VARIANTS]
+    if not model.objects.filter(pk=pk, image_status=ImageStatus.READY).update(**updates):
+        delete_files(public_storage(), new_files)  # the photo was replaced meanwhile
+        return
+    bump_for(model)
+    delete_files(public_storage(), old_files)
+    _recheck_watermark(model, pk, text)
+
+
+def _recheck_watermark(model, pk, rendered: str) -> None:
+    """The status may have moved on while the variants were made: go again if so."""
+    fresh = model.objects.filter(pk=pk).first()
+    if fresh is not None and fresh.WATERMARKED and fresh.watermark_text() != rendered:
+        from .tasks import enqueue
+
+        enqueue("core.refresh_watermark", model._meta.label_lower, pk)
 
 
 def render_variants(obj) -> dict:
@@ -89,6 +129,7 @@ def render_variants(obj) -> dict:
     image = image.convert("RGBA" if has_alpha else "RGB")
 
     storage = public_storage()
+    text = obj.watermark_text()
     folder = f"{obj._meta.app_label}/{obj._meta.model_name}"
     stem = uuid.uuid4().hex
     old_files = []
@@ -96,7 +137,7 @@ def render_variants(obj) -> dict:
     # Largest first, shrinking the same image in place, so only one bitmap is alive.
     for name, size in sizes:
         image.thumbnail((size, size), Image.Resampling.LANCZOS, reducing_gap=3.0)
-        output = watermark(image, obj.WATERMARK_TEXT) if name in obj.WATERMARKED else image
+        output = watermark(image, text) if name in obj.WATERMARKED else image
         buffer = io.BytesIO()
         output.save(buffer, "WEBP", quality=WEBP_QUALITY, method=4)
         if output is not image:
@@ -107,6 +148,7 @@ def render_variants(obj) -> dict:
         updates[name] = saved
     image.close()
     updates["_old_files"] = [name for name in old_files if name not in updates.values()]
+    updates["_watermark"] = text
     return updates
 
 

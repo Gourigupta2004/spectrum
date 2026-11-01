@@ -609,3 +609,103 @@ class VideoPosterWatermarkTests(SpectrumTestCase):
         self.assertEqual(set(texts[1:]), {"Preview Only"})
         video.refresh_from_db()
         self.assertTrue(video.preview.name)
+
+
+class PortalWatermarkTests(SpectrumTestCase):
+    """The portal's photos carry a mark: "Preview" on individual photographs;
+    on class photographs one that follows the status. The admin's thumbnails
+    stay clean."""
+
+    def setUp(self):
+        from unittest import mock
+
+        from apps.core import jobs
+
+        super().setUp()
+        self.make_catalog()
+        patcher = mock.patch.object(jobs, "watermark", wraps=jobs.watermark)
+        self.mark = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def texts(self):
+        texts = [call.args[1] for call in self.mark.call_args_list]
+        self.mark.reset_mock()
+        return texts
+
+    def item(self, status="needs-caption"):
+        from django.core.files.base import ContentFile
+
+        from apps.portal.models import CaptionItem
+
+        item = CaptionItem(institution=self.institution, moment_title="6A", requested=status, status=status)
+        with self.captureOnCommitCallbacks(execute=True):
+            item.original.save("6A.jpg", ContentFile(jpeg_bytes()), save=False)
+            item.save()
+        return CaptionItem.objects.get(pk=item.pk)
+
+    def move(self, item, status):
+        """A status change the way the portal and admin make one: a save."""
+        from apps.portal.models import CaptionItem
+
+        item = CaptionItem.objects.get(pk=item.pk)
+        item.status = status
+        with self.captureOnCommitCallbacks(execute=True):
+            item.save(update_fields=["status"])
+        return CaptionItem.objects.get(pk=item.pk)
+
+    def test_individual_photographs_say_preview_on_the_portal_image_only(self):
+        from django.core.files.base import ContentFile
+
+        from apps.portal.models import SchoolClass, Student
+
+        student = Student(school_class=SchoolClass.objects.create(institution=self.institution, name="6C"))
+        with self.captureOnCommitCallbacks(execute=True):
+            student.original.save("1.jpg", ContentFile(jpeg_bytes()), save=False)
+            student.save()
+        self.assertEqual(self.texts(), ["Preview"], "one mark: the web copy; the admin thumbnail stays clean")
+
+    def test_class_photographs_are_marked_with_their_status(self):
+        item = self.item()
+        self.assertEqual(self.texts(), ["For Title"])
+        web = item.web.name
+        item = self.move(item, "corrected")
+        self.assertEqual(self.texts(), ["Submitted"])
+        self.assertNotEqual(item.web.name, web, "a fresh portal image")
+        self.assertEqual(item.image_status, "ready", "never hidden from the portal while re-marked")
+        item = self.move(item, "approved")
+        self.assertEqual(self.texts(), [], "Submitted to Approved: the same mark, nothing to redo")
+        item = self.move(item, "needs-approval")
+        self.assertEqual(self.texts(), ["For Approval"])
+
+    def test_the_mark_catches_up_if_the_status_moves_while_processing(self):
+        from apps.core import jobs
+        from apps.portal.models import CaptionItem
+
+        item = self.item()
+        self.texts()
+        real = jobs.render_variants
+
+        def render_then_status_moves(obj):
+            updates = real(obj)
+            CaptionItem.objects.filter(pk=obj.pk).update(status="corrected")  # e.g. the teacher submits meanwhile
+            return updates
+
+        from unittest import mock
+
+        with mock.patch.object(jobs, "render_variants", side_effect=render_then_status_moves):
+            with self.captureOnCommitCallbacks(execute=True):
+                jobs.refresh_watermark("portal.captionitem", item.pk)
+        self.assertEqual(self.texts()[-1], "Submitted")
+
+    def test_existing_photos_are_queued_for_their_mark(self):
+        from importlib import import_module
+
+        from django.apps import apps as django_apps
+
+        from apps.core.models import Task
+
+        item = self.item()
+        Task.objects.all().delete()
+        import_module("apps.portal.migrations.0016_portal_watermarks").queue_watermarks(django_apps, None)
+        self.assertEqual(list(Task.objects.values_list("name", "args")),
+                         [("core.refresh_watermark", ["portal.captionitem", item.pk])])

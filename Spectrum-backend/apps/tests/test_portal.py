@@ -481,6 +481,15 @@ class CaptionWorkspaceTests(SpectrumTestCase):
         item.refresh_from_db()
         self.assertEqual(item.status, "approved")
 
+    def test_retagging_a_batch_re_marks_its_photos(self):
+        from unittest import mock
+
+        item = self.upload()
+        batch = UploadBatch.objects.get()
+        with mock.patch("apps.core.tasks.enqueue") as enqueue, self.captureOnCommitCallbacks(execute=True):
+            self.post(f"/admin/uploads/{batch.pk}/options/", {"options": {"requested": "needs-approval"}})
+        enqueue.assert_any_call("core.refresh_watermark", "portal.captionitem", item.pk)
+
     def test_reupload_in_a_batch_keeps_its_own_tag_when_retagged(self):
         item = self.upload()
         CaptionItem.objects.filter(pk=item.pk).update(status="needs-approval", requested="needs-approval")

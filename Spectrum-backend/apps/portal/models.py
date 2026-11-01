@@ -2,7 +2,7 @@ import re
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from apps.core.models import ProcessedImage
@@ -194,6 +194,15 @@ class CaptionItem(ProcessedImage):
     """
 
     VARIANTS = {"web": 1600, "thumb": 400}
+    # The portal shows `web`, marked with where the photo stands; the admin's
+    # thumbnails (`thumb`) and the original stay unmarked.
+    WATERMARKED = frozenset({"web"})
+    WATERMARKS = {
+        CaptionStatus.NEEDS_CAPTION: "For Title",
+        CaptionStatus.NEEDS_APPROVAL: "For Approval",
+        CaptionStatus.CORRECTED: "Submitted",
+        CaptionStatus.APPROVED: "Submitted",
+    }
 
     workspace = models.ForeignKey(CaptionWorkspace, on_delete=models.CASCADE, related_name="items", null=True,
                                   blank=True, editable=False)
@@ -224,6 +233,23 @@ class CaptionItem(ProcessedImage):
     def __str__(self):
         return self.moment_title or f"Title item {self.pk}"
 
+    def watermark_text(self) -> str:
+        return self.WATERMARKS.get(self.status, "Preview")
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        obj = super().from_db(db, field_names, values)
+        obj._loaded_status = obj.__dict__.get("status")
+        return obj
+
+    @classmethod
+    def refresh_watermarks(cls, pks) -> None:
+        """Re-marks these photos' portal images, e.g. after their status changed in bulk."""
+        from apps.core.tasks import enqueue
+
+        for pk in pks:
+            transaction.on_commit(lambda pk=pk: enqueue("core.refresh_watermark", cls._meta.label_lower, pk))
+
     def save(self, *args, **kwargs):
         # The institution and its workspace follow from whichever was given:
         # an event (public gallery flow), a workspace (admin bulk upload) or the
@@ -237,7 +263,11 @@ class CaptionItem(ProcessedImage):
                 pk=self.workspace_id)
         if self.institution_id and not self.workspace_id:
             self.workspace_id = CaptionWorkspace.for_institution(self.institution_id).pk
+        before = getattr(self, "_loaded_status", None)
         super().save(*args, **kwargs)
+        self._loaded_status = self.status
+        if before is not None and self.WATERMARKS.get(before) != self.WATERMARKS.get(self.status):
+            self.refresh_watermarks([self.pk])  # e.g. For Title -> Submitted
 
 
 class SchoolClass(models.Model):
@@ -324,6 +354,9 @@ def _with_field(kwargs: dict, name: str) -> dict:
 
 class Student(ProcessedImage):
     VARIANTS = {"web": 600, "thumb": 300}
+    # The portal shows `web`; the admin's thumbnails and the download (originals) stay unmarked.
+    WATERMARKED = frozenset({"web"})
+    WATERMARK_TEXT = "Preview"
 
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name="students",
                                      verbose_name="class")
