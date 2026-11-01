@@ -4,7 +4,7 @@ from apps.core.admin_tools import BulkUploadMixin, ImagePreviewMixin, SingletonA
 
 from .models import (
     AboutPage, Capability, ContactDetail, ContactPage, Enquiry, EventsPage, Faq, GalleryPage, HeroSlide, HomePage,
-    IdCardPage, PortalPage, Service, SiteSettings, Stat, StoryBlock, TieUp,
+    IdCardPage, IdCardType, LanyardColour, PortalPage, Service, SiteSettings, Stat, StoryBlock, TieUp,
 )
 
 SEO = ("Search & sharing", {"classes": ("collapse",),
@@ -147,14 +147,27 @@ class GalleryPageAdmin(SingletonAdmin):
     )
 
 
+class IdCardTypeInline(OrderedInline):
+    model = IdCardType
+    fields = ("label", "sort_order")
+    verbose_name_plural = "type of card — the dropdown's choices"
+
+
+class LanyardColourInline(OrderedInline):
+    model = LanyardColour
+    fields = ("label", "sort_order")
+    verbose_name_plural = "color of lanyard — the dropdown's choices"
+
+
 @admin.register(IdCardPage)
 class IdCardPageAdmin(SingletonAdmin):
+    inlines = [IdCardTypeInline, LanyardColourInline]
     fieldsets = (
         ("Heading", {"fields": ("back_label", "title", "subtitle")}),
         ("Form", {"description": "Which institutions are listed, and at what price, is set on each institution "
                                  "under ID cards.",
                   "fields": ("name_placeholder", "class_placeholder", "admission_no_placeholder",
-                             "institution_placeholder", "email_placeholder", "phone_placeholder", "price_label",
+                             "card_type_placeholder", "lanyard_placeholder", "institution_placeholder", "email_placeholder", "phone_placeholder", "price_label",
                              "price_hint", "submit_label", "pay_button", "checkout_error", "unavailable_message")}),
         ("After payment", {"fields": ("success_title", "success_body", "success_again")}),
         ("Guidelines popup", {"fields": ("guidelines_title", "guidelines_intro", "guidelines_points",

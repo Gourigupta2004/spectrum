@@ -27,6 +27,8 @@ type Form = {
   studentName: string;
   className: string;
   admissionNo: string;
+  cardType: string;
+  lanyardColour: string;
   institution: string;
   email: string;
   phone: string;
@@ -36,6 +38,8 @@ const EMPTY: Form = {
   studentName: "",
   className: "",
   admissionNo: "",
+  cardType: "",
+  lanyardColour: "",
   institution: "",
   email: "",
   phone: "",
@@ -49,7 +53,7 @@ const EMPTY: Form = {
  * the modal.
  */
 function IdCardPage() {
-  const { copy, institutions } = Route.useLoaderData();
+  const { copy, cardTypes, lanyardColours, institutions } = Route.useLoaderData();
   const [guidelines, setGuidelines] = useState(false);
   useEffect(() => setGuidelines(true), []);
 
@@ -68,6 +72,9 @@ function IdCardPage() {
     e.preventDefault();
     if (busy) return;
     setError("");
+    if (cardTypes.length && !form.cardType) return setError("Please choose the type of card.");
+    if (lanyardColours.length && !form.lanyardColour)
+      return setError("Please choose the color of the lanyard.");
     if (!school) return setError("Please choose your school.");
     if (form.phone.replace(/\D/g, "").length < 10)
       return setError("Please enter a valid phone number.");
@@ -83,6 +90,8 @@ function IdCardPage() {
           studentName: form.studentName.trim(),
           className: form.className.trim(),
           admissionNo: form.admissionNo.trim(),
+          cardType: form.cardType,
+          lanyardColour: form.lanyardColour,
           email: form.email.trim(),
           phone: form.phone.trim(),
           idempotencyKey: key,
@@ -192,20 +201,44 @@ function IdCardPage() {
                   placeholder={copy.namePlaceholder}
                   className={inputClass}
                 />
-                <input
-                  required
-                  value={form.className}
-                  onChange={(e) => set("className")(e.target.value)}
-                  placeholder={copy.classPlaceholder}
-                  className={inputClass}
-                />
-                <input
-                  required
-                  value={form.admissionNo}
-                  onChange={(e) => set("admissionNo")(e.target.value)}
-                  placeholder={copy.admissionNoPlaceholder}
-                  className={inputClass}
-                />
+                {/* Pairs sit side by side while the panel can fit "Color of Lanyard"
+                    in half its width, and stack when it can't (a phone, a tablet). */}
+                <div className="@container">
+                  <div className="grid gap-4 @sm:grid-cols-2">
+                    <input
+                      required
+                      value={form.className}
+                      onChange={(e) => set("className")(e.target.value)}
+                      placeholder={copy.classPlaceholder}
+                      className={inputClass}
+                    />
+                    <input
+                      required
+                      value={form.admissionNo}
+                      onChange={(e) => set("admissionNo")(e.target.value)}
+                      placeholder={copy.admissionNoPlaceholder}
+                      className={inputClass}
+                    />
+                    {cardTypes.length > 0 && (
+                      <ServiceSelect
+                        name="cardType"
+                        options={cardTypes}
+                        value={form.cardType}
+                        onChange={set("cardType")}
+                        placeholder={copy.cardTypePlaceholder}
+                      />
+                    )}
+                    {lanyardColours.length > 0 && (
+                      <ServiceSelect
+                        name="lanyardColour"
+                        options={lanyardColours}
+                        value={form.lanyardColour}
+                        onChange={set("lanyardColour")}
+                        placeholder={copy.lanyardPlaceholder}
+                      />
+                    )}
+                  </div>
+                </div>
                 <ServiceSelect
                   name="institution"
                   options={institutions.map((i) => i.name)}

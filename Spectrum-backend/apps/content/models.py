@@ -431,6 +431,8 @@ class IdCardPage(Seo, SingletonModel):
     name_placeholder = line("Student's Name")
     class_placeholder = line("Class")
     admission_no_placeholder = line("Admission No.")
+    card_type_placeholder = line("Type of card", 60, help_text="The choices are the card types below.")
+    lanyard_placeholder = line("Color of Lanyard", 60, help_text="The choices are the lanyard colors below.")
     institution_placeholder = line("School Name/Branch")
     email_placeholder = line("Email Address")
     phone_placeholder = line("Phone Number")
@@ -467,6 +469,34 @@ class IdCardPage(Seo, SingletonModel):
 
     class Meta:
         verbose_name = "ID card page"
+
+
+class IdCardType(Ordered):
+    """A choice under "Type of card" on the ID Card page, e.g. Student. Without any, the dropdown is hidden."""
+
+    page = models.ForeignKey(IdCardPage, default=1, on_delete=models.CASCADE, related_name="card_types",
+                             editable=False)
+    label = models.CharField(max_length=60)
+
+    class Meta(Ordered.Meta):
+        verbose_name = "card type"
+
+    def __str__(self):
+        return self.label
+
+
+class LanyardColour(Ordered):
+    """A choice under "Color of Lanyard" on the ID Card page. Without any, the dropdown is hidden."""
+
+    page = models.ForeignKey(IdCardPage, default=1, on_delete=models.CASCADE, related_name="lanyard_colours",
+                             editable=False)
+    label = models.CharField(max_length=60)
+
+    class Meta(Ordered.Meta):
+        verbose_name = "lanyard color"
+
+    def __str__(self):
+        return self.label
 
 
 class PortalPage(SingletonModel):

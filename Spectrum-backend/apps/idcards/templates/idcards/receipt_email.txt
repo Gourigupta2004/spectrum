@@ -1,0 +1,9 @@
+Hi,
+
+The duplicate ID card for {{ card.student_name }} (class {{ card.class_name }}, admission no. {{ card.admission_no }}, {{ card.institution.name }}) has been shipped.
+
+The shipment receipt is attached to this email.
+
+Request number: {{ card.public_id }}.
+
+— Spectrum

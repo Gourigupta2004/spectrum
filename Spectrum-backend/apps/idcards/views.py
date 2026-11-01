@@ -7,7 +7,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 
 from apps.catalog.models import Institution
-from apps.content.models import IdCardPage
+from apps.content.models import IdCardPage, IdCardType, LanyardColour
 from apps.content.serializers import copy_of
 from apps.core.cache import cached_bytes
 from apps.core.http import ApiError, api, rate_limit, text
@@ -30,6 +30,8 @@ def build_page() -> dict:
     return {
         "seo": page.seo(),
         "copy": copy_of(page),
+        "cardTypes": list(IdCardType.objects.values_list("label", flat=True)),
+        "lanyardColours": list(LanyardColour.objects.values_list("label", flat=True)),
         "institutions": [{"id": slug, "name": name, "price": price} for slug, name, price in
                          offering().values_list("slug", "name", "duplicate_id_card_price")],
     }
@@ -52,7 +54,7 @@ def request_payload(card: DuplicateIdCardRequest) -> dict:
         "razorpay": {"keyId": settings.RAZORPAY_KEY_ID, "orderId": card.razorpay_order_id}
         if card.razorpay_order_id else None,
         "prefill": {"name": card.student_name, "email": card.email, "contact": card.phone},
-        "paid": card.status == DuplicateIdCardRequest.PAID,
+        "paid": card.status in DuplicateIdCardRequest.PAID_STATES,
     }
 
 
@@ -65,6 +67,8 @@ def create_duplicate(request):
         "student_name": text(data, "studentName", 120),
         "class_name": text(data, "className", 40),
         "admission_no": text(data, "admissionNo", 40),
+        "card_type": text(data, "cardType", 60),
+        "lanyard_colour": text(data, "lanyardColour", 60),
         "email": text(data, "email", 254),
         "phone": text(data, "phone", 30),
     }
@@ -84,6 +88,14 @@ def create_duplicate(request):
                        ("admission_no", "admissionNo"), ("email", "email"), ("phone", "phone")):
         if not fields[key]:
             raise ApiError("Please fill in every field.", field=label)
+    # Each dropdown is required while it has choices, and must be one of them.
+    for key, label, model in (("card_type", "cardType", IdCardType), ("lanyard_colour", "lanyardColour",
+                                                                       LanyardColour)):
+        choices = list(model.objects.values_list("label", flat=True))
+        if choices and fields[key] not in choices:
+            raise ApiError("Please fill in every field.", field=label)
+        if not choices:
+            fields[key] = ""
     try:
         validate_email(fields["email"])
     except ValidationError:
@@ -95,7 +107,8 @@ def create_duplicate(request):
     try:
         card = DuplicateIdCardRequest.objects.create(
             institution=institution, student_name=fields["student_name"], class_name=fields["class_name"],
-            admission_no=fields["admission_no"], email=fields["email"], phone=phone,
+            admission_no=fields["admission_no"], card_type=fields["card_type"],
+            lanyard_colour=fields["lanyard_colour"], email=fields["email"], phone=phone,
             amount_paise=institution.duplicate_id_card_price * 100, idempotency_key=idempotency_key,
         )
     except IntegrityError:

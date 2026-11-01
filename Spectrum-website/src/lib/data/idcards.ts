@@ -9,6 +9,9 @@ export type IdCardInstitution = { id: string; name: string; price: number };
 export type IdCardData = {
   seo: Seo;
   copy: IdCardCopy;
+  /** The choices under "Type of card" and "Color of Lanyard", set in the admin; a dropdown with none is hidden. */
+  cardTypes: string[];
+  lanyardColours: string[];
   institutions: IdCardInstitution[];
 };
 
@@ -17,6 +20,8 @@ export type DuplicateIdCardInput = {
   studentName: string;
   className: string;
   admissionNo: string;
+  cardType: string;
+  lanyardColour: string;
   email: string;
   phone: string;
   idempotencyKey: string;
@@ -24,14 +29,19 @@ export type DuplicateIdCardInput = {
 
 export type DuplicateIdCardRequest = Payable & {
   publicId: string;
-  status: "created" | "paid" | "failed";
+  status: "created" | "paid" | "shipped" | "failed";
   amount: number;
 };
 
 export async function getIdCardPage(): Promise<IdCardData> {
   if (hasApi) {
     const data = await apiFetch<IdCardData>("/api/pages/id-card/");
-    return { ...data, copy: { ...idCardCopy, ...data.copy } };
+    return {
+      ...data,
+      copy: { ...idCardCopy, ...data.copy },
+      cardTypes: data.cardTypes ?? [],
+      lanyardColours: data.lanyardColours ?? [],
+    };
   }
   return {
     seo: {
@@ -39,6 +49,8 @@ export async function getIdCardPage(): Promise<IdCardData> {
       description: "Request a duplicate student ID card and pay online.",
     },
     copy: idCardCopy,
+    cardTypes: ["Student", "Parent"],
+    lanyardColours: ["Blue", "Red", "Yellow", "Green"],
     institutions: [
       { id: "dps", name: "Delhi Public School", price: 150 },
       { id: "ryan", name: "Ryan International School", price: 120 },

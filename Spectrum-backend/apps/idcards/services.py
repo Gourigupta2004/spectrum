@@ -10,7 +10,7 @@ def mark_paid(request_id, payment_id: str, *, via: str, amount_paise: int = 0) -
     """The single place a request becomes paid. Safe to call twice (checkout and webhook)."""
     with transaction.atomic():
         card = DuplicateIdCardRequest.objects.select_for_update().get(pk=request_id)
-        if card.status == DuplicateIdCardRequest.PAID:
+        if card.status in DuplicateIdCardRequest.PAID_STATES:
             return card
         if amount_paise and amount_paise != card.amount_paise:
             raise ProviderError(f"Amount mismatch for {card}: {amount_paise} != {card.amount_paise}")

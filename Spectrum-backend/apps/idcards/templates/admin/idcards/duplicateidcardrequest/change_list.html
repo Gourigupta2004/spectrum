@@ -1,0 +1,41 @@
+{% extends "admin/change_list.html" %}
+{% comment %}
+  The Duplicate ID card table, with an "Export selected" button above the
+  filters. It runs the table's own "Export selected requests to Excel" action
+  on the ticked rows, so "select all" (every request matching the filters)
+  works too, and nothing ticked gets the admin's usual "select some" message.
+{% endcomment %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    /* Takes the filter's place in the row, so the button sits on top of it. */
+    .idcard-side { flex: 0 0 240px; order: 1; margin: 0 0 0 30px; display: flex; flex-direction: column; gap: 14px; }
+    .idcard-side #changelist-filter { flex: none; margin: 0; }
+    .idcard-export { padding: 12px; background: var(--darkened-bg); }
+    .idcard-export .button { width: 100%; padding: 10px 12px; font-size: 13px; }
+    .idcard-export p { margin: 8px 0 0; font-size: 12px; color: var(--body-quiet-color); }
+    @media (max-width: 1024px) { .idcard-side { flex-basis: 200px; } }
+    @media (max-width: 767px) { .idcard-side { flex-basis: auto; margin: 30px 0 0; } }
+  </style>
+{% endblock %}
+
+{% block filters %}
+  <div class="idcard-side">
+    <div class="idcard-export">
+      <button type="button" id="export-selected" class="button default">Export selected</button>
+      <p>Tick requests in the table, then export them to Excel.</p>
+    </div>
+    {{ block.super }}
+  </div>
+  <script>
+    document.getElementById("export-selected").addEventListener("click", () => {
+      const form = document.getElementById("changelist-form");
+      const select = form && form.querySelector('select[name="action"]');
+      if (!select) return;  // an empty table has no actions to run
+      select.value = "export_selected";
+      form.querySelector('button[name="index"]').click();
+      select.value = "";
+    });
+  </script>
+{% endblock %}

@@ -6,7 +6,7 @@ from apps.core.tasks import enqueue
 from .models import Delivery, Order, OrderItem, Payment
 
 STATUS_COLOURS = {"created": "#999", "paid": "#7c4de0", "failed": "#e8503a", "delivered": "#2fbf8f",
-                  "refunded": "#b58900", "pending": "#b58900", "sent": "#7c4de0"}
+                  "refunded": "#b58900", "pending": "#b58900", "sent": "#7c4de0", "shipped": "#2fbf8f"}
 
 
 def badge(value, label):

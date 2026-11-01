@@ -141,6 +141,8 @@ export const idCardCopy = {
   namePlaceholder: "Student's Name",
   classPlaceholder: "Class",
   admissionNoPlaceholder: "Admission No.",
+  cardTypePlaceholder: "Type of card",
+  lanyardPlaceholder: "Color of Lanyard",
   institutionPlaceholder: "School Name/Branch",
   emailPlaceholder: "Email Address",
   phonePlaceholder: "Phone Number",
