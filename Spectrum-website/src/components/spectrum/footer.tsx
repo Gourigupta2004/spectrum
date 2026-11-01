@@ -51,14 +51,6 @@ export function Footer() {
             </li>
             <li>
               <Link
-                to="/id-card"
-                className="inline-block py-1.5 text-foreground transition-colors hover:text-teal"
-              >
-                {copy.navIdCard}
-              </Link>
-            </li>
-            <li>
-              <Link
                 to="/about"
                 className="inline-block py-1.5 text-foreground transition-colors hover:text-teal"
               >
@@ -71,6 +63,14 @@ export function Footer() {
                 className="inline-block py-1.5 text-foreground transition-colors hover:text-teal"
               >
                 {copy.navContact}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/id-card"
+                className="inline-block py-1.5 text-foreground transition-colors hover:text-teal"
+              >
+                {copy.navIdCard}
               </Link>
             </li>
           </ul>

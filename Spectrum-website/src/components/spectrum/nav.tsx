@@ -23,9 +23,9 @@ export function SpectrumNav() {
   // Events starts at the institution picker: institutions → events → gallery.
   const links: NavLink[] = [
     { label: site.copy.navEvents, to: "/institutions" },
-    { label: site.copy.navIdCard, to: "/id-card" },
     { label: site.copy.navAbout, to: "/about" },
     { label: site.copy.navContact, to: "/contact" },
+    { label: site.copy.navIdCard, to: "/id-card" },
     { label: site.copy.navPortal, to: "/portal" },
   ];
 
