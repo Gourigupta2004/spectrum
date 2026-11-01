@@ -91,3 +91,47 @@ class DuplicateIdCardTests(SpectrumTestCase):
         for value in ("Asha Rao", "7B", "A-1042", "Delhi Public School", "₹150", "Awaiting payment"):
             self.assertIn(value, html)
         self.assertIn("ID cards", self.client.get("/admin/").content.decode())
+
+
+class DuplicateIdCardAdminTests(SpectrumTestCase):
+    def setUp(self):
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+
+    def request(self, status=DuplicateIdCardRequest.PAID, **extra):
+        return DuplicateIdCardRequest.objects.create(
+            institution=self.institution, student_name="Asha Rao", class_name="7B", admission_no="A-1",
+            email="asha@example.com", phone="9810044120", amount_paise=15000, status=status, **extra)
+
+    def test_the_table_is_called_duplicate_id_card(self):
+        index = self.client.get("/admin/").content.decode()
+        self.assertIn(">Duplicate ID card<", index)
+        self.assertNotIn("Duplicate ID card requests", index)
+
+    def test_several_requests_are_marked_done_at_once(self):
+        first, second, unpaid = self.request(), self.request(), self.request(status=DuplicateIdCardRequest.CREATED)
+        response = self.client.post("/admin/idcards/duplicateidcardrequest/", {
+            "action": "mark_done", "_selected_action": [first.pk, second.pk, unpaid.pk]}, follow=True)
+        self.assertContains(response, "Marked 3 request(s) as done. 1 of them weren&#x27;t paid.")
+        self.assertEqual(DuplicateIdCardRequest.objects.filter(handled=True).count(), 3)
+        self.client.post("/admin/idcards/duplicateidcardrequest/", {
+            "action": "mark_not_done", "_selected_action": [unpaid.pk]})
+        unpaid.refresh_from_db()
+        self.assertFalse(unpaid.handled)
+
+    def test_guidelines_are_edited_in_the_admin_and_reach_the_page(self):
+        from apps.content.models import IdCardPage
+
+        page = self.client.get("/admin/content/idcardpage/", follow=True).content.decode()
+        for field in ("guidelines_title", "guidelines_intro", "guidelines_points", "guidelines_outro",
+                      "guidelines_link", "guidelines_dismiss"):
+            self.assertIn(f'name="{field}"', page)
+        self.client.get("/api/pages/id-card/")  # cached now
+        copy = IdCardPage.load()
+        copy.guidelines_title = "Read This First"
+        copy.guidelines_points = "Bring the old card.\nUse capital letters."
+        copy.save()
+        data = self.client.get("/api/pages/id-card/").json()["copy"]
+        self.assertEqual((data["guidelinesTitle"], data["guidelinesPoints"]),
+                         ("Read This First", "Bring the old card.\nUse capital letters."))

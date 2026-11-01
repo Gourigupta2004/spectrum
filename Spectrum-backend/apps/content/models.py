@@ -418,7 +418,7 @@ class GalleryPage(SingletonModel):
 
 class IdCardPage(Seo, SingletonModel):
     """The ID Card page: a duplicate ID card request, paid for online. The
-    requests themselves arrive under ID cards › Duplicate ID card requests."""
+    requests themselves arrive under ID cards › Duplicate ID card."""
 
     seo_title = line("Duplicate ID Card — Spectrum")
     seo_description = para("Request a duplicate student ID card and pay online.")

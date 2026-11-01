@@ -44,6 +44,7 @@ class DuplicateIdCardRequest(models.Model):
     class Meta:
         ordering = ["-created_at"]
         verbose_name = "duplicate ID card request"
+        verbose_name_plural = "duplicate ID card"  # the admin table's name
 
     def __str__(self):
         return self.public_id

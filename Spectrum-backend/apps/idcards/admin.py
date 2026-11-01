@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from apps.orders.admin import badge
 
@@ -23,9 +23,22 @@ class DuplicateIdCardRequestAdmin(admin.ModelAdmin):
                        "rupees", "status", "razorpay_order_id", "razorpay_payment_id", "paid_via", "created_at",
                        "paid_at")
     fields = (*readonly_fields, "handled")
+    actions = ["mark_done", "mark_not_done"]
 
     def has_add_permission(self, request):
         return False
+
+    @admin.action(description="Mark selected requests as done")
+    def mark_done(self, request, queryset):
+        unpaid = queryset.exclude(status=DuplicateIdCardRequest.PAID).count()
+        count = queryset.filter(handled=False).update(handled=True)
+        note = f" {unpaid} of them weren't paid." if unpaid else ""
+        messages.success(request, f"Marked {count} request(s) as done.{note}")
+
+    @admin.action(description="Mark selected requests as not done")
+    def mark_not_done(self, request, queryset):
+        count = queryset.filter(handled=True).update(handled=False)
+        messages.success(request, f"Marked {count} request(s) as not done.")
 
     @admin.display(description="Amount", ordering="amount_paise")
     def rupees(self, obj):
