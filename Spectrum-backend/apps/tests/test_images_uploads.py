@@ -709,3 +709,28 @@ class PortalWatermarkTests(SpectrumTestCase):
         import_module("apps.portal.migrations.0016_portal_watermarks").queue_watermarks(django_apps, None)
         self.assertEqual(list(Task.objects.values_list("name", "args")),
                          [("core.refresh_watermark", ["portal.captionitem", item.pk])])
+        # Re-queued for the gallery letter size: replaced, not doubled.
+        import_module("apps.portal.migrations.0017_portal_watermarks_gallery_size").requeue_watermarks(
+            django_apps, None)
+        self.assertEqual(list(Task.objects.values_list("name", "args")),
+                         [("core.refresh_watermark", ["portal.captionitem", item.pk])])
+
+    def test_every_mark_has_the_gallery_letter_size(self):
+        sizes = {text: self.font_size(text) for text in ("Preview Only", "Preview", "For Title", "For Approval",
+                                                          "Submitted")}
+        self.assertEqual(len(set(sizes.values())), 1, sizes)
+        self.assertLess(self.font_size("Video preview not available"), sizes["Preview Only"],
+                        "a longer mark still shrinks to fit")
+
+    def font_size(self, text):
+        """The letter size a mark is drawn at on a 1600 px photo."""
+        from unittest import mock
+
+        from PIL import Image, ImageFont
+
+        from apps.core import jobs
+
+        load, seen = ImageFont.load_default, []
+        with mock.patch.object(ImageFont, "load_default", side_effect=lambda size=None: seen.append(size) or load(size=size)):
+            jobs.watermark(Image.new("RGB", (1600, 1000)), text)
+        return seen[-1]

@@ -157,6 +157,10 @@ def render_variants(obj) -> dict:
 # sits — present on every crop, never competing with the picture.
 FILL_ALPHA = 84
 FRINGE_ALPHA = 96
+# The letters are sized as if the mark read this (the gallery's), so a
+# shorter mark ("Preview", "For Title") has the same letters, just a shorter
+# line, rather than growing to fill the width.
+REFERENCE_MARK = "Preview Only"
 
 
 def watermark(image, text: str = "Preview Only"):
@@ -172,8 +176,10 @@ def watermark(image, text: str = "Preview Only"):
     width, height = base.size
     try:
         probe = ImageFont.load_default(size=100)
-        # Size the type so the mark spans ~80% of the photo's width.
-        span = ImageDraw.Draw(base).textlength(text, font=probe)
+        # Size the type so the gallery's mark spans ~80% of the photo's width;
+        # a longer mark shrinks to the same span.
+        draw = ImageDraw.Draw(base)
+        span = max(draw.textlength(text, font=probe), draw.textlength(REFERENCE_MARK, font=probe))
         font_size = max(18, int(100 * (width * 0.8) / max(span, 1)))
         font = ImageFont.load_default(size=font_size)
     except TypeError:  # Pillow built without FreeType: the bitmap font has one size
