@@ -8,6 +8,7 @@ export const siteCopy = {
   navEvents: "Events",
   navAbout: "About Us",
   navContact: "Contact",
+  navIdCard: "ID Card",
   navPortal: "Institution Portal",
   footerTagline: "Imagination That Works",
   footerDescription: "Premium photography and videography for institutions across India.",
@@ -132,6 +133,42 @@ export const galleryCopy = {
   successBack: "Back to Events",
 };
 
+export const idCardCopy = {
+  backLabel: "Home",
+  title: "Request a Duplicate [ID Card]",
+  subtitle:
+    "Lost or damaged an ID card? Fill in the student's details and pay online to request a duplicate.",
+  namePlaceholder: "Student's Name",
+  classPlaceholder: "Class",
+  admissionNoPlaceholder: "Admission No.",
+  institutionPlaceholder: "School Name/Branch",
+  emailPlaceholder: "Email Address",
+  phonePlaceholder: "Phone Number",
+  priceLabel: "Duplicate ID card",
+  priceHint: "Choose the school to see the price.",
+  submitLabel: "Pay & Request →",
+  payButton: "Pay ₹{price} with Razorpay →",
+  checkoutError: "Payment could not be completed. Please try again.",
+  unavailableMessage: "Duplicate ID cards can't be requested online right now. Please contact us.",
+  successTitle: "Request Received",
+  successBody:
+    "Your request number is {number}. Please keep it handy if you contact us about this card.",
+  successAgain: "Request another card",
+  guidelinesTitle: "Before You Request",
+  guidelinesIntro:
+    "The new card is printed from what you enter here, so please read these before you fill in the form.",
+  guidelinesPoints: [
+    "Type the student's name exactly as it appears in the school's records.",
+    "Enter the class and section, e.g. 7B.",
+    "Double-check the admission number: it is how the school matches the card to the student.",
+    "Choose the right school and branch; the price shown is set for that school.",
+    "Give an email address and phone number you check, in case we need to reach you about the card.",
+  ].join("\n"),
+  guidelinesOutro: "Payment confirms the request, so please check every detail before you pay.",
+  guidelinesLink: "View guidelines",
+  guidelinesDismiss: "Got it",
+};
+
 export const portalCopy = {
   accessEyebrow: "Institution Access",
   accessTitle: "Enter your institution email",
@@ -204,4 +241,5 @@ export type AboutCopy = typeof aboutCopy;
 export type ContactCopy = typeof contactCopy;
 export type EventsCopy = typeof eventsCopy;
 export type GalleryCopy = typeof galleryCopy;
+export type IdCardCopy = typeof idCardCopy;
 export type PortalCopy = typeof portalCopy;

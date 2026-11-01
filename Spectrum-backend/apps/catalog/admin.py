@@ -51,10 +51,13 @@ class InstitutionAdmin(AppendOrderMixin, BulkUploadMixin, ImagePreviewMixin, adm
     list_display = ("thumbnail", "name", "short", "city", "kind", "event_count", "is_published", "sort_order")
     list_display_links = ("thumbnail", "name")
     list_editable = ("is_published", "sort_order")
-    list_filter = ("kind", "is_published")
+    list_filter = ("kind", "is_published", "offers_duplicate_id_cards")
     search_fields = ("name", "short", "city", "portal_emails__email", "portal_emails__username")
     prepopulated_fields = {"slug": ("name",)}
-    fields = ("name", "short", "slug", "city", "kind", "original", "is_published", "sort_order")
+    fieldsets = (
+        (None, {"fields": ("name", "short", "slug", "city", "kind", "original", "is_published", "sort_order")}),
+        ("ID cards", {"fields": ("offers_duplicate_id_cards", "duplicate_id_card_price")}),
+    )
     actions = ["reprocess_images", "sign_out_of_portal"]
 
     def get_queryset(self, request):

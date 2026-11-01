@@ -43,7 +43,9 @@ def _request(url: str, *, method: str, auth: tuple[str, str], data: bytes | None
 # --------------------------------------------------------------------------- Razorpay
 
 
-def razorpay_create_order(order: Order) -> str:
+def razorpay_create_order(order) -> str:
+    """A Razorpay order for anything paid through Checkout: a photo Order or an
+    ID card request (both carry amount_paise, currency and public_id)."""
     result = _request(
         "https://api.razorpay.com/v1/orders",
         method="POST",

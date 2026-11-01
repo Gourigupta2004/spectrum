@@ -4,16 +4,11 @@ import { MessageCircle, Mail, Play, X } from "lucide-react";
 import type { Photo, SpectrumEvent, Video } from "@/lib/spectrum-data";
 import type { GalleryCopy } from "@/lib/data/defaults";
 import { hasApi } from "@/lib/api";
-import { payForPhotos, type Order } from "@/lib/data/orders";
+import { newIdempotencyKey, payForPhotos, type Order } from "@/lib/data/orders";
 import { fill } from "@/lib/text";
 
 const inputClass =
   "w-full rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet";
-
-const newKey = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export function CheckoutModal({
   open,
@@ -58,7 +53,7 @@ export function CheckoutModal({
     (bundle ? "bundle" : selected.map((p) => p.id).join(",")) +
     "|" +
     selectedVideos.map((v) => v.id).join(",");
-  const idempotencyKey = useMemo(() => newKey(), [basket, event.slug, open, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const idempotencyKey = useMemo(() => newIdempotencyKey(), [basket, event.slug, open, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";

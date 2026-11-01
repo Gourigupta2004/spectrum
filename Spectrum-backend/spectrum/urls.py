@@ -5,6 +5,7 @@ from django.views.static import serve
 
 from apps.catalog import views as catalog
 from apps.content import views as content
+from apps.idcards import views as idcards
 from apps.orders import views as orders
 from apps.portal import views as portal
 
@@ -14,6 +15,7 @@ api = [
     path("pages/about/", content.about),
     path("pages/contact/", content.contact_page),
     path("pages/portal/", content.portal_page),
+    path("pages/id-card/", idcards.page),
     path("contact/", content.contact_submit),
     path("events/", catalog.events),
     path("events/<slug:slug>/", catalog.event_detail),
@@ -34,6 +36,8 @@ api = [
     path("orders/", orders.create_order),
     path("orders/<uuid:order_id>/", orders.order_status),
     path("orders/<uuid:order_id>/verify/", orders.verify_order),
+    path("idcards/duplicate/", idcards.create_duplicate),
+    path("idcards/duplicate/<uuid:request_id>/verify/", idcards.verify_duplicate),
     path("webhooks/razorpay/", orders.razorpay_webhook),
     path("webhooks/twilio/", orders.twilio_webhook),
     path("downloads/<str:token>/photos/<int:item_id>/", orders.download_photo),

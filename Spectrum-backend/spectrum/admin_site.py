@@ -5,7 +5,7 @@ from django.contrib.admin import AdminSite
 GROUPS = [
     ("Website content", [
         "content.sitesettings", "content.homepage", "content.aboutpage", "content.contactpage",
-        "content.eventspage", "content.gallerypage", "content.portalpage",
+        "content.eventspage", "content.gallerypage", "content.idcardpage", "content.portalpage",
     ]),
     ("Events & galleries", ["catalog.event", "catalog.eventphoto"]),
     # Institutions live in the catalog app (their table is unchanged); they are
@@ -17,6 +17,8 @@ GROUPS = [
         "portal.portalaccessemail",
     ]),
     ("Inbox", ["content.enquiry", "orders.order", "orders.delivery"]),
+    # One module for every ID card service; duplicate cards are the first.
+    ("ID cards", ["idcards.duplicateidcardrequest"]),
     ("System", ["core.task", "auth.user", "catalog.institutionkind"]),
 ]
 

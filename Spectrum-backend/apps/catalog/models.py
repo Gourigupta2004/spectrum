@@ -65,12 +65,24 @@ class Institution(ProcessedImage):
                              verbose_name="type")
     is_published = models.BooleanField("published", default=True)
     sort_order = models.PositiveIntegerField("order", default=0)
+    # Duplicate ID cards (apps.idcards): offered only where ticked, at one price per card for the institution.
+    offers_duplicate_id_cards = models.BooleanField(
+        "offers duplicate ID cards", default=False,
+        help_text="Lists this institution under School Name/Branch on the website's ID Card page.")
+    duplicate_id_card_price = models.PositiveIntegerField(
+        "duplicate ID card price (₹)", null=True, blank=True,
+        help_text="What one duplicate ID card costs at this institution.")
 
     class Meta:
         ordering = ["sort_order", "name"]
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if self.offers_duplicate_id_cards and not self.duplicate_id_card_price:
+            raise ValidationError({"duplicate_id_card_price": "Set the price of a duplicate ID card to offer them."})
 
 
 class Event(ProcessedImage):

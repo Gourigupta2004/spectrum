@@ -215,6 +215,14 @@ def razorpay_webhook(request):
                     log.error("Webhook for %s rejected: %s", order, exc)
             elif order is not None and event_type == "payment.failed":
                 Order.objects.filter(pk=order.pk, status=Order.CREATED).update(status=Order.FAILED)
+            elif order is None and payment:
+                # Not a photo order: perhaps an ID card request, paid the same way.
+                from apps.idcards.services import handle_razorpay_event
+
+                try:
+                    handle_razorpay_event(event_type, payment)
+                except ProviderError as exc:
+                    log.error("Webhook for ID card request rejected: %s", exc)
     except IntegrityError:
         return HttpResponse(status=200)  # already handled
     return HttpResponse(status=200)

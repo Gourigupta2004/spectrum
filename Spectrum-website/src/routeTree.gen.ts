@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as IdCardRouteImport } from './routes/id-card'
 import { Route as InstitutionsRouteImport } from './routes/institutions'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as EventsIndexRouteImport } from './routes/events/index'
@@ -42,6 +43,11 @@ const ContactRoute = ContactRouteImport.update({
 const HowItWorksRoute = HowItWorksRouteImport.update({
   id: '/how-it-works',
   path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdCardRoute = IdCardRouteImport.update({
+  id: '/id-card',
+  path: '/id-card',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstitutionsRoute = InstitutionsRouteImport.update({
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/id-card': typeof IdCardRoute
   '/institutions': typeof InstitutionsRoute
   '/portal': typeof PortalRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/id-card': typeof IdCardRoute
   '/institutions': typeof InstitutionsRoute
   '/events/$slug': typeof EventsSlugRoute
   '/events': typeof EventsIndexRoute
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/id-card': typeof IdCardRoute
   '/institutions': typeof InstitutionsRoute
   '/portal': typeof PortalRouteWithChildren
   '/events/$slug': typeof EventsSlugRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/how-it-works'
+    | '/id-card'
     | '/institutions'
     | '/portal'
     | '/events/$slug'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/how-it-works'
+    | '/id-card'
     | '/institutions'
     | '/events/$slug'
     | '/events'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/how-it-works'
+    | '/id-card'
     | '/institutions'
     | '/portal'
     | '/events/$slug'
@@ -198,6 +210,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
   HowItWorksRoute: typeof HowItWorksRoute
+  IdCardRoute: typeof IdCardRoute
   InstitutionsRoute: typeof InstitutionsRoute
   PortalRoute: typeof PortalRouteWithChildren
   EventsSlugRoute: typeof EventsSlugRoute
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       path: '/how-it-works'
       fullPath: '/how-it-works'
       preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id-card': {
+      id: '/id-card'
+      path: '/id-card'
+      fullPath: '/id-card'
+      preLoaderRoute: typeof IdCardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/institutions': {
@@ -345,6 +365,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
   HowItWorksRoute: HowItWorksRoute,
+  IdCardRoute: IdCardRoute,
   InstitutionsRoute: InstitutionsRoute,
   PortalRoute: PortalRouteWithChildren,
   EventsSlugRoute: EventsSlugRoute,

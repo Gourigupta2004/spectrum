@@ -1,4 +1,4 @@
-import type { PortalCopy } from "./data/defaults";
+import type { IdCardCopy, PortalCopy } from "./data/defaults";
 
 /** What a guidelines popup says; each workspace section has its own, set in the admin. */
 export type Guidelines = {
@@ -25,4 +25,13 @@ export const rosterGuidelines = (copy: PortalCopy): Guidelines => ({
   points: copy.rosterGuidelinesPoints,
   outro: copy.rosterGuidelinesOutro,
   dismiss: copy.rosterGuidelinesDismiss,
+});
+
+/** The ID Card page (requesting a duplicate card). */
+export const idCardGuidelines = (copy: IdCardCopy): Guidelines => ({
+  title: copy.guidelinesTitle,
+  intro: copy.guidelinesIntro,
+  points: copy.guidelinesPoints,
+  outro: copy.guidelinesOutro,
+  dismiss: copy.guidelinesDismiss,
 });

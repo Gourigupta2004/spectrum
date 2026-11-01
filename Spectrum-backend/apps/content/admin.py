@@ -4,7 +4,7 @@ from apps.core.admin_tools import BulkUploadMixin, ImagePreviewMixin, SingletonA
 
 from .models import (
     AboutPage, Capability, ContactDetail, ContactPage, Enquiry, EventsPage, Faq, GalleryPage, HeroSlide, HomePage,
-    PortalPage, Service, SiteSettings, Stat, StoryBlock, TieUp,
+    IdCardPage, PortalPage, Service, SiteSettings, Stat, StoryBlock, TieUp,
 )
 
 SEO = ("Search & sharing", {"classes": ("collapse",),
@@ -25,7 +25,8 @@ class SiteSettingsAdmin(SingletonAdmin):
     fieldsets = (
         ("Logo & intro video", {"fields": ("logo_light", "logo_mark", "favicon", "intro_video_webm",
                                            "intro_video_mp4", "intro_audio", "session_audio", "intro_skip_label")}),
-        ("Navigation", {"fields": ("nav_home", "nav_events", "nav_about", "nav_contact", "nav_portal")}),
+        ("Navigation", {"fields": ("nav_home", "nav_events", "nav_about", "nav_contact", "nav_id_card",
+                                       "nav_portal")}),
         ("Footer", {"description": "Quick links use the Navigation labels above; the logo is the light logo.",
                     "fields": ("footer_tagline", "footer_description", "footer_links_heading",
                                "footer_contact_heading", "footer_email", "footer_phone", "footer_instagram_url",
@@ -143,6 +144,22 @@ class GalleryPageAdmin(SingletonAdmin):
                                  "contact_required", "pay_button", "checkout_error", "not_for_sale_message")}),
         ("After payment", {"fields": ("success_title", "success_body_whatsapp", "success_body_email",
                                       "success_note", "success_back")}),
+    )
+
+
+@admin.register(IdCardPage)
+class IdCardPageAdmin(SingletonAdmin):
+    fieldsets = (
+        ("Heading", {"fields": ("back_label", "title", "subtitle")}),
+        ("Form", {"description": "Which institutions are listed, and at what price, is set on each institution "
+                                 "under ID cards.",
+                  "fields": ("name_placeholder", "class_placeholder", "admission_no_placeholder",
+                             "institution_placeholder", "email_placeholder", "phone_placeholder", "price_label",
+                             "price_hint", "submit_label", "pay_button", "checkout_error", "unavailable_message")}),
+        ("After payment", {"fields": ("success_title", "success_body", "success_again")}),
+        ("Guidelines popup", {"fields": ("guidelines_title", "guidelines_intro", "guidelines_points",
+                                         "guidelines_outro", "guidelines_link", "guidelines_dismiss")}),
+        SEO,
     )
 
 

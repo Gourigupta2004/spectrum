@@ -72,6 +72,7 @@ class SiteSettings(SingletonModel):
     nav_events = line("Events", 40)
     nav_about = line("About Us", 40)
     nav_contact = line("Contact", 40)
+    nav_id_card = line("ID Card", 40, help_text="Navbar link to the duplicate ID card page.")
     nav_portal = line("Institution Portal", 40, help_text="Navbar link to the institution portal.")
 
     # Footer. Its quick links reuse the navigation labels above.
@@ -413,6 +414,59 @@ class GalleryPage(SingletonModel):
 
     class Meta:
         verbose_name = "gallery & checkout page"
+
+
+class IdCardPage(Seo, SingletonModel):
+    """The ID Card page: a duplicate ID card request, paid for online. The
+    requests themselves arrive under ID cards › Duplicate ID card requests."""
+
+    seo_title = line("Duplicate ID Card — Spectrum")
+    seo_description = para("Request a duplicate student ID card and pay online.")
+    og_title = line("Request a Duplicate ID Card — Spectrum")
+    og_description = para("Request a duplicate student ID card and pay online.")
+    back_label = line("Home", 40)
+    title = line("Request a Duplicate [ID Card]", help_text=BRACKET_HELP)
+    subtitle = para("Lost or damaged an ID card? Fill in the student's details and pay online to request a "
+                    "duplicate.")
+    name_placeholder = line("Student's Name")
+    class_placeholder = line("Class")
+    admission_no_placeholder = line("Admission No.")
+    institution_placeholder = line("School Name/Branch")
+    email_placeholder = line("Email Address")
+    phone_placeholder = line("Phone Number")
+    price_label = line("Duplicate ID card", 80, help_text="Beside the price, once a school is chosen.")
+    price_hint = line("Choose the school to see the price.")
+    submit_label = line("Pay & Request →", 60, help_text="The button before a school is chosen.")
+    pay_button = line("Pay ₹{price} with Razorpay →", help_text="{price} is the chosen school's price.")
+    checkout_error = line("Payment could not be completed. Please try again.")
+    unavailable_message = para(
+        "Duplicate ID cards can't be requested online right now. Please contact us.",
+        help_text="Shown in place of the form when no institution offers duplicate ID cards.")
+    success_title = line("Request Received")
+    success_body = para("Your request number is {number}. Please keep it handy if you contact us about this card.",
+                        help_text="{number} is the request number.")
+    success_again = line("Request another card", 60)
+
+    # The guidelines popup: shown every time the page is opened, and again
+    # from the "View guidelines" link. Placeholder wording until the real
+    # guidelines are written.
+    guidelines_title = line("Before You Request")
+    guidelines_intro = para("The new card is printed from what you enter here, so please read these before you "
+                            "fill in the form.")
+    guidelines_points = para(
+        "Type the student's name exactly as it appears in the school's records.\n"
+        "Enter the class and section, e.g. 7B.\n"
+        "Double-check the admission number: it is how the school matches the card to the student.\n"
+        "Choose the right school and branch; the price shown is set for that school.\n"
+        "Give an email address and phone number you check, in case we need to reach you about the card.",
+        help_text="One pointer per line.",
+    )
+    guidelines_outro = para("Payment confirms the request, so please check every detail before you pay.")
+    guidelines_link = line("View guidelines", 60)
+    guidelines_dismiss = line("Got it", 40)
+
+    class Meta:
+        verbose_name = "ID card page"
 
 
 class PortalPage(SingletonModel):

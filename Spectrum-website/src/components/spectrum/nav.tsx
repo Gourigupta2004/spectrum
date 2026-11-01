@@ -7,7 +7,10 @@ import { useSite } from "@/lib/use-site";
 import { useMusic } from "./session-music";
 import { Volume2, VolumeX } from "lucide-react";
 
-type NavLink = { label: string; to: "/institutions" | "/about" | "/contact" | "/portal" };
+type NavLink = {
+  label: string;
+  to: "/institutions" | "/id-card" | "/about" | "/contact" | "/portal";
+};
 
 export function SpectrumNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -20,6 +23,7 @@ export function SpectrumNav() {
   // Events starts at the institution picker: institutions → events → gallery.
   const links: NavLink[] = [
     { label: site.copy.navEvents, to: "/institutions" },
+    { label: site.copy.navIdCard, to: "/id-card" },
     { label: site.copy.navAbout, to: "/about" },
     { label: site.copy.navContact, to: "/contact" },
     { label: site.copy.navPortal, to: "/portal" },
@@ -74,7 +78,8 @@ export function SpectrumNav() {
             )}
           </Link>
 
-          <div className="hidden items-center gap-8 md:flex">
+          {/* Five links only just fit a 768px tablet: tighter there, full spacing from lg. */}
+          <div className="hidden items-center gap-6 md:flex lg:gap-8">
             {links.map((l) => {
               const active =
                 pathname === l.to ||
@@ -84,7 +89,7 @@ export function SpectrumNav() {
                 <Link
                   key={l.to}
                   to={l.to}
-                  className="group relative font-display text-[0.78rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:text-foreground"
+                  className="group relative whitespace-nowrap font-display text-[0.78rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:text-foreground"
                 >
                   {l.label}
                   <span

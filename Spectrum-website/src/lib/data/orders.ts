@@ -81,30 +81,51 @@ function loadCheckout(): Promise<void> {
   return checkoutScript;
 }
 
+/** What Checkout needs from anything paid through Razorpay: a photo order or an ID card request. */
+export type Payable = {
+  id: string;
+  amountPaise: number;
+  currency: string;
+  mock: boolean;
+  razorpay: { keyId: string; orderId: string } | null;
+  prefill: { name: string; email: string; contact: string };
+  paid: boolean;
+};
+
+/** One key per attempt, so a double click or retry never creates two orders. */
+export const newIdempotencyKey = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 /**
- * Creates the order, opens Razorpay Checkout and verifies the payment.
- * Resolves with the paid order, or null if the buyer closed the payment window.
+ * Opens Razorpay Checkout for something the server has created, and verifies
+ * the payment. Resolves with the paid result, or null if the buyer closed the
+ * payment window.
  */
-export async function payForPhotos(input: OrderInput, description: string): Promise<Order | null> {
-  const order = await createOrder(input);
-  if (order.status === "paid" || order.status === "delivered") return order;
-  if (order.mock) return verifyOrder(order.id, { mock: true });
-  if (!order.razorpay) throw new Error("Payment is not available right now.");
+export async function checkout<T extends Payable>(
+  created: T,
+  verify: (body: Record<string, unknown>) => Promise<T>,
+  description: string,
+): Promise<T | null> {
+  if (created.paid) return created;
+  if (created.mock) return verify({ mock: true });
+  if (!created.razorpay) throw new Error("Payment is not available right now.");
 
   await loadCheckout();
-  const razorpay = order.razorpay;
-  return new Promise<Order | null>((resolve, reject) => {
-    const checkout = new window.Razorpay!({
+  const razorpay = created.razorpay;
+  return new Promise<T | null>((resolve, reject) => {
+    const rzp = new window.Razorpay!({
       key: razorpay.keyId,
       order_id: razorpay.orderId,
-      amount: order.amountPaise,
-      currency: order.currency,
+      amount: created.amountPaise,
+      currency: created.currency,
       name: "Spectrum",
       description,
-      prefill: order.prefill,
+      prefill: created.prefill,
       theme: { color: "#7C4DE0" },
       handler: (response) => {
-        verifyOrder(order.id, {
+        verify({
           razorpayOrderId: response.razorpay_order_id,
           razorpayPaymentId: response.razorpay_payment_id,
           razorpaySignature: response.razorpay_signature,
@@ -112,7 +133,16 @@ export async function payForPhotos(input: OrderInput, description: string): Prom
       },
       modal: { ondismiss: () => resolve(null) },
     });
-    checkout.on("payment.failed", () => reject(new Error("Payment failed")));
-    checkout.open();
+    rzp.on("payment.failed", () => reject(new Error("Payment failed")));
+    rzp.open();
   });
+}
+
+/**
+ * Creates the order, opens Razorpay Checkout and verifies the payment.
+ * Resolves with the paid order, or null if the buyer closed the payment window.
+ */
+export async function payForPhotos(input: OrderInput, description: string): Promise<Order | null> {
+  const order = await createOrder(input);
+  return checkout(order, (body) => verifyOrder(order.id, body), description);
 }
