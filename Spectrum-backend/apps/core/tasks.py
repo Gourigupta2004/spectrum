@@ -11,6 +11,10 @@ from django.utils import timezone
 
 log = logging.getLogger(__name__)
 REGISTRY: dict = {}
+# Catch-up work that can come in thousands at once (re-marking every portal
+# photo). The worker runs it only when nothing else is waiting, so a buyer's
+# delivery or a fresh upload never queues behind it.
+LOW_PRIORITY = frozenset({"core.refresh_watermark"})
 
 
 def job(name: str):
@@ -48,13 +52,13 @@ def claim():
     from .models import Task
 
     now = timezone.now()
+    due = Task.objects.filter(status=Task.QUEUED, run_after__lte=now, attempts__lt=F("max_attempts"))
     for _ in range(5):
-        pk = (
-            Task.objects.filter(status=Task.QUEUED, run_after__lte=now, attempts__lt=F("max_attempts"))
-            .order_by("run_after", "id")
-            .values_list("pk", flat=True)
-            .first()
-        )
+        pk = None
+        for tasks in (due.exclude(name__in=LOW_PRIORITY), due.filter(name__in=LOW_PRIORITY)):
+            pk = tasks.order_by("run_after", "id").values_list("pk", flat=True).first()
+            if pk is not None:
+                break
         if pk is None:
             return None
         if Task.objects.filter(pk=pk, status=Task.QUEUED).update(status=Task.RUNNING, attempts=F("attempts") + 1):

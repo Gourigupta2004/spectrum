@@ -29,6 +29,14 @@ class HardeningTests(SpectrumTestCase):
                             run_after=timezone.now() - timedelta(seconds=1))
         self.assertIsNone(claim())
 
+    def test_a_watermark_backlog_never_holds_up_other_jobs(self):
+        earlier = timezone.now() - timedelta(hours=1)
+        for pk in range(3):  # thousands of these, queued first
+            Task.objects.create(name="core.refresh_watermark", args=["portal.student", pk], run_after=earlier)
+        delivery = Task.objects.create(name="orders.send_delivery", args=[1])
+        self.assertEqual(claim().pk, delivery.pk, "a buyer's delivery jumps the backlog")
+        self.assertEqual(claim().name, "core.refresh_watermark", "the backlog runs once nothing else waits")
+
     def test_cache_version_never_repeats_after_eviction(self):
         before = public_cache.cached_bytes("probe", lambda: {"v": 1})
         public_cache.bump()
