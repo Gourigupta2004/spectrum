@@ -21,7 +21,7 @@ def video_upload_to(instance, filename):
     ext = os.path.splitext(filename)[1].lower()
     if ext not in VIDEO_EXTENSIONS:
         ext = ".mp4"
-    return f"catalog/eventvideo/videos/{uuid.uuid4().hex}{ext}"
+    return f"catalog/eventvideo/videos/{uuid.uuid4().hex}{ext}"  # video_uploads.VIDEO_PREFIX
 
 
 # Events dated within this many months of today are tagged Recent on their own.

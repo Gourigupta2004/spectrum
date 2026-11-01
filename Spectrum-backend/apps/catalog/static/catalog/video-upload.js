@@ -3,11 +3,16 @@
  * to storage (presigned S3 PUT, or the local endpoint), with a progress bar in
  * the row. The row's hidden input then holds the upload's token, and Save
  * sends only that. Save waits while any video is still uploading.
+ *
+ * Large videos on S3 go up in parts (method MULTIPART): a few at a time, each
+ * retried on its own if the connection drops, then joined by the server.
  */
 (function () {
   "use strict";
 
   var VIDEO_EXT = /\.(mp4|mov|m4v|webm)$/i;
+  var PARALLEL_PARTS = 3;
+  var PART_RETRIES = 4;
   var active = 0;
 
   function csrf() {
@@ -37,12 +42,12 @@
     catch (e) { return "upload failed (" + xhr.status + ")"; }
   }
 
-  function prepare(url, file) {
+  function postJSON(url, body) {
     return fetch(url, {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
-      body: JSON.stringify({ name: file.name, size: file.size, type: file.type }),
+      body: JSON.stringify(body),
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (data) {
         if (!response.ok) throw new Error(data.error || response.statusText);
@@ -50,6 +55,12 @@
       });
     });
   }
+
+  function prepare(url, file) {
+    return postJSON(url, { name: file.name, size: file.size, type: file.type });
+  }
+
+  function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
 
   function Field(root) {
     this.root = root;
@@ -59,7 +70,7 @@
     this.bar = root.querySelector(".video-upload-bar span");
     this.line = root.querySelector(".video-upload-line");
     this.seq = 0;
-    this.xhr = null;
+    this.xhrs = [];
   }
 
   Field.of = function (root) {
@@ -78,7 +89,7 @@
   Field.prototype.start = function (file) {
     var self = this;
     var seq = ++this.seq;
-    if (this.xhr) this.xhr.abort();
+    this.stop();
     this.token.value = "";
     if (!file) { this.progress.hidden = true; return; }
     var max = parseInt(this.root.dataset.maxBytes, 10) || 0;
@@ -104,11 +115,34 @@
       .then(finish);
   };
 
+  /* Cancels whatever is in flight: a new file was chosen. */
+  Field.prototype.stop = function () {
+    this.xhrs.splice(0).forEach(function (xhr) { xhr.abort(); });
+  };
+
+  Field.prototype.track = function (xhr) {
+    var xhrs = this.xhrs;
+    xhrs.push(xhr);
+    return function () { var i = xhrs.indexOf(xhr); if (i !== -1) xhrs.splice(i, 1); };
+  };
+
+  /* "Uploading x · 1.2 GB / 6.4 GB · 8.1 MB/s · about 11 min left" */
+  Field.prototype.report = function (file, sent, started) {
+    var seconds = (Date.now() - started) / 1000;
+    var parts = ["Uploading " + file.name, formatBytes(sent) + " / " + formatBytes(file.size)];
+    if (seconds > 3 && sent > 0) {
+      var speed = sent / seconds;
+      parts.push(formatBytes(speed) + "/s", formatTime((file.size - sent) / speed));
+    }
+    this.show("", Math.min(99, Math.floor((sent / file.size) * 100)), parts.join(" · "));
+  };
+
   Field.prototype.send = function (file, entry) {
+    if (entry.method === "MULTIPART") return this.sendParts(file, entry);
     var self = this;
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
-      self.xhr = xhr;
+      var untrack = self.track(xhr);
       var started = Date.now();
       var body;
       xhr.open(entry.method, entry.uploadUrl);
@@ -124,25 +158,98 @@
       xhr.upload.onprogress = function (event) {
         if (!event.lengthComputable) return;
         // The form's own bytes ride along with the file; count the file only.
-        var sent = Math.min(file.size, (event.loaded / event.total) * file.size);
-        var seconds = (Date.now() - started) / 1000;
-        var parts = ["Uploading " + file.name, formatBytes(sent) + " / " + formatBytes(file.size)];
-        if (seconds > 3 && sent > 0) {
-          var speed = sent / seconds;
-          parts.push(formatBytes(speed) + "/s", formatTime((file.size - sent) / speed));
-        }
-        self.show("", Math.floor((sent / file.size) * 100), parts.join(" · "));
+        self.report(file, Math.min(file.size, (event.loaded / event.total) * file.size), started);
       };
       xhr.upload.onload = function () { self.show("", 100, "Upload complete — storing " + file.name + "…"); };
       xhr.onload = function () {
-        self.xhr = null;
+        untrack();
         if (xhr.status >= 200 && xhr.status < 300) return resolve();
         reject(new Error(errorOf(xhr)));
       };
-      xhr.onerror = function () { self.xhr = null; reject(new Error("the connection dropped")); };
-      xhr.onabort = function () { reject({ aborted: true }); };
+      xhr.onerror = function () { untrack(); reject(new Error("the connection dropped")); };
+      xhr.onabort = function () { untrack(); reject({ aborted: true }); };
       xhr.send(body);
     });
+  };
+
+  /* A large video on S3, in parts of entry.partSize: PARALLEL_PARTS at a time,
+     each retried with a growing pause, part URLs fetched a batch at a time as
+     they are needed. The server then joins them; on failure it is told to
+     abort, so no half-upload is left taking up space. */
+  Field.prototype.sendParts = function (file, entry) {
+    var self = this;
+    var size = entry.partSize;
+    var total = Math.ceil(file.size / size);
+    var sent = {};  // part number -> bytes of it sent so far
+    var started = Date.now();
+    var batches = {};  // batch index -> promise of {number: url}
+    var next = 1;
+    var stopped = false;
+    var base = { token: entry.token, uploadId: entry.uploadId };
+
+    function progress() {
+      var bytes = 0;
+      for (var n in sent) bytes += sent[n];
+      self.report(file, bytes, started);
+    }
+
+    function urlFor(n, fresh) {
+      var batch = Math.floor((n - 1) / 50);
+      if (fresh || !batches[batch]) {
+        var numbers = [];
+        for (var i = batch * 50 + 1; i <= Math.min(total, batch * 50 + 50); i++) numbers.push(i);
+        batches[batch] = postJSON(entry.partsUrl, Object.assign({ numbers: numbers }, base))
+          .then(function (data) { return data.urls; });
+      }
+      return batches[batch].then(function (urls) { return urls[String(n)]; });
+    }
+
+    function putPart(n, url) {
+      return new Promise(function (resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        var untrack = self.track(xhr);
+        xhr.open("PUT", url);
+        xhr.upload.onprogress = function (event) { sent[n] = event.loaded; progress(); };
+        xhr.onload = function () {
+          untrack();
+          if (xhr.status >= 200 && xhr.status < 300) { sent[n] = Math.min(size, file.size - (n - 1) * size); progress(); return resolve(); }
+          reject(new Error("part " + n + " " + errorOf(xhr)));
+        };
+        xhr.onerror = function () { untrack(); reject(new Error("the connection dropped")); };
+        xhr.onabort = function () { untrack(); reject({ aborted: true }); };
+        xhr.send(file.slice((n - 1) * size, n * size));
+      });
+    }
+
+    function attempt(n, tries) {
+      // A retry fetches fresh URLs, in case the old one expired.
+      return urlFor(n, tries > 0).then(function (url) { return putPart(n, url); }).catch(function (error) {
+        if (error.aborted || stopped || tries + 1 >= PART_RETRIES) throw error;
+        sent[n] = 0;
+        progress();
+        return sleep(2000 * Math.pow(2, tries)).then(function () { return attempt(n, tries + 1); });
+      });
+    }
+
+    function worker() {
+      if (stopped || next > total) return Promise.resolve();
+      var n = next++;
+      return attempt(n, 0).then(worker);
+    }
+
+    var workers = [];
+    for (var i = 0; i < Math.min(PARALLEL_PARTS, total); i++) workers.push(worker());
+    return Promise.all(workers)
+      .then(function () {
+        self.show("", 100, "Upload complete — joining the parts of " + file.name + "…");
+        return postJSON(entry.completeUrl, Object.assign({ parts: total }, base));
+      })
+      .catch(function (error) {
+        stopped = true;
+        self.stop();
+        postJSON(entry.abortUrl, base).catch(function () {});
+        throw error;
+      });
   };
 
   Field.prototype.fail = function (file, reason) {

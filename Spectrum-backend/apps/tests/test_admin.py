@@ -161,6 +161,134 @@ class EventDeleteConfirmationTests(SpectrumTestCase):
 
 
 
+class FakeS3:
+    """Just enough of boto3's S3 client for multipart uploads, kept in memory."""
+
+    def __init__(self):
+        self.uploads, self.objects, self.aborted = {}, {}, []
+
+    def create_multipart_upload(self, Bucket, Key, ContentType):
+        upload_id = f"up-{len(self.uploads) + 1}"
+        self.uploads[upload_id] = {"key": Key, "parts": {}, "initiated": self.now()}
+        return {"UploadId": upload_id}
+
+    def now(self):
+        from django.utils import timezone
+
+        return timezone.now()
+
+    def generate_presigned_url(self, operation, Params, ExpiresIn):
+        return f"https://s3.test/{Params['Key']}?{operation}&part={Params.get('PartNumber', '')}"
+
+    def put_part(self, upload_id, number, data):  # what the browser's PUT does
+        self.uploads[upload_id]["parts"][number] = data
+
+    def list_parts(self, Bucket, Key, UploadId, PartNumberMarker=0):
+        upload = self.uploads[UploadId]
+        assert upload["key"] == Key
+        numbers = sorted(n for n in upload["parts"] if n > PartNumberMarker)
+        page = numbers[:2]  # small pages, so paging is exercised
+        return {"Parts": [{"PartNumber": n, "ETag": f'"etag-{n}"'} for n in page],
+                "IsTruncated": len(numbers) > 2, "NextPartNumberMarker": page[-1] if page else 0}
+
+    def complete_multipart_upload(self, Bucket, Key, UploadId, MultipartUpload):
+        upload = self.uploads.pop(UploadId)
+        self.objects[Key] = b"".join(upload["parts"][p["PartNumber"]] for p in MultipartUpload["Parts"])
+
+    def abort_multipart_upload(self, Bucket, Key, UploadId):
+        self.uploads.pop(UploadId, None)
+        self.aborted.append(UploadId)
+
+    def list_multipart_uploads(self, Bucket, Prefix, **markers):
+        return {"Uploads": [{"Key": u["key"], "UploadId": i, "Initiated": u["initiated"]}
+                            for i, u in self.uploads.items() if u["key"].startswith(Prefix)], "IsTruncated": False}
+
+
+class FakeS3Storage:
+    bucket_name = "test-bucket"
+
+    def __init__(self, client):
+        from types import SimpleNamespace
+
+        self.connection = SimpleNamespace(meta=SimpleNamespace(client=client))
+
+    def _normalize_name(self, name):
+        return f"private/{name}"
+
+    def exists(self, name):
+        return self._normalize_name(name) in self.connection.meta.client.objects
+
+
+class MultipartVideoUploadTests(SpectrumTestCase):
+    """On S3, a video over 200 MB goes up in parts, so the 5 GB single-PUT limit no longer applies."""
+
+    def setUp(self):
+        from unittest import mock
+
+        super().setUp()
+        self.make_catalog()
+        self.client.force_login(self.make_staff())
+        self.s3 = FakeS3()
+        storage = FakeS3Storage(self.s3)
+        for target in ("apps.catalog.video_uploads.private_storage", "apps.core.uploads.private_storage"):
+            patcher = mock.patch(target, return_value=storage)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def post(self, name, body):
+        return self.client.post(reverse(name), body, content_type="application/json")
+
+    def test_a_video_over_5_gb_is_prepared_in_parts(self):
+        from apps.catalog.video_uploads import part_size
+
+        size = 6 * 1024 ** 3
+        entry = self.post("admin-video-upload-prepare", {"name": "day.mp4", "size": size, "type": "video/mp4"}).json()
+        self.assertEqual(entry["method"], "MULTIPART")
+        self.assertEqual(entry["partSize"], 64 * 1024 ** 2)
+        self.assertLessEqual(-(-size // entry["partSize"]), 10_000)
+        self.assertGreater(part_size(1024 ** 4), 64 * 1024 ** 2, "a 1 TB file still fits in 10,000 parts")
+        small = self.post("admin-video-upload-prepare", {"name": "clip.mp4", "size": 50 * 1024 ** 2}).json()
+        self.assertEqual(small["method"], "PUT", "small videos keep the single upload")
+        with self.settings(VIDEO_UPLOAD_MAX_BYTES=10 * 1024 ** 3):
+            refused = self.post("admin-video-upload-prepare", {"name": "day.mp4", "size": 11 * 1024 ** 3})
+        self.assertEqual(refused.status_code, 400, "the configured cap still applies")
+
+    def test_parts_are_presigned_then_joined_and_the_video_saves(self):
+        entry = self.post("admin-video-upload-prepare", {"name": "day.mp4", "size": 300 * 1024 ** 2}).json()
+        base = {"token": entry["token"], "uploadId": entry["uploadId"]}
+        urls = self.post("admin-video-upload-parts", {**base, "numbers": [1, 2, 3, 4, 5]}).json()["urls"]
+        self.assertEqual(sorted(urls), ["1", "2", "3", "4", "5"])
+        self.assertIn("upload_part", urls["1"])
+        for n in range(1, 6):
+            self.s3.put_part(entry["uploadId"], n, f"part{n};".encode())
+        self.assertEqual(self.post("admin-video-upload-complete", {**base, "parts": 6}).status_code, 409,
+                         "a missing part is caught")
+        self.assertEqual(self.post("admin-video-upload-complete", {**base, "parts": 5}).json(), {"ok": True})
+        key = next(iter(self.s3.objects))
+        self.assertEqual(self.s3.objects[key], b"part1;part2;part3;part4;part5;")
+
+        url = reverse("admin:catalog_event_change", args=[self.event.pk])
+        form = VideoUploadTests.form(self, video=entry["token"])
+        self.assertRedirects(self.client.post(url, form), url)
+        self.assertEqual("private/" + self.event.videos.get().video.name, key)
+
+    def test_a_forged_token_or_an_abandoned_upload_is_handled(self):
+        from datetime import timedelta
+
+        from apps.catalog.video_uploads import abort_stale_multipart_uploads
+
+        entry = self.post("admin-video-upload-prepare", {"name": "day.mp4", "size": 300 * 1024 ** 2}).json()
+        forged = self.post("admin-video-upload-parts", {"token": "nope", "uploadId": entry["uploadId"], "numbers": [1]})
+        self.assertEqual(forged.status_code, 400)
+        self.assertEqual(abort_stale_multipart_uploads(), 0, "a fresh upload is left alone")
+        self.s3.uploads[entry["uploadId"]]["initiated"] -= timedelta(days=3)
+        self.assertEqual(abort_stale_multipart_uploads(), 1)
+        self.assertEqual(self.s3.aborted, [entry["uploadId"]])
+        again = self.post("admin-video-upload-prepare", {"name": "b.mp4", "size": 300 * 1024 ** 2}).json()
+        self.post("admin-video-upload-abort", {"token": again["token"], "uploadId": again["uploadId"]})
+        self.assertIn(again["uploadId"], self.s3.aborted)
+
+
 class VideoUploadTests(SpectrumTestCase):
     """The event's video field uploads as soon as a file is chosen; Save
     sends only the upload's token."""
