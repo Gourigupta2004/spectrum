@@ -30,7 +30,11 @@ class Order(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     deliver_whatsapp = models.BooleanField(default=True)
     deliver_email = models.BooleanField(default=False)
+    # What Razorpay charges: subtotal + GST + service charge, at the rates when the order was made.
     amount_paise = models.PositiveIntegerField()
+    subtotal_paise = models.PositiveIntegerField(default=0, help_text="The photo and video prices.")
+    gst_paise = models.PositiveIntegerField(default=0)
+    service_charge_paise = models.PositiveIntegerField(default=0)
     currency = models.CharField(max_length=3, default="INR")
     status = models.CharField(max_length=10, choices=STATUSES, default=CREATED, db_index=True)
     razorpay_order_id = models.CharField(max_length=40, unique=True, null=True, blank=True)

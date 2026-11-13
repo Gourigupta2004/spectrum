@@ -16,6 +16,7 @@ import {
 } from "../spectrum-data";
 import { fill } from "../text";
 import { eventsCopy, galleryCopy, type EventsCopy, type GalleryCopy } from "./defaults";
+import { noCharges, type Charges } from "./orders";
 import type { Seo } from "./site";
 
 /** An institution type as a filter chip: id matches Institution.type, label is what the chip says. */
@@ -41,6 +42,8 @@ export type GalleryData = {
   videos: Video[];
   seo: Seo;
   copy: GalleryCopy;
+  /** Percentages added on top of the prices at checkout, set in the admin. */
+  charges: Charges;
 };
 
 export async function getEvents(): Promise<EventsData> {
@@ -67,7 +70,12 @@ export async function getEvent(slug: string): Promise<GalleryData> {
   if (hasApi) {
     try {
       const data = await apiFetch<GalleryData>(`/api/events/${encodeURIComponent(slug)}/`);
-      return { ...data, copy: { ...galleryCopy, ...data.copy }, videos: data.videos ?? [] };
+      return {
+        ...data,
+        copy: { ...galleryCopy, ...data.copy },
+        videos: data.videos ?? [],
+        charges: data.charges ?? noCharges,
+      };
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) throw notFound();
       throw error;
@@ -85,5 +93,6 @@ export async function getEvent(slug: string): Promise<GalleryData> {
       description: fill(galleryCopy.seoDescriptionTemplate, vars),
     },
     copy: galleryCopy,
+    charges: noCharges,
   };
 }

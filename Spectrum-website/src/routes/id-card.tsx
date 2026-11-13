@@ -8,7 +8,7 @@ import { ServiceSelect } from "@/components/spectrum/service-select";
 import { GuidelinesModal } from "@/components/spectrum/guidelines-modal";
 import { hasApi } from "@/lib/api";
 import { getIdCardPage, payForDuplicateIdCard } from "@/lib/data/idcards";
-import { newIdempotencyKey } from "@/lib/data/orders";
+import { newIdempotencyKey, priceWithCharges } from "@/lib/data/orders";
 import { seoMeta } from "@/lib/data/site";
 import { idCardGuidelines } from "@/lib/guidelines";
 import { fill } from "@/lib/text";
@@ -53,7 +53,7 @@ const EMPTY: Form = {
  * the modal.
  */
 function IdCardPage() {
-  const { copy, cardTypes, lanyardColours, institutions } = Route.useLoaderData();
+  const { copy, cardTypes, lanyardColours, institutions, charges } = Route.useLoaderData();
   const [guidelines, setGuidelines] = useState(false);
   useEffect(() => setGuidelines(true), []);
 
@@ -67,6 +67,9 @@ function IdCardPage() {
   const set = (field: keyof Form) => (value: string) => setForm((f) => ({ ...f, [field]: value }));
 
   const school = institutions.find((i) => i.name === form.institution);
+  // What Razorpay will charge; the server computes the same and is the one that charges it.
+  const bill = school ? priceWithCharges(school.price, charges) : null;
+  const hasCharges = !!bill && (bill.gst > 0 || bill.serviceCharge > 0);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -281,17 +284,50 @@ function IdCardPage() {
                     {school ? school.name : copy.priceHint}
                   </p>
                   <AnimatePresence initial={false}>
-                    {school && (
-                      <motion.p
+                    {bill && (
+                      <motion.div
                         key="price"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.18 }}
-                        className="spectrum-text overflow-hidden pt-5 font-display text-5xl font-semibold"
+                        className="overflow-hidden pt-5"
                       >
-                        ₹{school.price}
-                      </motion.p>
+                        {hasCharges && (
+                          <div className="mb-4 space-y-1.5 text-sm text-muted-foreground">
+                            <div className="flex items-center justify-between gap-3">
+                              <span>{copy.subtotalLabel}</span>
+                              <span>₹{bill.price}</span>
+                            </div>
+                            {charges.gstPercent > 0 && (
+                              <div className="flex items-center justify-between gap-3">
+                                <span>{fill(copy.gstLabel, { percent: charges.gstPercent })}</span>
+                                <span>₹{bill.gst}</span>
+                              </div>
+                            )}
+                            {charges.serviceChargePercent > 0 && (
+                              <div className="flex items-center justify-between gap-3">
+                                <span>
+                                  {fill(copy.serviceChargeLabel, {
+                                    percent: charges.serviceChargePercent,
+                                  })}
+                                </span>
+                                <span>₹{bill.serviceCharge}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-baseline justify-between gap-3">
+                          {hasCharges && (
+                            <span className="font-display text-lg text-foreground">
+                              {copy.totalLabel}
+                            </span>
+                          )}
+                          <span className="spectrum-text font-display text-5xl font-semibold">
+                            ₹{bill.total}
+                          </span>
+                        </div>
+                      </motion.div>
                     )}
                   </AnimatePresence>
                   <div className="spectrum-hairline my-7" />
@@ -306,7 +342,7 @@ function IdCardPage() {
                     {busy
                       ? "Opening payment…"
                       : school
-                        ? fill(copy.payButton, { price: school.price })
+                        ? fill(copy.payButton, { price: bill?.total ?? school.price })
                         : copy.submitLabel}
                   </button>
                   {error && (

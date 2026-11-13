@@ -37,6 +37,7 @@ function GalleryPage() {
     photos: galleryPhotos,
     videos: galleryVideos,
     copy,
+    charges,
   } = Route.useLoaderData();
   const BUNDLE_PRICE = galleryEvent.bundlePrice;
   const VIDEO_PRICE = galleryEvent.pricePerVideo ?? 0;
@@ -304,6 +305,7 @@ function GalleryPage() {
         selectedVideos={chosenVideos}
         bundle={bundle}
         total={price}
+        charges={charges}
       />
 
       {paid && (

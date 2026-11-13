@@ -40,6 +40,44 @@ class OrderTests(SpectrumTestCase):
         self.assertEqual(bundle["amount"], 299)
         self.assertEqual(Order.objects.count(), 2)
 
+    def test_gst_and_service_charge_go_on_top_and_razorpay_charges_the_total(self):
+        from decimal import Decimal
+
+        from apps.content.models import SiteSettings
+
+        site = SiteSettings.load()
+        site.gst_percent, site.service_charge_percent = Decimal("8"), Decimal("3.6")
+        site.save()
+        self.event.bundle_price = 250
+        self.event.save()
+        charges = self.client.get(f"/api/events/{self.event.slug}/").json()["charges"]
+        self.assertEqual(charges, {"gstPercent": 8.0, "serviceChargePercent": 3.6})
+
+        sent = {}
+
+        def razorpay(order):
+            sent["amount"] = order.amount_paise
+            return "order_RZP_TAX"
+
+        body = {"eventSlug": "annual-day", "bundle": True, "name": "Asha", "email": "asha@example.com",
+                "idempotencyKey": "key-tax-aaaaaaaaaaaaaaaa"}
+        with mock.patch("apps.orders.views.razorpay_create_order", side_effect=razorpay):
+            order = self.client.post("/api/orders/", json.dumps(body), content_type="application/json").json()
+        self.assertEqual((order["subtotal"], order["gst"], order["serviceCharge"], order["amount"]),
+                         (250, 20, 9, 279))
+        self.assertEqual(sent["amount"], 27900)
+
+    def test_charges_round_half_up_to_whole_rupees(self):
+        from decimal import Decimal
+
+        from apps.content.models import percent_of
+
+        self.assertEqual(percent_of(58, Decimal("18")), 10)  # 10.44
+        self.assertEqual(percent_of(25, Decimal("2")), 1)  # 0.50 rounds up
+        self.assertEqual(percent_of(24, Decimal("2")), 0)  # 0.48
+        self.assertEqual(percent_of(100, Decimal("1.15")), 1)  # exact, no float drift
+        self.assertEqual(percent_of(299, Decimal("0")), 0)
+
     def test_not_for_sale_event_shows_but_takes_no_orders(self):
         self.event.not_for_sale = True
         self.event.save()

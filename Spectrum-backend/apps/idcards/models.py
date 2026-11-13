@@ -51,8 +51,12 @@ class DuplicateIdCardRequest(models.Model):
     lanyard_colour = models.CharField("color of lanyard", max_length=60, blank=True)
     email = models.EmailField()
     phone = models.CharField(max_length=20)
-    # The institution's price when the request was made; changing it later never reprices a request.
+    # What Razorpay charges: the institution's price plus GST and the service charge, all as they were when
+    # the request was made; changing the price or the rates later never reprices a request.
     amount_paise = models.PositiveIntegerField()
+    subtotal_paise = models.PositiveIntegerField(default=0, help_text="The school's price.")
+    gst_paise = models.PositiveIntegerField(default=0)
+    service_charge_paise = models.PositiveIntegerField(default=0)
     currency = models.CharField(max_length=3, default="INR")
     status = models.CharField(max_length=10, choices=STATUSES, default=CREATED, db_index=True)
     razorpay_order_id = models.CharField(max_length=40, unique=True, null=True, blank=True)

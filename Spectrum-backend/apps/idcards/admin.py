@@ -52,8 +52,8 @@ class DuplicateIdCardRequestAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
     readonly_fields = ("public_id", "student_name", "class_name", "admission_no", "card_type", "lanyard_colour",
                        "institution", "email", "phone",
-                       "rupees", "status", "razorpay_order_id", "razorpay_payment_id", "paid_via", "created_at",
-                       "paid_at", "shipped_at", "receipt_emailed_at")
+                       "rupees", "breakdown", "status", "razorpay_order_id", "razorpay_payment_id", "paid_via",
+                       "created_at", "paid_at", "shipped_at", "receipt_emailed_at")
     fields = (*readonly_fields, "shipment_receipt", "handled")
     formfield_overrides = {DuplicateIdCardRequest._meta.get_field("shipment_receipt").__class__: {
         "widget": ReceiptInput}}
@@ -105,13 +105,15 @@ class DuplicateIdCardRequestAdmin(admin.ModelAdmin):
         """Every ticked request (or, with "select all", every one matching the
         filters), oldest first: the date it was made and everything the form asked for."""
         rows = [("Request no.", "Date of request", "Name", "Class", "Admission No.", "Type of card",
-                 "Color of Lanyard", "School Name/Branch", "Email", "Phone Number", "Status")]
+                 "Color of Lanyard", "School Name/Branch", "Email", "Phone Number", "Status", "Price (₹)",
+                 "GST (₹)", "Service charge (₹)", "Total paid (₹)")]
         for card in queryset.select_related("institution").order_by("created_at"):
             rows.append((card.public_id, timezone.localtime(card.created_at).strftime("%d %b %Y, %H:%M"),
                          card.student_name, card.class_name, card.admission_no, card.card_type,
                          card.lanyard_colour, card.institution.name, card.email, card.phone,
-                         card.get_status_display()))
-        content = workbook_bytes(rows, widths=(14, 19, 26, 10, 16, 14, 17, 34, 30, 16, 16),
+                         card.get_status_display(), card.subtotal_paise // 100, card.gst_paise // 100,
+                         card.service_charge_paise // 100, card.amount))
+        content = workbook_bytes(rows, widths=(14, 19, 26, 10, 16, 14, 17, 34, 30, 16, 16, 11, 10, 18, 15),
                                  sheet_name="Duplicate ID cards")
         response = HttpResponse(
             content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -143,6 +145,13 @@ class DuplicateIdCardRequestAdmin(admin.ModelAdmin):
     @admin.display(description="Amount", ordering="amount_paise")
     def rupees(self, obj):
         return f"₹{obj.amount}"
+
+    @admin.display(description="Price breakdown")
+    def breakdown(self, obj):
+        if not (obj.gst_paise or obj.service_charge_paise):
+            return "—"
+        return (f"Price ₹{obj.subtotal_paise // 100} + GST ₹{obj.gst_paise // 100} "
+                f"+ service charge ₹{obj.service_charge_paise // 100}")
 
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):

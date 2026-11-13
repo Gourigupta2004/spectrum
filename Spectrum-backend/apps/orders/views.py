@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.catalog.models import Event, EventPhoto, EventVideo
-from apps.content.models import GalleryPage
+from apps.content.models import GalleryPage, checkout_charges
 from apps.core.http import ApiError, api, rate_limit, text
 from apps.core.models import ImageStatus
 from spectrum.storages import private_storage
@@ -51,6 +51,9 @@ def order_payload(order: Order) -> dict:
         "status": order.status,
         "amount": order.amount,
         "amountPaise": order.amount_paise,
+        "subtotal": order.subtotal_paise // 100,
+        "gst": order.gst_paise // 100,
+        "serviceCharge": order.service_charge_paise // 100,
         "currency": order.currency,
         "deliverVia": "whatsapp" if order.deliver_whatsapp else "email",
         "mock": settings.PAYMENTS_MOCK,
@@ -110,23 +113,26 @@ def create_order(request):
     if bundle:
         if not photos.exists():
             raise ApiError("This album has no photos yet.")
-        photo_ids, amount = [], event.bundle_price * 100
+        photo_ids, subtotal = [], event.bundle_price
     else:
         requested = {int(x) for x in raw_ids[:2000] if str(x).isdigit()}
         photo_ids = list(photos.filter(pk__in=requested).values_list("pk", flat=True))
         if not photo_ids and not video_ids:
             raise ApiError("Select at least one photo or video.")
-        amount = len(photo_ids) * event.price_per_photo * 100
-    amount += len(video_ids) * event.price_per_video * 100
-    if amount <= 0:
+        subtotal = len(photo_ids) * event.price_per_photo
+    subtotal += len(video_ids) * event.price_per_video
+    if subtotal <= 0:
         raise ApiError("This order has no amount to pay.")
+    # GST and the service charge go on top of the admin's prices; Razorpay takes the lot.
+    gst, service_charge = checkout_charges(subtotal)
 
     try:
         with transaction.atomic():
             order = Order.objects.create(
                 event=event, kind=Order.BUNDLE if bundle else Order.PHOTOS, name=name, email=email, phone=phone,
                 deliver_whatsapp=bool(phone), deliver_email=bool(email),
-                amount_paise=amount, idempotency_key=idempotency_key,
+                amount_paise=(subtotal + gst + service_charge) * 100, subtotal_paise=subtotal * 100,
+                gst_paise=gst * 100, service_charge_paise=service_charge * 100, idempotency_key=idempotency_key,
             )
             OrderItem.objects.bulk_create(
                 [OrderItem(order=order, photo_id=pk, unit_price_paise=event.price_per_photo * 100)

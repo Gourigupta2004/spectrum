@@ -4,7 +4,13 @@ import { MessageCircle, Mail, Play, X } from "lucide-react";
 import type { Photo, SpectrumEvent, Video } from "@/lib/spectrum-data";
 import type { GalleryCopy } from "@/lib/data/defaults";
 import { hasApi } from "@/lib/api";
-import { newIdempotencyKey, payForPhotos, type Order } from "@/lib/data/orders";
+import {
+  newIdempotencyKey,
+  payForPhotos,
+  priceWithCharges,
+  type Charges,
+  type Order,
+} from "@/lib/data/orders";
 import { fill } from "@/lib/text";
 
 const inputClass =
@@ -20,6 +26,7 @@ export function CheckoutModal({
   selectedVideos,
   bundle,
   total,
+  charges,
   pricePerPhoto,
   pricePerVideo,
   bundlePrice,
@@ -34,7 +41,9 @@ export function CheckoutModal({
   selected: Photo[];
   selectedVideos: Video[];
   bundle: boolean;
+  /** The admin's prices added up, before GST and the service charge. */
   total: number;
+  charges: Charges;
   pricePerPhoto: number;
   pricePerVideo: number;
   bundlePrice: number;
@@ -47,6 +56,9 @@ export function CheckoutModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  // What Razorpay will charge; the server computes the same and is the one that charges it.
+  const bill = priceWithCharges(total, charges);
+  const hasCharges = bill.gst > 0 || bill.serviceCharge > 0;
 
   // One key per distinct basket, so a double click or retry never creates two orders.
   const basket =
@@ -182,9 +194,33 @@ export function CheckoutModal({
                     ))}
                   </div>
                   <div className="spectrum-hairline my-4" />
+                  {hasCharges && (
+                    <div className="mb-3 space-y-1.5 text-sm text-muted-foreground">
+                      <div className="flex items-center justify-between gap-3">
+                        <span>{copy.priceLabel}</span>
+                        <span>₹{bill.price}</span>
+                      </div>
+                      {charges.gstPercent > 0 && (
+                        <div className="flex items-center justify-between gap-3">
+                          <span>{fill(copy.gstLabel, { percent: charges.gstPercent })}</span>
+                          <span>₹{bill.gst}</span>
+                        </div>
+                      )}
+                      {charges.serviceChargePercent > 0 && (
+                        <div className="flex items-center justify-between gap-3">
+                          <span>
+                            {fill(copy.serviceChargeLabel, {
+                              percent: charges.serviceChargePercent,
+                            })}
+                          </span>
+                          <span>₹{bill.serviceCharge}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between font-display text-lg text-foreground">
                     <span>{copy.totalLabel}</span>
-                    <span className="spectrum-text">₹{total}</span>
+                    <span className="spectrum-text">₹{bill.total}</span>
                   </div>
                 </div>
 
@@ -230,7 +266,7 @@ export function CheckoutModal({
                     disabled={busy}
                     className="spectrum-fill w-full rounded-xl py-3.5 text-sm font-semibold disabled:cursor-wait disabled:opacity-70"
                   >
-                    {busy ? "Opening payment…" : fill(copy.payButton, { total })}
+                    {busy ? "Opening payment…" : fill(copy.payButton, { total: bill.total })}
                   </button>
                   {error && (
                     <p role="alert" className="text-center text-xs font-medium text-[#ff9b6a]">

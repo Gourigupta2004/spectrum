@@ -14,12 +14,33 @@ export type OrderInput = {
   idempotencyKey: string;
 };
 
+export type Charges = { gstPercent: number; serviceChargePercent: number };
+
+export const noCharges: Charges = { gstPercent: 0, serviceChargePercent: 0 };
+
+/**
+ * percent% of a whole-rupee amount, rounded half up to whole rupees — in
+ * integers, exactly as the server computes what Razorpay charges.
+ */
+export const chargeOf = (rupees: number, percent: number) =>
+  Math.floor((rupees * Math.round(percent * 100) + 5000) / 10000);
+
+/** The checkout's breakdown: GST and the service charge both go on top of the price. */
+export function priceWithCharges(price: number, charges: Charges) {
+  const gst = chargeOf(price, charges.gstPercent);
+  const serviceCharge = chargeOf(price, charges.serviceChargePercent);
+  return { price, gst, serviceCharge, total: price + gst + serviceCharge };
+}
+
 export type Order = {
   id: string;
   publicId: string;
   status: "created" | "paid" | "failed" | "delivered" | "refunded";
   amount: number;
   amountPaise: number;
+  subtotal: number;
+  gst: number;
+  serviceCharge: number;
   currency: string;
   deliverVia: DeliverVia;
   mock: boolean;

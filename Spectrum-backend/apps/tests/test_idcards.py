@@ -44,6 +44,37 @@ class DuplicateIdCardTests(IdCardRequestCase):
         self.assertEqual(self.client.get("/api/pages/id-card/").json()["institutions"][0]["price"], 175)
         self.assertEqual(self.client.get("/api/site/").json()["copy"]["navIdCard"], "ID Card")
 
+    def test_gst_and_service_charge_go_on_top_and_razorpay_charges_the_total(self):
+        from decimal import Decimal
+
+        from apps.content.models import SiteSettings
+
+        self.assertEqual(self.client.get("/api/pages/id-card/").json()["charges"],
+                         {"gstPercent": 0.0, "serviceChargePercent": 0.0})
+        site = SiteSettings.load()
+        site.gst_percent, site.service_charge_percent = Decimal("8"), Decimal("3.6")
+        site.save()
+        self.institution.duplicate_id_card_price = 250
+        self.institution.save()
+        # The same rates as the photo checkout, from Site settings; the page cache is invalidated.
+        self.assertEqual(self.client.get("/api/pages/id-card/").json()["charges"],
+                         {"gstPercent": 8.0, "serviceChargePercent": 3.6})
+
+        sent = {}
+        with mock.patch("apps.idcards.views.razorpay_create_order",
+                        side_effect=lambda card: sent.setdefault("amount", card.amount_paise) and "order_TAX"):
+            body = {"institutionId": "dps", "studentName": "Asha Rao", "className": "7B", "admissionNo": "A-1",
+                    "cardType": "Student", "lanyardColour": "Blue", "email": "asha@example.com",
+                    "phone": "98100 44120", "idempotencyKey": "key-tax-aaaaaaaaaaaaaaaa"}
+            card = self.client.post("/api/idcards/duplicate/", json.dumps(body),
+                                    content_type="application/json").json()
+        self.assertEqual((card["subtotal"], card["gst"], card["serviceCharge"], card["amount"]), (250, 20, 9, 279))
+        self.assertEqual(sent["amount"], 27900)
+        # A later rate change never reprices the request.
+        site.gst_percent = Decimal("18")
+        site.save()
+        self.assertEqual(DuplicateIdCardRequest.objects.get().amount_paise, 27900)
+
     def test_offering_needs_a_price(self):
         self.other.offers_duplicate_id_cards = True
         with self.assertRaises(ValidationError):
@@ -307,7 +338,8 @@ class ExportTests(SpectrumTestCase):
                                                "_selected_action": [asha.pk, ravi.pk]})
         sheet = self.sheet(response)
         for heading in ("Request no.", "Date of request", "Name", "Class", "Admission No.", "Type of card",
-                        "Color of Lanyard", "School Name/Branch", "Email", "Phone Number"):
+                        "Color of Lanyard", "School Name/Branch", "Email", "Phone Number", "Price (₹)",
+                        "GST (₹)", "Service charge (₹)", "Total paid (₹)"):
             self.assertIn(f">{heading}<", sheet)
         for value in (asha.public_id, "A-Asha", "A-Ravi", "7B", "Parent", "Green", "Delhi Public School",
                       "asha@example.com", "+919810044120", "Paid"):

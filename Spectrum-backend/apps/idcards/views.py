@@ -7,7 +7,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 
 from apps.catalog.models import Institution
-from apps.content.models import IdCardPage, IdCardType, LanyardColour
+from apps.content.models import IdCardPage, IdCardType, LanyardColour, charge_rates, checkout_charges
 from apps.content.serializers import copy_of
 from apps.core.cache import cached_bytes
 from apps.core.http import ApiError, api, rate_limit, text
@@ -34,6 +34,8 @@ def build_page() -> dict:
         "lanyardColours": list(LanyardColour.objects.values_list("label", flat=True)),
         "institutions": [{"id": slug, "name": name, "price": price} for slug, name, price in
                          offering().values_list("slug", "name", "duplicate_id_card_price")],
+        # Added on top of the school's price; the server charges the same.
+        "charges": charge_rates(),
     }
 
 
@@ -49,6 +51,9 @@ def request_payload(card: DuplicateIdCardRequest) -> dict:
         "status": card.status,
         "amount": card.amount,
         "amountPaise": card.amount_paise,
+        "subtotal": card.subtotal_paise // 100,
+        "gst": card.gst_paise // 100,
+        "serviceCharge": card.service_charge_paise // 100,
         "currency": card.currency,
         "mock": settings.PAYMENTS_MOCK,
         "razorpay": {"keyId": settings.RAZORPAY_KEY_ID, "orderId": card.razorpay_order_id}
@@ -104,12 +109,15 @@ def create_duplicate(request):
     if not phone:
         raise ApiError("Please enter a valid phone number.", field="phone")
 
+    price = institution.duplicate_id_card_price
+    gst, service_charge = checkout_charges(price)
     try:
         card = DuplicateIdCardRequest.objects.create(
             institution=institution, student_name=fields["student_name"], class_name=fields["class_name"],
             admission_no=fields["admission_no"], card_type=fields["card_type"],
             lanyard_colour=fields["lanyard_colour"], email=fields["email"], phone=phone,
-            amount_paise=institution.duplicate_id_card_price * 100, idempotency_key=idempotency_key,
+            amount_paise=(price + gst + service_charge) * 100, subtotal_paise=price * 100, gst_paise=gst * 100,
+            service_charge_paise=service_charge * 100, idempotency_key=idempotency_key,
         )
     except IntegrityError:
         existing = DuplicateIdCardRequest.objects.filter(idempotency_key=idempotency_key).first()

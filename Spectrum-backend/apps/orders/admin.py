@@ -59,7 +59,7 @@ class OrderAdmin(admin.ModelAdmin):
     inlines = [PaymentInline, DeliveryInline, ItemInline]
     actions = ["send_whatsapp_by_hand", "send_email_by_hand", "mark_delivered", "resend_whatsapp", "resend_email",
                "reissue_links", "refulfil"]
-    readonly_fields = ("public_id", "institution", "event", "kind", "rupees", "status", "name", "email", "phone",
+    readonly_fields = ("public_id", "institution", "event", "kind", "rupees", "breakdown", "status", "name", "email", "phone",
                        "deliver_whatsapp", "deliver_email", "razorpay_order_id", "download_link", "created_at",
                        "paid_at", "delivered_at")
     fields = readonly_fields
@@ -74,6 +74,13 @@ class OrderAdmin(admin.ModelAdmin):
     @admin.display(description="Amount", ordering="amount_paise")
     def rupees(self, obj):
         return f"₹{obj.amount}"
+
+    @admin.display(description="Price breakdown")
+    def breakdown(self, obj):
+        if not (obj.gst_paise or obj.service_charge_paise):
+            return "—"
+        return (f"Price ₹{obj.subtotal_paise // 100} + GST ₹{obj.gst_paise // 100} "
+                f"+ service charge ₹{obj.service_charge_paise // 100}")
 
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):

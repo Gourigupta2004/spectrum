@@ -6,6 +6,9 @@ renders the current site. Wrap a word in [brackets] to paint it with the Spectru
 gradient, e.g. "Every Moment, [Yours] Forever".
 """
 
+from decimal import Decimal
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.core.models import ProcessedImage, SingletonModel
@@ -19,6 +22,32 @@ def line(default: str, max_length: int = 200, help_text: str = "") -> models.Cha
 
 def para(default: str, help_text: str = "") -> models.TextField:
     return models.TextField(default=default, blank=True, help_text=help_text)
+
+
+def percent(verbose_name: str, help_text: str) -> models.DecimalField:
+    return models.DecimalField(verbose_name, max_digits=5, decimal_places=2, default=Decimal("0"),
+                               help_text=help_text,
+                               validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))])
+
+
+def percent_of(rupees: int, rate: Decimal) -> int:
+    """rate% of a whole-rupee amount, rounded half up to whole rupees. Integer
+    arithmetic, mirrored exactly by the website's checkout (chargeOf)."""
+    hundredths = int(rate * 100)
+    return (rupees * hundredths + 5000) // 10000
+
+
+def checkout_charges(subtotal: int) -> tuple[int, int]:
+    """(GST, service charge) in rupees on a price in rupees, at the rates in Site settings.
+    Both are on the price itself."""
+    site = SiteSettings.load()
+    return percent_of(subtotal, site.gst_percent), percent_of(subtotal, site.service_charge_percent)
+
+
+def charge_rates() -> dict:
+    """The rates as the website's checkouts take them."""
+    site = SiteSettings.load()
+    return {"gstPercent": float(site.gst_percent), "serviceChargePercent": float(site.service_charge_percent)}
 
 
 class Seo(models.Model):
@@ -85,6 +114,11 @@ class SiteSettings(SingletonModel):
     footer_phone = line("", 40, help_text="Blank hides it.")
     footer_instagram_url = models.URLField("Instagram link", blank=True, default="", help_text="Blank hides the icon.")
     footer_youtube_url = models.URLField("YouTube link", blank=True, default="", help_text="Blank hides the icon.")
+
+    # Everything paid on the website: photos and videos, and duplicate ID cards.
+    gst_percent = percent("GST %", "Added on top of the price at checkout, e.g. 18. 0 for none.")
+    service_charge_percent = percent("service charge %", "Added on top of the price at checkout, e.g. 3.6. "
+                                                         "0 for none.")
     footer_facebook_url = models.URLField("Facebook link", blank=True, default="", help_text="Blank hides the icon.")
     footer_copyright = line("© {year} Spectrum. All rights reserved.",
                             help_text="{year} becomes the current year.")
@@ -389,6 +423,10 @@ class GalleryPage(SingletonModel):
 
     summary_heading = line("Order Summary", 60)
     bundle_line = line("Full Album Bundle — all {photos} photos")
+    price_label = line("Price", 60)
+    gst_label = line("GST ({percent}%)", 60, help_text="{percent} is filled in with the GST percentage.")
+    service_charge_label = line("Service charge ({percent}%)", 60,
+                                help_text="{percent} is filled in with the service charge percentage.")
     total_label = line("Total", 40)
     name_placeholder = line("Your Name")
     whatsapp_placeholder = line("WhatsApp Number")
@@ -439,7 +477,13 @@ class IdCardPage(Seo, SingletonModel):
     price_label = line("Duplicate ID card", 80, help_text="Beside the price, once a school is chosen.")
     price_hint = line("Choose the school to see the price.")
     submit_label = line("Pay & Request →", 60, help_text="The button before a school is chosen.")
-    pay_button = line("Pay ₹{price} with Razorpay →", help_text="{price} is the chosen school's price.")
+    subtotal_label = line("Price", 60, help_text="The school's price, when GST or a service charge is added.")
+    gst_label = line("GST ({percent}%)", 60, help_text="{percent} is filled in with the GST percentage.")
+    service_charge_label = line("Service charge ({percent}%)", 60,
+                                help_text="{percent} is filled in with the service charge percentage.")
+    total_label = line("Total", 40)
+    pay_button = line("Pay ₹{price} with Razorpay →",
+                      help_text="{price} is the total: the school's price plus GST and the service charge.")
     checkout_error = line("Payment could not be completed. Please try again.")
     unavailable_message = para(
         "Duplicate ID cards can't be requested online right now. Please contact us.",

@@ -31,6 +31,12 @@ class SiteSettingsAdmin(SingletonAdmin):
                     "fields": ("footer_tagline", "footer_description", "footer_links_heading",
                                "footer_contact_heading", "footer_email", "footer_phone", "footer_instagram_url",
                                "footer_youtube_url", "footer_facebook_url", "footer_copyright")}),
+        ("GST & service charge", {
+            "description": "Added on top of every price paid on the website, photos and videos and duplicate ID "
+                           "cards alike: e.g. ₹250 with 8% GST and 3.6% service charge is ₹279 in all, and "
+                           "Razorpay charges ₹279. Each is a percentage of the price, rounded to the nearest "
+                           "rupee. Orders and requests already made keep the amounts they were made with.",
+            "fields": ("gst_percent", "service_charge_percent")}),
         ("Default search & sharing", {"fields": ("seo_title", "seo_description", "og_title", "og_description")}),
         ("Error pages", {"classes": ("collapse",), "fields": ("not_found_title", "not_found_body",
                                                              "not_found_cta", "error_title", "error_body",
@@ -139,6 +145,9 @@ class GalleryPageAdmin(SingletonAdmin):
         ("Selection bar", {"fields": ("selection_one", "selection_many", "selection_mixed",
                                       "bundle_selected", "bundle_button",
                                       "bundle_button_no_saving", "pay_cta")}),
+        ("GST & service charge lines", {
+            "description": "The percentages themselves are set in Site settings.",
+            "fields": ("price_label", "gst_label", "service_charge_label")}),
         ("Checkout", {"fields": ("summary_heading", "bundle_line", "total_label", "name_placeholder",
                                  "whatsapp_placeholder", "whatsapp_hint", "email_placeholder", "email_hint",
                                  "contact_required", "pay_button", "checkout_error", "not_for_sale_message")}),
@@ -169,6 +178,10 @@ class IdCardPageAdmin(SingletonAdmin):
                   "fields": ("name_placeholder", "class_placeholder", "admission_no_placeholder",
                              "card_type_placeholder", "lanyard_placeholder", "institution_placeholder", "email_placeholder", "phone_placeholder", "price_label",
                              "price_hint", "submit_label", "pay_button", "checkout_error", "unavailable_message")}),
+        ("GST & service charge lines", {
+            "description": "Shown under the price once a school is chosen. The percentages themselves are set "
+                           "in Site settings.",
+            "fields": ("subtotal_label", "gst_label", "service_charge_label", "total_label")}),
         ("After payment", {"fields": ("success_title", "success_body", "success_again")}),
         ("Guidelines popup", {"fields": ("guidelines_title", "guidelines_intro", "guidelines_points",
                                          "guidelines_outro", "guidelines_link", "guidelines_dismiss")}),

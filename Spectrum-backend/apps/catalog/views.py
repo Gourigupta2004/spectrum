@@ -1,4 +1,4 @@
-from apps.content.models import EventsPage, GalleryPage
+from apps.content.models import EventsPage, GalleryPage, charge_rates
 from apps.content.serializers import copy_of
 from apps.core.cache import cached_bytes
 from apps.core.http import ApiError, api
@@ -50,6 +50,8 @@ def build_event(slug: str) -> dict:
             "description": page.seo_description_template.format_map(_Safe(fill)),
         },
         "copy": copy_of(page),
+        # Added on top of the prices at checkout; the server charges the same.
+        "charges": charge_rates(),
     }
 
 

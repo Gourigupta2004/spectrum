@@ -1,6 +1,6 @@
 import { apiFetch, hasApi } from "../api";
 import { idCardCopy, type IdCardCopy } from "./defaults";
-import { checkout, type Payable } from "./orders";
+import { checkout, noCharges, type Charges, type Payable } from "./orders";
 import type { Seo } from "./site";
 
 /** An institution that offers duplicate ID cards, at its own price per card (₹). */
@@ -13,6 +13,8 @@ export type IdCardData = {
   cardTypes: string[];
   lanyardColours: string[];
   institutions: IdCardInstitution[];
+  /** Percentages added on top of the school's price, set in the admin (Site settings). */
+  charges: Charges;
 };
 
 export type DuplicateIdCardInput = {
@@ -31,6 +33,9 @@ export type DuplicateIdCardRequest = Payable & {
   publicId: string;
   status: "created" | "paid" | "shipped" | "failed";
   amount: number;
+  subtotal: number;
+  gst: number;
+  serviceCharge: number;
 };
 
 export async function getIdCardPage(): Promise<IdCardData> {
@@ -41,6 +46,7 @@ export async function getIdCardPage(): Promise<IdCardData> {
       copy: { ...idCardCopy, ...data.copy },
       cardTypes: data.cardTypes ?? [],
       lanyardColours: data.lanyardColours ?? [],
+      charges: data.charges ?? noCharges,
     };
   }
   return {
@@ -55,6 +61,7 @@ export async function getIdCardPage(): Promise<IdCardData> {
       { id: "dps", name: "Delhi Public School", price: 150 },
       { id: "ryan", name: "Ryan International School", price: 120 },
     ],
+    charges: noCharges,
   };
 }
 
