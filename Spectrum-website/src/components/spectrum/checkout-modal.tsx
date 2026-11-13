@@ -58,7 +58,6 @@ export function CheckoutModal({
   const [attempt, setAttempt] = useState(0);
   // What Razorpay will charge; the server computes the same and is the one that charges it.
   const bill = priceWithCharges(total, charges);
-  const hasCharges = bill.gst > 0 || bill.serviceCharge > 0;
 
   // One key per distinct basket, so a double click or retry never creates two orders.
   const basket =
@@ -194,30 +193,23 @@ export function CheckoutModal({
                     ))}
                   </div>
                   <div className="spectrum-hairline my-4" />
-                  {hasCharges && (
-                    <div className="mb-3 space-y-1.5 text-sm text-muted-foreground">
-                      <div className="flex items-center justify-between gap-3">
-                        <span>{copy.priceLabel}</span>
-                        <span>₹{bill.price}</span>
-                      </div>
-                      {charges.gstPercent > 0 && (
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{fill(copy.gstLabel, { percent: charges.gstPercent })}</span>
-                          <span>₹{bill.gst}</span>
-                        </div>
-                      )}
-                      {charges.serviceChargePercent > 0 && (
-                        <div className="flex items-center justify-between gap-3">
-                          <span>
-                            {fill(copy.serviceChargeLabel, {
-                              percent: charges.serviceChargePercent,
-                            })}
-                          </span>
-                          <span>₹{bill.serviceCharge}</span>
-                        </div>
-                      )}
+                  {/* Always shown, at ₹0 too, so the buyer sees what the total is made of. */}
+                  <div className="mb-3 space-y-1.5 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>{copy.priceLabel}</span>
+                      <span>₹{bill.price}</span>
                     </div>
-                  )}
+                    <div className="flex items-center justify-between gap-3">
+                      <span>{fill(copy.gstLabel, { percent: charges.gstPercent })}</span>
+                      <span>₹{bill.gst}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span>
+                        {fill(copy.serviceChargeLabel, { percent: charges.serviceChargePercent })}
+                      </span>
+                      <span>₹{bill.serviceCharge}</span>
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between font-display text-lg text-foreground">
                     <span>{copy.totalLabel}</span>
                     <span className="spectrum-text">₹{bill.total}</span>

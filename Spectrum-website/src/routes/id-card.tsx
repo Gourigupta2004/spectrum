@@ -69,7 +69,6 @@ function IdCardPage() {
   const school = institutions.find((i) => i.name === form.institution);
   // What Razorpay will charge; the server computes the same and is the one that charges it.
   const bill = school ? priceWithCharges(school.price, charges) : null;
-  const hasCharges = !!bill && (bill.gst > 0 || bill.serviceCharge > 0);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -293,36 +292,29 @@ function IdCardPage() {
                         transition={{ duration: 0.18 }}
                         className="overflow-hidden pt-5"
                       >
-                        {hasCharges && (
-                          <div className="mb-4 space-y-1.5 text-sm text-muted-foreground">
-                            <div className="flex items-center justify-between gap-3">
-                              <span>{copy.subtotalLabel}</span>
-                              <span>₹{bill.price}</span>
-                            </div>
-                            {charges.gstPercent > 0 && (
-                              <div className="flex items-center justify-between gap-3">
-                                <span>{fill(copy.gstLabel, { percent: charges.gstPercent })}</span>
-                                <span>₹{bill.gst}</span>
-                              </div>
-                            )}
-                            {charges.serviceChargePercent > 0 && (
-                              <div className="flex items-center justify-between gap-3">
-                                <span>
-                                  {fill(copy.serviceChargeLabel, {
-                                    percent: charges.serviceChargePercent,
-                                  })}
-                                </span>
-                                <span>₹{bill.serviceCharge}</span>
-                              </div>
-                            )}
+                        {/* Always shown, at ₹0 too, so the buyer sees what the total is made of. */}
+                        <div className="mb-4 space-y-1.5 text-sm text-muted-foreground">
+                          <div className="flex items-center justify-between gap-3">
+                            <span>{copy.subtotalLabel}</span>
+                            <span>₹{bill.price}</span>
                           </div>
-                        )}
-                        <div className="flex items-baseline justify-between gap-3">
-                          {hasCharges && (
-                            <span className="font-display text-lg text-foreground">
-                              {copy.totalLabel}
+                          <div className="flex items-center justify-between gap-3">
+                            <span>{fill(copy.gstLabel, { percent: charges.gstPercent })}</span>
+                            <span>₹{bill.gst}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span>
+                              {fill(copy.serviceChargeLabel, {
+                                percent: charges.serviceChargePercent,
+                              })}
                             </span>
-                          )}
+                            <span>₹{bill.serviceCharge}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="font-display text-lg text-foreground">
+                            {copy.totalLabel}
+                          </span>
                           <span className="spectrum-text font-display text-5xl font-semibold">
                             ₹{bill.total}
                           </span>
