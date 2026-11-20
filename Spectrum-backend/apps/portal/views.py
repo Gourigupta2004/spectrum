@@ -16,7 +16,9 @@ from apps.core.models import ImageStatus, storage_url
 from .auth import (
     REFRESH_SALT, PortalLogin, authenticate_portal, issue_tokens, member_from_token, read_token, require_member,
 )
-from .models import CaptionItem, CaptionStatus, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student, natural_key
+from .models import (
+    CaptionItem, CaptionStatus, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student, class_edit_hours, natural_key,
+)
 
 CAPTION_FIELDS = ("pk", "moment_title", "caption", "requested", "status", "updated_at", "action_by",
                   "action_by_phone", "web", "thumb", "width", "height", "event__name")
@@ -263,10 +265,13 @@ def classes(request):
     member = require_member(request)
     institution = acting_institution(member, request)
     SchoolClass.lock_all_due()
-    rows = (  # school order: Nursery, LKG, UKG, 1A … 12C (SchoolClass.sort_key)
+    rows = (  # school order: KG, LKG, NUR, UKG, 1A … 12C (SchoolClass.sort_key)
         SchoolClass.objects.filter(institution=institution)
         .annotate(size=Count("students"), named=Count("students", filter=~Q(students__name="")))
     )
+    hours = class_edit_hours()
+    for cls in rows:
+        cls.edit_hours = hours  # one read of Site settings for the whole list
     items = [{"id": cls.slug, "name": cls.name, "group": cls.group, "size": cls.size, "namedCount": cls.named,
               **submission_dict(cls)} for cls in rows]
     return {
@@ -332,7 +337,7 @@ def submission_dict(cls) -> dict:
         "submittedAt": date_label(cls.submitted_at or deadline) if locked else "",
         "secondsLeft": left,
         "deadlineLabel": f"{date_label(deadline)}, {f'{local:%I:%M %p}'.lstrip('0')}" if local else "",
-        "editHours": settings.CLASS_EDIT_HOURS,
+        "editHours": cls.edit_hours,
     }
 
 
@@ -340,7 +345,7 @@ def submission_dict(cls) -> dict:
 def class_submit(request, slug):
     """
     The teacher's Submit, after Review: every photo named so far locks, and
-    the first Submit starts the clock — CLASS_EDIT_HOURS to name the rest, add
+    the first Submit starts the clock — the hours to finish a class (Site settings) to name the rest, add
     absentees and comment, after which the whole class locks by itself.
     """
     member = require_member(request)

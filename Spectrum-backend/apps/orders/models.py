@@ -46,12 +46,25 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
+    # Set when staff send an unpaid order's links by hand from the admin (to
+    # test without paying): its download links then work like a paid order's.
+    # Nothing is ever sent for it automatically, and it stays unpaid.
+    released_at = models.DateTimeField("released without payment", null=True, blank=True, editable=False)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return self.public_id
+
+    @property
+    def is_paid(self) -> bool:
+        return self.status in (self.PAID, self.DELIVERED)
+
+    @property
+    def downloadable(self) -> bool:
+        """Paid, or released by hand without payment."""
+        return self.is_paid or self.released_at is not None
 
     @property
     def amount(self) -> int:

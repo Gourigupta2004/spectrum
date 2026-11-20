@@ -52,7 +52,27 @@
 
   function formatBytes(bytes) {
     if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB";
-    return (bytes / 1024 / 1024).toFixed(1) + " MB";
+    if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + " MB";
+    return (bytes / 1024 / 1024 / 1024).toFixed(2) + " GB";
+  }
+
+  /* The file name in a Content-Disposition header ("photos.zip" if none). */
+  function attachmentName(header) {
+    var match = /filename\*=UTF-8''([^;]+)/i.exec(header || "");
+    if (match) { try { return decodeURIComponent(match[1]); } catch (e) { /* fall through */ } }
+    match = /filename="?([^";]+)"?/i.exec(header || "");
+    return match ? match[1] : "photos.zip";
+  }
+
+  function saveBlob(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
 
   function readEntries(entry) {
@@ -168,6 +188,16 @@
       if (!select.classList || !select.classList.contains("bulk-download-class")) return;
       var link = self.grid.querySelector(".bulk-download");
       if (link) link.href = select.dataset.url + "?class=" + encodeURIComponent(select.value);
+    });
+    // Download: fetched here rather than followed, so a progress bar can show
+    // the packing on the server, then the transfer. Ctrl/Cmd/middle-click (or
+    // a browser without streams) still follow the plain link.
+    this.grid.addEventListener("click", function (event) {
+      var link = event.target.closest && event.target.closest(".bulk-download");
+      if (!link || !window.fetch || !window.ReadableStream || !link.dataset.progressUrl) return;
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button) return;
+      event.preventDefault();
+      self.download(link);
     });
     // "Delete photos" beside it: the picked class goes, with every photo in
     // it — or, on "All classes", every class. Sent from a detached form, as
@@ -653,8 +683,101 @@
     this.line.textContent = parts.join(" · ");
   };
 
+  /* One zip download with its progress: "Packing photos: 120 of 450" while
+     the server builds the zip (polled from the progress endpoint), then
+     "Downloading: 230 MB of 900 MB" as it arrives, then the browser saves it.
+     The bytes are gathered into Blobs every 32 MB, so the browser can keep a
+     big zip on disk rather than in the page's memory. */
+  var BLOB_EVERY = 32 * 1024 * 1024;
+
+  Uploader.prototype.download = function (link) {
+    var self = this;
+    if (this.downloading) return;
+    this.downloading = true;
+    var token = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+    var url = link.href + (link.href.indexOf("?") === -1 ? "?" : "&") + "progress=" + token;
+    var progressUrl = link.dataset.progressUrl + "?token=" + token;
+    // Looked up each time: the grid (and this bar with it) is redrawn after uploads.
+    function show(fraction, text, isError) {
+      var box = self.grid.querySelector(".bulk-download-progress");
+      if (!box) return;
+      var bar = box.querySelector(".bulk-bar");
+      var line = box.querySelector(".bulk-line");
+      box.hidden = false;
+      bar.classList.toggle("is-waiting", fraction === null && !isError);
+      bar.querySelector("span").style.width = fraction === null ? "0" : Math.round(Math.min(1, fraction) * 100) + "%";
+      line.textContent = text;
+      line.classList.toggle("is-error", !!isError);
+    }
+    function busy(on) {
+      var button = self.grid.querySelector(".bulk-download");
+      if (button) button.classList.toggle("is-busy", on);
+    }
+    busy(true);
+    show(null, "Preparing the zip…");
+
+    var packing = true;
+    var timer = setInterval(function () {
+      fetch(progressUrl, { credentials: "same-origin", headers: { Accept: "application/json" } })
+        .then(function (response) { return response.ok ? response.json() : {}; })
+        .then(function (state) {
+          if (packing && state && state.total) {
+            show(state.done / state.total, "Packing photos on the server: " + state.done + " of " + state.total);
+          }
+        })
+        .catch(function () { /* the next poll tries again */ });
+    }, 700);
+    function stopPolling() {
+      packing = false;
+      clearInterval(timer);
+    }
+
+    fetch(url, { credentials: "same-origin" }).then(function (response) {
+      stopPolling();
+      var type = response.headers.get("Content-Type") || "";
+      if (!response.ok || type.indexOf("application/zip") === -1) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          throw new Error(data.error || "The download didn't work (" + (response.status || "network") + "). Please try again.");
+        });
+      }
+      var total = parseInt(response.headers.get("Content-Length"), 10) || 0;
+      var name = attachmentName(response.headers.get("Content-Disposition"));
+      var reader = response.body.getReader();
+      var blobs = [], chunks = [], chunkBytes = 0, received = 0;
+      show(0, "Downloading: 0 MB" + (total ? " of " + formatBytes(total) : ""));
+      function pump() {
+        return reader.read().then(function (step) {
+          if (step.done) return;
+          chunks.push(step.value);
+          chunkBytes += step.value.length;
+          received += step.value.length;
+          if (chunkBytes >= BLOB_EVERY) {
+            blobs.push(new Blob(chunks));
+            chunks = [];
+            chunkBytes = 0;
+          }
+          show(total ? received / total : null,
+               "Downloading: " + formatBytes(received) + (total ? " of " + formatBytes(total) : ""));
+          return pump();
+        });
+      }
+      return pump().then(function () {
+        blobs.push(new Blob(chunks));
+        var blob = new Blob(blobs, { type: "application/zip" });
+        saveBlob(blob, name);
+        show(1, "Downloaded " + name + " (" + formatBytes(blob.size) + ").");
+      });
+    }).catch(function (error) {
+      stopPolling();
+      show(0, error.message || "The download didn't work. Please try again.", true);
+    }).then(function () {
+      self.downloading = false;
+      busy(false);
+    });
+  };
+
   Uploader.prototype.busy = function () {
-    return this.active > 0 || this.queue.length > 0 || this.toCommit.length > 0;
+    return this.active > 0 || this.queue.length > 0 || this.toCommit.length > 0 || !!this.downloading;
   };
 
   function init() {

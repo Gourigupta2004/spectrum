@@ -25,15 +25,19 @@ def fulfil_order(order_id: str) -> None:
     from .models import Delivery, Order, OrderItem
 
     order = Order.objects.get(pk=order_id)
-    if order.status not in (Order.PAID, Order.DELIVERED):
+    # An unpaid order released by hand gets its items and zip, never a send:
+    # staff send its links themselves (OrderAdmin's "by hand" actions).
+    if not order.downloadable:
         return
     if order.kind == Order.BUNDLE and not order.items.exists():
         ids = EventPhoto.objects.filter(event_id=order.event_id, image_status=ImageStatus.READY).values_list("pk", flat=True)
         OrderItem.objects.bulk_create([OrderItem(order=order, photo_id=pk) for pk in ids.iterator()],
                                       batch_size=500, ignore_conflicts=True)
-    channels = ([Delivery.WHATSAPP] if order.deliver_whatsapp else []) + ([Delivery.EMAIL] if order.deliver_email else [])
-    for channel in channels:
-        Delivery.objects.get_or_create(order=order, channel=channel)
+    if order.is_paid:
+        channels = ([Delivery.WHATSAPP] if order.deliver_whatsapp else []) + (
+            [Delivery.EMAIL] if order.deliver_email else [])
+        for channel in channels:
+            Delivery.objects.get_or_create(order=order, channel=channel)
     # The message carries the actual download links, so the photos zip has to
     # exist before anything is sent: build it first and let build_zip queue the
     # sends. Videos are never zipped (they can be huge); each gets its own
@@ -117,6 +121,8 @@ def mark_sent(order, channel: str, message_id: str = "") -> None:
 def send_pending_deliveries(order) -> None:
     from .models import Delivery
 
+    if not order.is_paid:  # unpaid orders are only ever sent by hand
+        return
     for pk in order.deliveries.filter(status=Delivery.PENDING).values_list("pk", flat=True):
         enqueue("orders.send_delivery", pk)
 
@@ -127,9 +133,9 @@ def send_delivery(delivery_id: int) -> None:
     from .services import twilio_send_whatsapp
 
     delivery = Delivery.objects.select_related("order__event__institution").get(pk=delivery_id)
-    if delivery.status in (Delivery.SENT, Delivery.DELIVERED):
-        return
     order = delivery.order
+    if delivery.status in (Delivery.SENT, Delivery.DELIVERED) or not order.is_paid:
+        return
     try:
         if delivery.channel == Delivery.EMAIL:
             context = email_context(order)

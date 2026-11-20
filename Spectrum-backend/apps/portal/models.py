@@ -1,9 +1,9 @@
 import re
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import models, transaction
 from django.utils import timezone
+from django.utils.functional import cached_property
 
 from apps.core.models import ProcessedImage
 
@@ -31,36 +31,60 @@ def padded(value: str) -> str:
     return re.sub(r"\d+", lambda m: m.group().zfill(10), (value or "").strip().lower())[:200]
 
 
-# Pre-primary classes come first, in school order (play group, pre-nursery,
-# nursery, LKG, UKG), then classes 1 to 12 (also as Roman numerals), then
-# anything else alphabetically. The class is found anywhere in the name, so
-# "NUR-B", "Nursery A", "G43 Lkga", "Class 6C" and "XII-A" all sort by their
-# class; a number glued to letters, like the school code in "G43", never counts.
+# Classes in school order from their names, "NUR" to "12th":
+#  - classes without a class number (NUR, KG, LKG, UKG-A, Play Group, …) come
+#    first, alphabetically;
+#  - then classes with one, by the number (1 to 12, also as Roman numerals:
+#    "XII-B"), and alphabetically by the rest of the name within a number
+#    ("10A", "10 B", "Class 10C").
+# The number is found anywhere in the name ("Class 6C", "Std10", "G43 1A");
+# one glued to other letters, like the school code in "G43", never counts,
+# and pre-primary names stay with the other unnumbered classes even when they
+# carry a section number ("KG-1", "PP-2", "NUR-I").
 WORD_START = r"(?<![a-z0-9])"
-PRE_PRIMARY = tuple(re.compile(WORD_START + pattern) for pattern in (
-    r"play\s*(group|school)|pg(?![a-z])",
-    r"pre[\s.-]*(nur|kg)",
-    r"nur",
-    r"lkg|(jr|junior)\.?\s*kg",
-    r"ukg|(sr|senior)\.?\s*kg",
-    r"kg",
-))
-CLASS_NUMBER = re.compile(WORD_START + r"(\d{1,2})(?!\d)")
+PRE_PRIMARY = re.compile(WORD_START + r"(play|pg(?![a-z])|pp(?![a-z])|pre[\s.-]*(nur|kg|primary|school)|prep|nur|"
+                         r"toddler|lkg|ukg|(jr|sr)kg|kg)")
+CLASS_WORD = re.compile(WORD_START + r"(class|cls|std|standard|grade|gr)(?![a-z])\.?")
+CLASS_NUMBER = re.compile(r"(?:(?<![a-z0-9])|(?<=class)|(?<=cls)|(?<=std)|(?<=standard)|(?<=grade)|(?<=gr))"
+                          r"(\d+)(?!\d)")
 ROMAN = ("i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii")
 CLASS_ROMAN = re.compile(WORD_START + r"(xii|xi|ix|x|viii|vii|vi|iv|v|iii|ii|i)(?![a-z])")
 
 
+def _letters(value: str) -> str:
+    """Only letters and (padded) numbers: "UKG-A", "UKG A" and "UKGA" sort together."""
+    return re.sub(r"[^a-z0-9]+", "", padded(value))
+
+
+def _class_number(value: str) -> tuple[int | None, str]:
+    """The class number in a lower-cased name (1 to 12 first, else any
+    number), and the name without it or words like "Class"."""
+    numbers = list(CLASS_NUMBER.finditer(value))
+    match = next((m for m in numbers if 1 <= int(m.group(1)) <= 12), numbers[0] if numbers else None)
+    if match is not None:
+        number = int(match.group(1))
+    elif match := CLASS_ROMAN.search(value):
+        number = ROMAN.index(match.group(1)) + 1
+    else:
+        return None, value
+    return number, CLASS_WORD.sub(" ", value[:match.start()] + " " + value[match.end():])
+
+
 def class_sort_key(name: str) -> str:
     value = (name or "").strip().lower()
-    for rank, pattern in enumerate(PRE_PRIMARY):
-        if pattern.search(value):
-            return f"0{rank}{padded(value)}"[:200]
-    number = next((int(m.group(1)) for m in CLASS_NUMBER.finditer(value) if 1 <= int(m.group(1)) <= 12), None)
-    if number is None and (roman := CLASS_ROMAN.search(value)):
-        number = ROMAN.index(roman.group(1)) + 1
-    if number is not None:
-        return f"1{number:02d}{padded(value)}"[:200]
-    return f"2{padded(value)}"[:200]
+    pre_primary = PRE_PRIMARY.search(value)
+    number, rest = (None, value) if pre_primary else _class_number(value)
+    if number is None:
+        # From the pre-primary word on, so a school code before it ("G43 Lkga") doesn't count.
+        return f"0{_letters(value[pre_primary.start():] if pre_primary else value)} {padded(value)}"[:200]
+    return f"1{number:010d}{_letters(rest)} {padded(value)}"[:200]
+
+
+def class_edit_hours() -> int:
+    """Hours a class stays open after its first Submit (Site settings)."""
+    from apps.content.models import SiteSettings
+
+    return SiteSettings.load().class_edit_hours
 
 
 class PortalAccessEmail(models.Model):
@@ -279,7 +303,7 @@ class SchoolClass(models.Model):
     slug = models.SlugField(max_length=70, blank=True, help_text="Filled from the name.")
     group = models.CharField(max_length=10, choices=GROUPS, default="Primary")
     sort_order = models.PositiveIntegerField("order", default=0)  # no longer used for ordering; kept with its data
-    # Classes are listed in school order — Nursery, LKG, UKG, 1A, 1B … 12C —
+    # Classes are listed in school order — KG, LKG, NUR, UKG, 1A, 1B … 12C —
     # from their names (see `class_sort_key`), filled on save.
     sort_key = models.CharField(max_length=200, blank=True, editable=False, db_index=True)
     comment = models.TextField(
@@ -287,7 +311,7 @@ class SchoolClass(models.Model):
         help_text="Written by the institution on the website (Add Comments). The photo download puts it in the "
                   "class folder as comment.txt.")
     # The teacher's first Submit (Review, then Submit)
-    # opens a window of CLASS_EDIT_HOURS to finish the class: each Submit
+    # opens a window (Site settings: hours to finish a class) to finish the class: each Submit
     # locks the photos named so far, and the rest — unnamed photos,
     # absentees, the comment — stay open until the window ends.
     first_submitted_at = models.DateTimeField("first submitted", null=True, blank=True)
@@ -313,12 +337,17 @@ class SchoolClass(models.Model):
         if not (self.slug or slugify(self.name)):
             raise ValidationError({"name": "Use letters or numbers, e.g. 6C."})
 
+    @cached_property
+    def edit_hours(self) -> int:
+        """Read once per object; a list sets it on each row from one read."""
+        return class_edit_hours()
+
     @property
     def deadline(self):
-        """When the class locks by itself: CLASS_EDIT_HOURS after the first Submit."""
+        """When the class locks by itself: `edit_hours` after the first Submit."""
         if self.first_submitted_at is None:
             return None
-        return self.first_submitted_at + timedelta(hours=settings.CLASS_EDIT_HOURS)
+        return self.first_submitted_at + timedelta(hours=self.edit_hours)
 
     def lock_if_due(self) -> None:
         """Records the automatic submit once the window has run out."""
@@ -328,9 +357,11 @@ class SchoolClass(models.Model):
 
     @classmethod
     def lock_all_due(cls) -> int:
-        cutoff = timezone.now() - timedelta(hours=settings.CLASS_EDIT_HOURS)
+        hours = class_edit_hours()
+        cutoff = timezone.now() - timedelta(hours=hours)
         due = list(cls.objects.filter(submitted_at=None, first_submitted_at__lte=cutoff))
         for school_class in due:
+            school_class.edit_hours = hours
             school_class.submitted_at = school_class.deadline
         cls.objects.bulk_update(due, ["submitted_at"], batch_size=500)
         return len(due)

@@ -493,6 +493,19 @@ class BulkUploadTests(SpectrumTestCase):
         other = SchoolClass.objects.create(institution=self.other, name="2B")
         self.assertEqual(self.client.get(f"{download}?class={other.pk}").status_code, 302)
 
+        # The page's progress bar: the zip's packing is counted under the page's token.
+        self.assertIn(f'data-progress-url="{download}progress/"', section)
+        self.assertEqual(self.client.get(f"{download}progress/?token=abcdefgh1234").json(), {})
+        response = self.client.get(f"{download}?class=all&progress=abcdefgh1234")
+        self.assertEqual(response["Content-Type"], "application/zip")
+        self.assertTrue(int(response["Content-Length"]), "the page shows the transfer against the zip's size")
+        self.assertEqual(self.client.get(f"{download}progress/?token=abcdefgh1234").json(), {"done": 4, "total": 4})
+        self.assertEqual(self.client.get(f"{download}progress/?token=bad").json(), {})
+        # Nothing to put in it: the page gets the reason rather than a redirect.
+        empty = self.client.get(f"{download}?class={other.pk}&progress=abcdefgh5678")
+        self.assertEqual(empty.status_code, 404)
+        self.assertIn("Nothing to download", empty.json()["error"])
+
     def test_delete_photos_beside_download_removes_the_picked_class(self):
         from apps.portal.models import CaptionWorkspace, SchoolClass, Student
 
@@ -527,13 +540,19 @@ class BulkUploadTests(SpectrumTestCase):
         for name in names:
             SchoolClass.objects.create(institution=self.institution, name=name)
         ordered = list(SchoolClass.objects.filter(institution=self.institution).values_list("name", flat=True))
-        self.assertEqual(ordered, ["Nursery", "LKG", "UKG", "1A", "2A", "Class 3", "10B", "12C"])
-        self.assertLess(class_sort_key("KG"), class_sort_key("1A"))
-        # Short forms and a school code in the name still sort by the class.
-        names = ["G43 12A", "Ukgc", "XII-B", "NUR-B", "G43 1A", "Lkga", "Std. 7", "PRE-NUR A", "Nura", "Staff"]
+        self.assertEqual(ordered, ["LKG", "Nursery", "UKG", "1A", "2A", "Class 3", "10B", "12C"])
+        # Classes without a number first, alphabetically; then by number, then the letters.
+        names = ["UKG-A", "10B", "NUR", "2A", "KG", "LKG", "10A", "1B", "1A", "12A", "UKG-B", "9C", "11 Sci", "11 Com"]
         self.assertEqual(sorted(names, key=class_sort_key),
-                         ["PRE-NUR A", "NUR-B", "Nura", "Lkga", "Ukgc", "G43 1A", "Std. 7", "G43 12A", "XII-B",
-                          "Staff"])
+                         ["KG", "LKG", "NUR", "UKG-A", "UKG-B", "1A", "1B", "2A", "9C", "10A", "10B", "11 Com",
+                          "11 Sci", "12A"])
+        # The number wherever it is (also glued to "Class"/"Std", or in Roman numerals); a school code
+        # ("G43") never counts, and pre-primary classes with a section number stay with the unnumbered.
+        names = ["G43 12A", "Ukgc", "XII-B", "NUR-B", "G43 1A", "Lkga", "Std. 7", "PRE-NUR A", "Nura", "Staff",
+                 "KG-2", "KG-1", "Class1A", "STD10", "10 C", "IX-A", "G43 Lkga", "Play Group"]
+        self.assertEqual(sorted(names, key=class_sort_key),
+                         ["KG-1", "KG-2", "G43 Lkga", "Lkga", "Nura", "NUR-B", "Play Group", "PRE-NUR A", "Staff",
+                          "Ukgc", "Class1A", "G43 1A", "Std. 7", "IX-A", "STD10", "10 C", "XII-B", "G43 12A"])
         changelist = self.client.get("/admin/portal/schoolclass/").content.decode()
         self.assertLess(changelist.index(">Nursery<"), changelist.index(">12C<"))
 

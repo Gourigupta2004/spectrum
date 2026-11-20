@@ -272,6 +272,39 @@ class OrderHardeningTests(OrderTests):
         self.assertEqual(Delivery.objects.get(channel=Delivery.EMAIL).status, Delivery.SENT)
         self.assertEqual(Order.objects.get().status, Order.DELIVERED)
 
+    def test_an_unpaid_order_can_be_sent_by_hand_but_never_automatically(self):
+        order = self.create(phone="98765 43210").json()
+        db_order = Order.objects.get(pk=order["id"])
+        self.assertEqual(db_order.status, Order.CREATED)
+        zip_path = f"/api/downloads/{db_order.download_token}/zip/"
+        self.assertEqual(self.client.get(zip_path).status_code, 404, "no links before it's released")
+        self.client.force_login(self.make_staff())
+
+        with self.captureOnCommitCallbacks(execute=True):
+            page = self.by_hand("send_email_by_hand", db_order)
+        self.assertContains(page, "Not paid")
+        db_order.refresh_from_db()
+        self.assertTrue(db_order.released_at)
+        self.assertTrue(db_order.zip_file, "the zip is prepared")
+        self.assertContains(page, "mailto:asha@example.com?subject=")
+        self.assertEqual(len(mail.outbox), 0, "nothing is sent automatically")
+        self.assertFalse(Delivery.objects.exists())
+        self.assertEqual(self.client.post(zip_path).status_code, 200, "its links work")
+
+        self.by_hand("send_email_by_hand", db_order, confirm="1", sent=[str(db_order.pk)])
+        self.assertEqual(Delivery.objects.get(channel=Delivery.EMAIL).status, Delivery.SENT)
+        self.assertEqual(Order.objects.get().status, Order.CREATED, "still awaiting payment")
+        # The automated sends and resends leave it alone.
+        from apps.orders.jobs import fulfil_order, send_delivery
+
+        Delivery.objects.update(status=Delivery.PENDING)
+        with self.captureOnCommitCallbacks(execute=True):
+            fulfil_order(str(db_order.pk))
+            send_delivery(Delivery.objects.get().pk)
+            self.by_hand("resend_email", db_order)
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(Delivery.objects.get().status, Delivery.PENDING)
+
     def test_order_list_shows_and_filters_by_institution(self):
         db_order = self.pay_with_sends_failing(phone="98765 43210")
         items = list(db_order.items.values_list("pk", "photo_id", "video_id", "unit_price_paise"))

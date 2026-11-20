@@ -1,7 +1,6 @@
 import json
 from datetime import timedelta
 
-from django.conf import settings
 from django.utils import timezone
 
 from django.contrib.auth import get_user_model
@@ -9,7 +8,9 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.core.models import UploadBatch
-from apps.portal.models import CaptionItem, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student
+from apps.portal.models import (
+    CaptionItem, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student, class_edit_hours,
+)
 
 from .base import SpectrumTestCase, jpeg_bytes
 
@@ -272,7 +273,7 @@ class AbsenteesAndCommentsTests(SpectrumTestCase):
 class ClassSubmitTests(SpectrumTestCase):
     """
     Review and Submit on a class page: each Submit locks the names given so
-    far; the first one starts CLASS_EDIT_HOURS to finish the rest, after which
+    far; the first one starts the hours in Site settings to finish the rest, after which
     the whole class locks by itself.
     """
 
@@ -301,7 +302,7 @@ class ClassSubmitTests(SpectrumTestCase):
 
     def run_out_the_clock(self):
         SchoolClass.objects.filter(pk=self.cls.pk).update(
-            first_submitted_at=timezone.now() - timedelta(hours=settings.CLASS_EDIT_HOURS, minutes=1))
+            first_submitted_at=timezone.now() - timedelta(hours=class_edit_hours(), minutes=1))
 
     def test_first_submit_locks_given_names_and_opens_the_window(self):
         before = self.api("get", "/api/portal/classes/").json()["classes"][0]
@@ -311,7 +312,7 @@ class ClassSubmitTests(SpectrumTestCase):
         result = self.api("post", "/api/portal/classes/6c/submit/").json()
         self.assertEqual(result["lockedIds"], [str(self.student.pk)])
         self.assertFalse(result["locked"])
-        self.assertAlmostEqual(result["secondsLeft"], settings.CLASS_EDIT_HOURS * 3600, delta=60)
+        self.assertAlmostEqual(result["secondsLeft"], class_edit_hours() * 3600, delta=60)
         self.assertTrue(result["deadlineLabel"])
         locks = {s["id"]: s["locked"] for s in self.detail()["students"]}
         self.assertEqual(locks, {str(self.student.pk): True, str(self.second.pk): False})
@@ -358,6 +359,22 @@ class ClassSubmitTests(SpectrumTestCase):
         housekeeping()
         self.cls.refresh_from_db()
         self.assertEqual(self.cls.submitted_at, self.cls.deadline)
+
+    def test_the_window_is_the_hours_in_site_settings(self):
+        from apps.content.models import SiteSettings
+
+        self.assertEqual(class_edit_hours(), 48)
+        site = SiteSettings.load()
+        site.class_edit_hours = 6
+        site.save()
+        result = self.api("post", "/api/portal/classes/6c/submit/").json()
+        self.assertAlmostEqual(result["secondsLeft"], 6 * 3600, delta=60)
+        self.assertEqual(result["editHours"], 6)
+        listed = self.api("get", "/api/portal/classes/").json()["classes"][0]
+        self.assertEqual(listed["editHours"], 6)
+        # A shorter window closes a class that is still open.
+        SchoolClass.objects.filter(pk=self.cls.pk).update(first_submitted_at=timezone.now() - timedelta(hours=7))
+        self.assertTrue(self.detail()["class"]["locked"])
 
     def test_a_class_submitted_before_the_window_existed_stays_locked(self):
         SchoolClass.objects.filter(pk=self.cls.pk).update(submitted_at=timezone.now())

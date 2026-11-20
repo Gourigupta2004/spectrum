@@ -120,6 +120,12 @@ class SiteSettings(SingletonModel):
     service_charge_percent = percent("service charge %", "Added on top of the price at checkout, e.g. 3.6. "
                                                          "0 for none.")
     footer_facebook_url = models.URLField("Facebook link", blank=True, default="", help_text="Blank hides the icon.")
+    # Individual Photographs on the institution portal.
+    class_edit_hours = models.PositiveSmallIntegerField(
+        "hours to finish a class", default=48, validators=[MinValueValidator(1), MaxValueValidator(720)],
+        help_text="After a teacher's first Submit on a class, how many hours they have to name the rest, add "
+                  "absentees and comment, before the class locks by itself. A change applies to classes still "
+                  "open too: their time counts from their first Submit.")
     footer_copyright = line("© {year} Spectrum. All rights reserved.",
                             help_text="{year} becomes the current year.")
 

@@ -1,5 +1,4 @@
 from django import forms
-from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
@@ -15,7 +14,7 @@ from apps.core.models import ImageStatus
 from .forms import AccessEmailForm, password_display, password_status
 from .models import (
     SPECTRUM_PORTAL_CODENAME, CaptionItem, CaptionStatus, CaptionWorkspace, PortalAccessEmail, SchoolClass, Student,
-    natural_key,
+    class_edit_hours, natural_key,
 )
 
 
@@ -32,33 +31,66 @@ def _safe_file_name(name: str) -> str:
     return cleaned or "Student"
 
 
-def class_photos_zip(request, classes):
+NOTHING_TO_DOWNLOAD = "Nothing to download: no student photos in the selection."
+
+
+def zip_progress_key(user, token: str) -> str:
+    """Where a download's packing progress is kept (the cache), per staff user."""
+    return f"portal:photo-zip:{user.pk}:{token}"
+
+
+def _progress_token(value: str) -> str:
+    """The page's random token for one download, or "" if it isn't one."""
+    import re
+
+    return value if re.fullmatch(r"[A-Za-z0-9-]{8,64}", value or "") else ""
+
+
+def class_photos_zip(request, classes, progress_key: str = ""):
     """
     The class folder the website used to build, now admin-only: one folder
     per class ({CODE}-{CLASS}-Photos), one file per student — called after
     the student once named, else "Unnamed <uploaded file name>" — from the
     uploaded originals, at full size, instead of the website's re-encoded web
     copies — plus comment.txt with the institution's comment for the class,
-    when there is one. None (with a warning) when there is nothing to put in it.
+    when there is one. None when there is nothing to put in it (with a warning,
+    unless the page asked for progress and shows the error itself).
+
+    With a `progress_key`, how many files are packed so far is kept in the
+    cache under it while the zip is built, for the page's progress bar.
     """
     import os
     import tempfile
+    import time
     import zipfile
 
+    from django.core.cache import cache
     from django.http import FileResponse
 
     if not request.user.has_perm("portal.view_student"):
         raise PermissionDenied
-    classes = list(classes)
+    # Every class's students first, so the progress bar knows the total.
+    plan = [(cls, list(cls.students.all())) for cls in classes]  # file-name order (Student.Meta)
+    total = sum(1 for _, students in plan for student in students if student.original) + sum(
+        1 for cls, _ in plan if cls.comment.strip())
+    last_report = 0.0
+
+    def report(done: int, force: bool = False) -> None:
+        nonlocal last_report
+        if progress_key and (force or time.monotonic() - last_report >= 0.4):
+            cache.set(progress_key, {"done": done, "total": total}, 600)
+            last_report = time.monotonic()
+
+    report(0, force=True)
     buffer = tempfile.TemporaryFile()  # spooled to disk, so huge classes never sit in RAM
     included = 0
     folders = []
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:  # photos are already compressed
-        for cls in classes:
+        for cls, students in plan:
             folder = _safe_file_name(f"{_institution_code(cls.institution.name)}-{cls.name.upper()}-Photos")
             folders.append(folder)
             used: dict[str, int] = {}
-            for position, student in enumerate(cls.students.all(), 1):  # file-name order (Student.Meta)
+            for position, student in enumerate(students, 1):
                 if not student.original:
                     continue
                 if student.name.strip():
@@ -73,22 +105,26 @@ def class_photos_zip(request, classes):
                 with student.original.open("rb") as handle:
                     archive.writestr(f"{folder}/{filename}", handle.read())
                 included += 1
+                report(included)
             if cls.comment.strip():  # the institution's comment for this class, beside its photos
                 archive.writestr(f"{folder}/comment.txt", cls.comment.strip() + "\n")
                 included += 1
+                report(included)
+    report(included, force=True)
     if not included:
         buffer.close()
-        messages.warning(request, "Nothing to download: no student photos in the selection.")
+        if not progress_key:
+            messages.warning(request, NOTHING_TO_DOWNLOAD)
         return None
     buffer.seek(0)
     zip_name = f"{folders[0]}.zip" if len(folders) == 1 else (
-        f"{_institution_code(classes[0].institution.name)}-Class-Photos.zip")
+        f"{_institution_code(plan[0][0].institution.name)}-Class-Photos.zip")
     return FileResponse(buffer, as_attachment=True, filename=zip_name, content_type="application/zip")
 
 
 @admin.register(SchoolClass)
 class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
-    # Listed in school order (Nursery, LKG, UKG, 1A … 12C), from the names.
+    # Listed in school order (KG, LKG, NUR, UKG, 1A … 12C), from the names.
     bulk_upload_targets = ("portal.student",)
     list_display = ("name", "institution", "group", "student_count", "named_count", "submitted", "has_comment")
     list_editable = ("group",)
@@ -112,7 +148,7 @@ class SchoolClassAdmin(BulkUploadMixin, admin.ModelAdmin):
         Student.objects.filter(school_class__in=queryset).update(submitted_at=None)
         count = queryset.update(submitted_at=None, first_submitted_at=None)
         messages.success(request, f"Unlocked {count} class(es): the institution can edit and submit them again, "
-                                  f"with a fresh {settings.CLASS_EDIT_HOURS} hours from their next Submit.")
+                                  f"with a fresh {class_edit_hours()} hours from their next Submit.")
 
     @admin.action(description="Download photos — folder of originals, named after the students")
     def download_photos(self, request, queryset):
@@ -260,6 +296,9 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
                  name="portal_captionworkspace_delete_photos"),
             path("<path:object_id>/export-titles/", self.admin_site.admin_view(self.export_titles),
                  name="portal_captionworkspace_export_titles"),
+            path("<path:object_id>/download-students/progress/",
+                 self.admin_site.admin_view(self.download_students_progress),
+                 name="portal_captionworkspace_download_students_progress"),
             path("<path:object_id>/download-students/", self.admin_site.admin_view(self.download_students),
                  name="portal_captionworkspace_download_students"),
             path("<path:object_id>/delete-class/", self.admin_site.admin_view(self.delete_class),
@@ -300,7 +339,10 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
 
     def download_students(self, request, object_id):
         """The zip of one class's (or every class's) originals, from the pick
-        under Individual Photographs."""
+        under Individual Photographs. The page fetches it with a `progress`
+        token, polls `download_students_progress` while it is packed, then
+        shows the transfer itself; the plain link still works without it."""
+        from django.http import JsonResponse
         from django.shortcuts import get_object_or_404, redirect
 
         workspace = get_object_or_404(CaptionWorkspace, pk=object_id)
@@ -308,8 +350,25 @@ class CaptionWorkspaceAdmin(BulkUploadMixin, admin.ModelAdmin):
         choice = request.GET.get("class", "all")
         if choice != "all":
             classes = classes.filter(pk=int(choice) if choice.isdigit() else 0)
-        response = class_photos_zip(request, classes)
+        token = _progress_token(request.GET.get("progress", ""))
+        response = class_photos_zip(request, classes, zip_progress_key(request.user, token) if token else "")
+        if response is None and token:
+            return JsonResponse({"error": NOTHING_TO_DOWNLOAD}, status=404)
         return response or redirect("admin:portal_captionworkspace_change", workspace.pk)
+
+    def download_students_progress(self, request, object_id):
+        """How far the packing of the page's download has got: {done, total},
+        or {} before it has started."""
+        from django.core.cache import cache
+        from django.http import JsonResponse
+
+        if not request.user.has_perm("portal.view_student"):
+            raise PermissionDenied
+        token = _progress_token(request.GET.get("token", ""))
+        state = cache.get(zip_progress_key(request.user, token)) if token else None
+        response = JsonResponse(state or {})
+        response["Cache-Control"] = "no-store"
+        return response
 
     def delete_class(self, request, object_id):
         """The class picked under Individual Photographs — or, on "All

@@ -24,9 +24,13 @@
         <p>{{ label|capfirst }} delivery so far: <b>{{ row.delivery.get_status_display }}</b>{% if row.delivery.last_error %}
           ({{ row.delivery.last_error|truncatechars:120 }}){% endif %}</p>
       {% endif %}
+      {% if row.unpaid %}
+        <p style="color:#b58900"><b>Not paid</b> — released by hand on {{ row.order.released_at|date:"d M Y, H:i" }}:
+          its links work, nothing is sent automatically, and it stays “{{ row.order.get_status_display }}”.</p>
+      {% endif %}
       {% if not row.has_link %}
         <p style="color:#e8503a"><b>No download link yet</b> — the photos may still be being prepared. Try again in a
-          few minutes, or use “Re-run fulfilment”.</p>
+          few minutes{% if not row.unpaid %}, or use “Re-run fulfilment”{% endif %}.</p>
       {% endif %}
       {% if row.subject %}<p>Subject: <b>{{ row.subject }}</b></p>{% endif %}
       <pre style="white-space:pre-wrap;background:var(--darkened-bg);padding:10px;border-radius:4px">{{ row.body }}</pre>

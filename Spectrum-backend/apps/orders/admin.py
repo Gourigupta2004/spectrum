@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.db.models import Q
 from django.utils.html import format_html
 
 from apps.core.tasks import enqueue
@@ -61,7 +62,7 @@ class OrderAdmin(admin.ModelAdmin):
                "reissue_links", "refulfil"]
     readonly_fields = ("public_id", "institution", "event", "kind", "rupees", "breakdown", "status", "name", "email", "phone",
                        "deliver_whatsapp", "deliver_email", "razorpay_order_id", "download_link", "created_at",
-                       "paid_at", "delivered_at")
+                       "paid_at", "delivered_at", "released_at")
     fields = readonly_fields
 
     def has_add_permission(self, request):
@@ -90,8 +91,8 @@ class OrderAdmin(admin.ModelAdmin):
     def download_link(self, obj):
         """Whether each one-time link has been used. Deliberately not clickable:
         opening the buyer's link here would use it up."""
-        if obj.status not in (Order.PAID, Order.DELIVERED):
-            return "Available after payment"
+        if not obj.downloadable:
+            return "Available after payment (or once sent by hand)"
         from django.utils import timezone
 
         def state(used_at):
@@ -123,7 +124,12 @@ class OrderAdmin(admin.ModelAdmin):
         """A page with each order's message and buttons that open it ready to
         send from staff's own WhatsApp or mailbox; ticked orders are then marked
         sent. Opening a download link only shows its page, so link previews and
-        mail scanners use nothing up."""
+        mail scanners use nothing up.
+
+        Orders awaiting payment work too, to test without paying: the first
+        time, the order is released — its links start working and its zip is
+        prepared — but nothing is sent for it automatically, ever, and it
+        stays unpaid (sending it by hand doesn't make it Delivered)."""
         from urllib.parse import quote, urlencode
 
         from django.template.response import TemplateResponse
@@ -133,7 +139,8 @@ class OrderAdmin(admin.ModelAdmin):
         whatsapp = channel == Delivery.WHATSAPP
         contact = "phone" if whatsapp else "email"
         label = "WhatsApp" if whatsapp else "email"
-        orders = list(queryset.filter(status__in=[Order.PAID, Order.DELIVERED]).exclude(**{contact: ""})
+        orders = list(queryset.filter(Q(status__in=[Order.PAID, Order.DELIVERED, Order.CREATED])
+                                      | Q(released_at__isnull=False)).exclude(**{contact: ""})
                       .select_related("event__institution"))
         if request.POST.get("confirm"):
             sent = set(request.POST.getlist("sent"))
@@ -143,8 +150,18 @@ class OrderAdmin(admin.ModelAdmin):
             messages.success(request, f"Marked {len(marked)} order(s) as sent by {label}.")
             return None
         if not orders:
-            messages.warning(request, f"None of the selected orders is paid with {'a WhatsApp number' if whatsapp else 'an email address'}.")
+            messages.warning(request, f"None of the selected orders is paid or awaiting payment with "
+                                      f"{'a WhatsApp number' if whatsapp else 'an email address'}.")
             return None
+        released = [order for order in orders if not order.downloadable]
+        if released:
+            from django.utils import timezone
+
+            now = timezone.now()
+            Order.objects.filter(pk__in=[order.pk for order in released], released_at=None).update(released_at=now)
+            for order in released:
+                order.released_at = now
+                enqueue("orders.fulfil_order", str(order.pk))  # items and zip only: unpaid orders are never sent
         rows = []
         for order in orders:
             if whatsapp:
@@ -159,7 +176,7 @@ class OrderAdmin(admin.ModelAdmin):
                            ("Open in mail app", f"mailto:{quote(order.email, safe='@')}?"
                                                 + urlencode({"subject": subject, "body": body}, quote_via=quote))]
             rows.append({"order": order, "to": getattr(order, contact), "subject": subject, "body": body,
-                         "buttons": buttons, "has_link": "/api/downloads/" in body,
+                         "buttons": buttons, "has_link": "/api/downloads/" in body, "unpaid": not order.is_paid,
                          "delivery": order.deliveries.filter(channel=channel).first()})
         return TemplateResponse(request, "admin/orders/send_by_hand.html", {
             **self.admin_site.each_context(request), "title": f"Send by {label} by hand", "opts": self.model._meta,
@@ -167,11 +184,11 @@ class OrderAdmin(admin.ModelAdmin):
             "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
         })
 
-    @admin.action(description="Send on WhatsApp by hand (from your own WhatsApp)")
+    @admin.action(description="Send on WhatsApp by hand (from your own WhatsApp) — awaiting payment too")
     def send_whatsapp_by_hand(self, request, queryset):
         return self._by_hand(request, queryset, Delivery.WHATSAPP)
 
-    @admin.action(description="Send by email by hand (from your own mailbox)")
+    @admin.action(description="Send by email by hand (from your own mailbox) — awaiting payment too")
     def send_email_by_hand(self, request, queryset):
         return self._by_hand(request, queryset, Delivery.EMAIL)
 

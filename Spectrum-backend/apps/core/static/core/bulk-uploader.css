@@ -52,3 +52,8 @@
 .bulk-downloadbar .bulk-delete-group { background: #ba2121; color: #fff; }
 .bulk-downloadbar .bulk-delete-group:disabled { opacity: .45; cursor: not-allowed; }
 .bulk-download-hint { color: var(--body-quiet-color, #666); font-size: 12px; }
+.bulk-download-progress { flex-basis: 100%; }
+.bulk-download-progress .bulk-bar.is-waiting span { width: 100% !important; opacity: .35; animation: bulk-pulse 1.2s ease-in-out infinite alternate; }
+.bulk-download-progress .bulk-line.is-error { color: #e8503a; }
+.bulk-download.is-busy { opacity: .45; pointer-events: none; }
+@keyframes bulk-pulse { from { opacity: .15; } to { opacity: .45; } }

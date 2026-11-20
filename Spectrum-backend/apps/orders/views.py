@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.http import FileResponse, HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.text import slugify
@@ -256,8 +257,9 @@ def twilio_webhook(request):
 
 
 def _paid_order(token: str) -> Order:
+    """The order behind a download link: paid, or released by hand without payment."""
     order = (Order.objects.select_related("event__institution")
-             .filter(download_token=token, status__in=PAID_STATES).first())
+             .filter(Q(status__in=PAID_STATES) | Q(released_at__isnull=False), download_token=token).first())
     if order is None:
         raise ApiError("This download link is not valid.", status=404)
     return order

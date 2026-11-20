@@ -37,6 +37,9 @@ class SiteSettingsAdmin(SingletonAdmin):
                            "Razorpay charges ₹279. Each is a percentage of the price, rounded to the nearest "
                            "rupee. Orders and requests already made keep the amounts they were made with.",
             "fields": ("gst_percent", "service_charge_percent")}),
+        ("Individual photographs", {
+            "description": "The institution portal's Individual Photographs: names, absentees and comments.",
+            "fields": ("class_edit_hours",)}),
         ("Default search & sharing", {"fields": ("seo_title", "seo_description", "og_title", "og_description")}),
         ("Error pages", {"classes": ("collapse",), "fields": ("not_found_title", "not_found_body",
                                                              "not_found_cta", "error_title", "error_body",
