@@ -25,8 +25,8 @@ def fulfil_order(order_id: str) -> None:
     from .models import Delivery, Order, OrderItem
 
     order = Order.objects.get(pk=order_id)
-    # An unpaid order released by hand gets its items and zip, never a send:
-    # staff send its links themselves (OrderAdmin's "by hand" actions).
+    # An unpaid order released by hand gets its items and zip but no sends of
+    # its own: only what staff ask for in the admin (a resend, or by hand).
     if not order.downloadable:
         return
     if order.kind == Order.BUNDLE and not order.items.exists():
@@ -121,7 +121,8 @@ def mark_sent(order, channel: str, message_id: str = "") -> None:
 def send_pending_deliveries(order) -> None:
     from .models import Delivery
 
-    if not order.is_paid:  # unpaid orders are only ever sent by hand
+    # An unpaid order only has deliveries staff asked for (OrderAdmin's resends).
+    if not order.downloadable:
         return
     for pk in order.deliveries.filter(status=Delivery.PENDING).values_list("pk", flat=True):
         enqueue("orders.send_delivery", pk)
@@ -134,7 +135,7 @@ def send_delivery(delivery_id: int) -> None:
 
     delivery = Delivery.objects.select_related("order__event__institution").get(pk=delivery_id)
     order = delivery.order
-    if delivery.status in (Delivery.SENT, Delivery.DELIVERED) or not order.is_paid:
+    if delivery.status in (Delivery.SENT, Delivery.DELIVERED) or not order.downloadable:
         return
     try:
         if delivery.channel == Delivery.EMAIL:

@@ -294,16 +294,33 @@ class OrderHardeningTests(OrderTests):
         self.by_hand("send_email_by_hand", db_order, confirm="1", sent=[str(db_order.pk)])
         self.assertEqual(Delivery.objects.get(channel=Delivery.EMAIL).status, Delivery.SENT)
         self.assertEqual(Order.objects.get().status, Order.CREATED, "still awaiting payment")
-        # The automated sends and resends leave it alone.
-        from apps.orders.jobs import fulfil_order, send_delivery
+        # Fulfilment never adds a send of its own for it.
+        from apps.orders.jobs import fulfil_order
 
-        Delivery.objects.update(status=Delivery.PENDING)
         with self.captureOnCommitCallbacks(execute=True):
             fulfil_order(str(db_order.pk))
-            send_delivery(Delivery.objects.get().pk)
-            self.by_hand("resend_email", db_order)
         self.assertEqual(len(mail.outbox), 0)
-        self.assertEqual(Delivery.objects.get().status, Delivery.PENDING)
+        self.assertEqual(Delivery.objects.count(), 1)
+        # The resend action does send it, and it stays unpaid.
+        with self.captureOnCommitCallbacks(execute=True):
+            self.by_hand("resend_email", db_order)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(f"/api/downloads/{db_order.download_token}/zip/", mail.outbox[0].body)
+        self.assertEqual(Order.objects.get().status, Order.CREATED)
+
+    def test_resend_delivers_an_order_awaiting_payment(self):
+        db_order = Order.objects.get(pk=self.create(phone="98765 43210").json()["id"])
+        self.client.force_login(self.make_staff())
+        with self.captureOnCommitCallbacks(execute=True):
+            self.by_hand("resend_email", db_order)
+        db_order.refresh_from_db()
+        self.assertTrue(db_order.released_at)
+        self.assertTrue(db_order.zip_file, "the zip is built before the send")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(f"/api/downloads/{db_order.download_token}/zip/", mail.outbox[0].body)
+        self.assertEqual(Delivery.objects.get().status, Delivery.SENT)
+        self.assertEqual(db_order.status, Order.CREATED, "still awaiting payment")
+        self.assertEqual(self.client.post(f"/api/downloads/{db_order.download_token}/zip/").status_code, 200)
 
     def test_order_list_shows_and_filters_by_institution(self):
         db_order = self.pay_with_sends_failing(phone="98765 43210")

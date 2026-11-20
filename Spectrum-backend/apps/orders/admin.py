@@ -108,15 +108,26 @@ class OrderAdmin(admin.ModelAdmin):
         return format_html("<br>".join(["{}: {}"] * len(rows)), *[part for row in rows for part in row])
 
     def _resend(self, request, queryset, channel):
+        """Sends the order's links again through WhatsApp or email. Orders
+        awaiting payment work too, to test without paying: the first time, the
+        order is released (see _by_hand) and the send goes out once its zip is
+        ready. Nothing is ever sent for an unpaid order unless staff ask."""
+        from django.utils import timezone
+
         count = 0
-        for order in queryset.filter(status__in=[Order.PAID, Order.DELIVERED]):
+        for order in queryset.filter(Q(status__in=[Order.PAID, Order.DELIVERED, Order.CREATED])
+                                     | Q(released_at__isnull=False)):
             delivery, _ = Delivery.objects.get_or_create(order=order, channel=channel)
             Delivery.objects.filter(pk=delivery.pk).update(status=Delivery.PENDING, attempts=0, last_error="")
-            enqueue("orders.send_delivery", delivery.pk)
+            if order.downloadable:
+                enqueue("orders.send_delivery", delivery.pk)
+            else:
+                Order.objects.filter(pk=order.pk, released_at=None).update(released_at=timezone.now())
+                enqueue("orders.fulfil_order", str(order.pk))  # builds the zip, then sends
             count += 1
         messages.success(request, f"Resending to {count} order(s).")
 
-    @admin.action(description="Resend download link on WhatsApp")
+    @admin.action(description="Resend download link on WhatsApp — awaiting payment too")
     def resend_whatsapp(self, request, queryset):
         self._resend(request, queryset.exclude(phone=""), Delivery.WHATSAPP)
 
@@ -128,8 +139,9 @@ class OrderAdmin(admin.ModelAdmin):
 
         Orders awaiting payment work too, to test without paying: the first
         time, the order is released — its links start working and its zip is
-        prepared — but nothing is sent for it automatically, ever, and it
-        stays unpaid (sending it by hand doesn't make it Delivered)."""
+        prepared — but nothing is sent for it automatically, ever (only the
+        resend actions send it), and it stays unpaid (sending it doesn't make
+        it Delivered)."""
         from urllib.parse import quote, urlencode
 
         from django.template.response import TemplateResponse
@@ -209,7 +221,7 @@ class OrderAdmin(admin.ModelAdmin):
                                                                          delivered_at=timezone.now())
         messages.success(request, f"Marked {len(orders)} order(s) as delivered.")
 
-    @admin.action(description="Resend download link by email")
+    @admin.action(description="Resend download link by email — awaiting payment too")
     def resend_email(self, request, queryset):
         self._resend(request, queryset.exclude(email=""), Delivery.EMAIL)
 
