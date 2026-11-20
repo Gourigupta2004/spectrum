@@ -271,7 +271,7 @@ def classes(request):
     )
     hours = class_edit_hours()
     for cls in rows:
-        cls.edit_hours = hours  # one read of Site settings for the whole list
+        cls.edit_hours = hours  # one read of the setting for the whole list
     items = [{"id": cls.slug, "name": cls.name, "group": cls.group, "size": cls.size, "namedCount": cls.named,
               **submission_dict(cls)} for cls in rows]
     return {
@@ -345,7 +345,7 @@ def submission_dict(cls) -> dict:
 def class_submit(request, slug):
     """
     The teacher's Submit, after Review: every photo named so far locks, and
-    the first Submit starts the clock — the hours to finish a class (Site settings) to name the rest, add
+    the first Submit starts the clock — the Individual photos TTL (Institution portal pages) to name the rest, add
     absentees and comment, after which the whole class locks by itself.
     """
     member = require_member(request)

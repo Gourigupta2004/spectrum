@@ -81,10 +81,11 @@ def class_sort_key(name: str) -> str:
 
 
 def class_edit_hours() -> int:
-    """Hours a class stays open after its first Submit (Site settings)."""
-    from apps.content.models import SiteSettings
+    """Hours a class stays open after its first Submit (Institution portal
+    pages: Individual photos TTL)."""
+    from apps.content.models import PortalPage
 
-    return SiteSettings.load().class_edit_hours
+    return PortalPage.load().class_edit_hours
 
 
 class PortalAccessEmail(models.Model):
@@ -311,7 +312,7 @@ class SchoolClass(models.Model):
         help_text="Written by the institution on the website (Add Comments). The photo download puts it in the "
                   "class folder as comment.txt.")
     # The teacher's first Submit (Review, then Submit)
-    # opens a window (Site settings: hours to finish a class) to finish the class: each Submit
+    # opens a window (Individual photos TTL, on Institution portal pages) to finish the class: each Submit
     # locks the photos named so far, and the rest — unnamed photos,
     # absentees, the comment — stay open until the window ends.
     first_submitted_at = models.DateTimeField("first submitted", null=True, blank=True)

@@ -273,7 +273,7 @@ class AbsenteesAndCommentsTests(SpectrumTestCase):
 class ClassSubmitTests(SpectrumTestCase):
     """
     Review and Submit on a class page: each Submit locks the names given so
-    far; the first one starts the hours in Site settings to finish the rest, after which
+    far; the first one starts the Individual photos TTL to finish the rest, after which
     the whole class locks by itself.
     """
 
@@ -360,13 +360,13 @@ class ClassSubmitTests(SpectrumTestCase):
         self.cls.refresh_from_db()
         self.assertEqual(self.cls.submitted_at, self.cls.deadline)
 
-    def test_the_window_is_the_hours_in_site_settings(self):
-        from apps.content.models import SiteSettings
+    def test_the_window_is_the_ttl_on_institution_portal_pages(self):
+        from apps.content.models import PortalPage
 
         self.assertEqual(class_edit_hours(), 48)
-        site = SiteSettings.load()
-        site.class_edit_hours = 6
-        site.save()
+        page = PortalPage.load()
+        page.class_edit_hours = 6
+        page.save()
         result = self.api("post", "/api/portal/classes/6c/submit/").json()
         self.assertAlmostEqual(result["secondsLeft"], 6 * 3600, delta=60)
         self.assertEqual(result["editHours"], 6)
